@@ -1,16 +1,21 @@
 import { useReducer } from "react";
-import { CAPABILITIES } from "./constants";
-import type { Blueprint } from "./types";
+import type { Blueprint, DesignPlan } from "./types";
 
-export type Screen = 0 | 1 | 2 | 3 | 4 | 5; // Shape, DesignQ1, DesignQ2, Assemble, Blueprint, Build
+// Phases. Design is variable-length (0..N questions), so we track a design index
+// rather than a fixed screen number.
+export type Phase = "shape" | "planning" | "design" | "assemble" | "blueprint" | "build";
 
 export interface StudioState {
-  screen: Screen;
+  phase: Phase;
+  designIdx: number;                       // which design question we're on
   idea: string;
   expertise: string;
   interests: string[];
+  plan: DesignPlan | null;                 // SA-authored questions + cap preselection
+  planning: boolean;
+  planError: string | null;
   answers: Record<string, string>;         // question id -> option key ("other" allowed)
-  answersOther: Record<string, string>;    // question id -> free text
+  answersOther: Record<string, string>;
   capabilities: string[];                  // selected capability names
   blueprint: Blueprint | null;
   generating: boolean;
@@ -18,23 +23,31 @@ export interface StudioState {
 }
 
 const initial: StudioState = {
-  screen: 0,
+  phase: "shape",
+  designIdx: 0,
   idea: "",
   expertise: "New to it",
   interests: ["AI agents"],
+  plan: null,
+  planning: false,
+  planError: null,
   answers: {},
   answersOther: {},
-  capabilities: CAPABILITIES.filter((c) => c.preselected).map((c) => c.name),
+  capabilities: [],
   blueprint: null,
   generating: false,
   error: null,
 };
 
 type Action =
-  | { t: "go"; screen: Screen }
+  | { t: "phase"; phase: Phase }
+  | { t: "designIdx"; i: number }
   | { t: "idea"; v: string }
   | { t: "expertise"; v: string }
   | { t: "toggleInterest"; v: string }
+  | { t: "planStart" }
+  | { t: "planOk"; plan: DesignPlan }
+  | { t: "planErr"; e: string }
   | { t: "answer"; q: string; key: string }
   | { t: "answerOther"; q: string; v: string }
   | { t: "toggleCap"; v: string }
@@ -44,12 +57,18 @@ type Action =
 
 function reducer(s: StudioState, a: Action): StudioState {
   switch (a.t) {
-    case "go": return { ...s, screen: a.screen };
+    case "phase": return { ...s, phase: a.phase };
+    case "designIdx": return { ...s, designIdx: a.i };
     case "idea": return { ...s, idea: a.v };
     case "expertise": return { ...s, expertise: a.v };
     case "toggleInterest":
       return { ...s, interests: s.interests.includes(a.v)
         ? s.interests.filter((x) => x !== a.v) : [...s.interests, a.v] };
+    case "planStart": return { ...s, planning: true, planError: null };
+    case "planOk":
+      return { ...s, planning: false, plan: a.plan,
+        capabilities: a.plan.capabilities.filter((c) => c.selected).map((c) => c.name) };
+    case "planErr": return { ...s, planning: false, planError: a.e };
     case "answer": return { ...s, answers: { ...s.answers, [a.q]: a.key } };
     case "answerOther":
       return { ...s, answersOther: { ...s.answersOther, [a.q]: a.v }, answers: { ...s.answers, [a.q]: "other" } };

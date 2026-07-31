@@ -51,3 +51,40 @@ class GenerateRequest(BaseModel):
     interests: list[str] = Field(default_factory=list)
     design_answers: dict[str, str] = Field(default_factory=dict)
     capabilities: list[str] = Field(default_factory=list)
+
+
+# --- Design plan: SA-authored questions + capability preselection (M2.5) ---
+class DesignOption(BaseModel):
+    key: str            # short slug, unique within the question
+    letter: str         # "A" / "B" / "C"
+    label: str
+    sub: str = ""
+    preview: list[str] = Field(default_factory=list)  # [what-this-leads-to x2, tradeoff]
+
+
+class DesignQuestion(BaseModel):
+    id: str             # slug used as the answer key
+    eyebrow: str        # e.g. "Design · 1 of 3"
+    title: str
+    lead: str
+    options: list[DesignOption] = Field(default_factory=list)
+    other_placeholder: str = "None of these fit? Describe it in your own words…"
+    other_preview: list[str] = Field(default_factory=list)
+
+
+class CapabilityPick(BaseModel):
+    name: str           # must be one of the known 6 capabilities
+    selected: bool
+    fits: str = ""      # one-line rationale ("Fits: ...") or why it's optional
+
+
+class DesignPlan(BaseModel):
+    read_back: str = ""             # SA's one-line reflection of the idea (builds trust)
+    questions: list[DesignQuestion] = Field(default_factory=list)
+    capabilities: list[CapabilityPick] = Field(default_factory=list)
+
+
+class PlanRequest(BaseModel):
+    idea: str
+    expertise: str = "New to it"
+    interests: list[str] = Field(default_factory=list)

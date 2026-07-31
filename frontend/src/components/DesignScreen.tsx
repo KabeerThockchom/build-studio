@@ -1,38 +1,47 @@
-import type { DesignQuestion } from "../lib/constants";
+import type { DesignQuestion } from "../lib/types";
 
 interface Props {
   q: DesignQuestion;
+  readBack?: string;                 // shown on the first question only
   selected: string | undefined;      // option key or "other"
   otherText: string;
   onSelect: (key: string) => void;
   onOther: (v: string) => void;
   onBack: () => void;
   onNext: () => void;
+  nextLabel: string;
 }
 
-function Preview({ lines }: { lines: [string, string, string] }) {
+function Preview({ lines }: { lines: string[] }) {
+  const [a, b, c] = [lines[0] ?? "", lines[1] ?? "", lines[2] ?? ""];
   return (
     <div className="sticky top-0 rounded-2xl bg-navy px-[22px] py-5 text-[#eaf1f2]">
       <div className="mb-3 text-[10.5px] font-bold uppercase tracking-[0.1em] text-green-l">What this leads to</div>
-      <div className="mb-[11px] text-[13.5px] leading-relaxed text-[#c4d4d8]" dangerouslySetInnerHTML={{ __html: lines[0] }} />
-      <div className="mb-[11px] text-[13.5px] leading-relaxed text-[#c4d4d8]" dangerouslySetInnerHTML={{ __html: lines[1] }} />
-      <div className="mt-3 border-t border-white/10 pt-3 text-[12.5px] leading-snug text-[#a9c0c6]">
-        <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.06em] text-amber">Tradeoff</span>
-        {lines[2]}
-      </div>
+      <div className="mb-[11px] text-[13.5px] leading-relaxed text-[#c4d4d8]">{a}</div>
+      {b && <div className="mb-[11px] text-[13.5px] leading-relaxed text-[#c4d4d8]">{b}</div>}
+      {c && (
+        <div className="mt-3 border-t border-white/10 pt-3 text-[12.5px] leading-snug text-[#a9c0c6]">
+          <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.06em] text-amber">Tradeoff</span>{c}
+        </div>
+      )}
     </div>
   );
 }
 
-export function DesignScreen({ q, selected, otherText, onSelect, onOther, onBack, onNext }: Props) {
+export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOther, onBack, onNext, nextLabel }: Props) {
   const sel = q.options.find((o) => o.key === selected);
-  const previewLines = selected === "other" ? q.otherPreview : (sel?.preview ?? q.options[0].preview);
+  const previewLines = selected === "other" ? q.other_preview : (sel?.preview ?? q.options[0].preview);
 
   return (
     <div className="rise max-w-[1080px]">
       <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">{q.eyebrow}</div>
-      <h2 className="mb-3 text-[29px] font-extrabold leading-[1.1] tracking-[-0.022em] text-navy">{q.title}</h2>
-      <p className="mb-7 max-w-[56ch] text-[16.5px] leading-relaxed text-navy-2">{q.lead}</p>
+      {readBack && (
+        <div className="mb-5 rounded-xl border border-green-soft bg-green-soft/60 px-4 py-3 text-[14px] leading-relaxed text-green-ink">
+          {readBack}
+        </div>
+      )}
+      <h2 className="mb-3 text-[28px] font-extrabold leading-[1.12] tracking-[-0.022em] text-navy">{q.title}</h2>
+      {q.lead && <p className="mb-7 max-w-[56ch] text-[16px] leading-relaxed text-navy-2">{q.lead}</p>}
 
       <div className="grid grid-cols-[1fr_380px] gap-7 items-start">
         <div className="flex flex-col gap-2.5">
@@ -46,15 +55,14 @@ export function DesignScreen({ q, selected, otherText, onSelect, onOther, onBack
                   ${on ? "bg-green text-white" : "bg-oat text-navy-2"}`}>{o.letter}</span>
                 <span>
                   <b className="text-[15px] font-semibold text-navy">{o.label}</b>
-                  <small className="mt-0.5 block text-[12.5px] leading-snug text-navy-3">{o.sub}</small>
+                  {o.sub && <small className="mt-0.5 block text-[12.5px] leading-snug text-navy-3">{o.sub}</small>}
                 </span>
               </button>
             );
           })}
           <textarea rows={2} value={otherText}
             onChange={(e) => onOther(e.target.value)}
-            onFocus={() => onOther(otherText)}
-            placeholder={q.otherPlaceholder}
+            placeholder={q.other_placeholder}
             className={`mt-0.5 w-full resize-none rounded-xl border-[1.5px] border-dashed px-4 py-3 text-[14px] leading-snug text-navy outline-none focus:border-solid focus:border-green focus:ring-[3px] focus:ring-green-soft
               ${selected === "other" ? "border-green" : "border-line-2"}`} />
         </div>
@@ -65,7 +73,7 @@ export function DesignScreen({ q, selected, otherText, onSelect, onOther, onBack
         <button onClick={onBack} className="text-[14px] font-semibold text-navy-3 hover:text-navy">← Back</button>
         <button onClick={onNext} disabled={!selected}
           className="rounded-xl bg-green px-7 py-3.5 text-[15.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-green-l disabled:opacity-40">
-          Next →
+          {nextLabel}
         </button>
       </div>
     </div>

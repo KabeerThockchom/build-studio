@@ -1,13 +1,14 @@
-import { CAPABILITIES } from "../lib/constants";
+import type { CapabilityPick } from "../lib/types";
 
 interface Props {
-  selected: string[];
+  picks: CapabilityPick[];        // SA-authored, ordered; carries the "fits" rationale
+  selected: string[];             // current selection (user can toggle)
   onToggle: (name: string) => void;
   onBack: () => void;
   onNext: () => void;
 }
 
-export function AssembleScreen({ selected, onToggle, onBack, onNext }: Props) {
+export function AssembleScreen({ picks, selected, onToggle, onBack, onNext }: Props) {
   return (
     <div className="rise max-w-[1080px]">
       <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Assemble</div>
@@ -17,8 +18,9 @@ export function AssembleScreen({ selected, onToggle, onBack, onNext }: Props) {
       </p>
 
       <div className="grid grid-cols-3 gap-3.5">
-        {CAPABILITIES.map((c) => {
+        {picks.map((c) => {
           const on = selected.includes(c.name);
+          const wasPreselected = c.selected;
           return (
             <button key={c.name} onClick={() => onToggle(c.name)}
               className={`relative rounded-[15px] border-[1.5px] px-[18px] py-[17px] text-left transition-all
@@ -26,10 +28,9 @@ export function AssembleScreen({ selected, onToggle, onBack, onNext }: Props) {
               <span className={`absolute right-[14px] top-[15px] grid h-[22px] w-[22px] place-items-center rounded-[7px] border-2 text-[12px] font-bold text-white
                 ${on ? "border-green bg-green" : "border-line-2"}`}>{on ? "✓" : ""}</span>
               <div className="mb-2 font-mono text-[10.5px] font-medium uppercase tracking-[0.04em] text-green-ink">{c.name}</div>
-              <p className="min-h-[38px] pr-6 text-[13px] leading-snug text-navy-2">{c.blurb}</p>
-              {c.preselected
-                ? <span className="mt-2.5 inline-block rounded-md border border-[#c7ebda] bg-white px-2 py-0.5 text-[11px] font-bold text-green-ink">Fits: {c.fits}</span>
-                : <span className="mt-2.5 inline-block text-[11px] font-semibold text-navy-3">Optional — {c.fits}</span>}
+              {c.fits && (wasPreselected
+                ? <span className="inline-block rounded-md border border-[#c7ebda] bg-white px-2 py-0.5 text-[11px] font-bold text-green-ink">Fits: {c.fits}</span>
+                : <span className="inline-block text-[11px] font-semibold text-navy-3">Optional — {c.fits}</span>)}
             </button>
           );
         })}

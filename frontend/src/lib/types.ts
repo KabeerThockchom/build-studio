@@ -25,3 +25,17 @@ export interface GenerateRequest {
   design_answers?: Record<string, string>;
   capabilities?: string[];
 }
+
+// --- Design plan (SA-authored) ---
+export interface DesignOption { key: string; letter: string; label: string; sub: string; preview: string[]; }
+export interface DesignQuestion {
+  id: string; eyebrow: string; title: string; lead: string;
+  options: DesignOption[]; other_placeholder: string; other_preview: string[];
+}
+export interface CapabilityPick { name: string; selected: boolean; fits: string; }
+export interface DesignPlan {
+  read_back: string;
+  questions: DesignQuestion[];
+  capabilities: CapabilityPick[];
+}
+

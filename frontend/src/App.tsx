@@ -1,8 +1,8 @@
-import { useStudio, type Screen } from "./lib/store";
+import { useStudio, type Phase } from "./lib/store";
 import { api } from "./lib/api";
-import { DESIGN_QUESTIONS } from "./lib/constants";
 import { LeftRail } from "./components/LeftRail";
 import { ShapeScreen } from "./components/ShapeScreen";
+import { PlanningScreen } from "./components/PlanningScreen";
 import { DesignScreen } from "./components/DesignScreen";
 import { AssembleScreen } from "./components/AssembleScreen";
 import { BlueprintScreen } from "./components/BlueprintScreen";
@@ -10,13 +10,54 @@ import { BuildScreen } from "./components/BuildScreen";
 
 export default function App() {
   const { state, dispatch } = useStudio();
-  const go = (screen: Screen) => dispatch({ t: "go", screen });
+  const go = (phase: Phase, i?: number) => {
+    dispatch({ t: "phase", phase });
+    if (phase === "design" && i != null) dispatch({ t: "designIdx", i });
+  };
 
+  // --- Shape -> plan the design conversation (the SA call) ---
+  async function startPlanning() {
+    dispatch({ t: "phase", phase: "planning" });
+    dispatch({ t: "planStart" });
+    try {
+      const { plan } = await api.planDesign({ idea: state.idea, expertise: state.expertise, interests: state.interests });
+      dispatch({ t: "planOk", plan });
+      dispatch({ t: "designIdx", i: 0 });
+      dispatch({ t: "phase", phase: "design" });
+    } catch (e: any) {
+      dispatch({ t: "planErr", e: e.message || "Something went wrong" });
+    }
+  }
+  function skipToFallbackPlan() {
+    // The backend already falls back on its own; this path only triggers if the
+    // whole request failed (network). Re-issue — the server returns a curated plan.
+    startPlanning();
+  }
+
+  const questions = state.plan?.questions ?? [];
+
+  function nextDesign() {
+    if (state.designIdx < questions.length - 1) {
+      dispatch({ t: "designIdx", i: state.designIdx + 1 });
+    } else {
+      dispatch({ t: "phase", phase: "assemble" });
+    }
+  }
+  function backDesign() {
+    if (state.designIdx > 0) dispatch({ t: "designIdx", i: state.designIdx - 1 });
+    else dispatch({ t: "phase", phase: "shape" });
+  }
+
+  // --- Assemble -> Blueprint (generate) ---
+  async function toBlueprint() {
+    dispatch({ t: "phase", phase: "blueprint" });
+    generate();
+  }
   async function generate() {
     dispatch({ t: "genStart" });
     try {
       const answers: Record<string, string> = {};
-      for (const q of DESIGN_QUESTIONS) {
+      for (const q of questions) {
         const key = state.answers[q.id];
         answers[q.id] = key === "other" ? (state.answersOther[q.id] || "other") : (key || "");
       }
@@ -30,45 +71,46 @@ export default function App() {
     }
   }
 
-  function toBlueprint() { go(4); generate(); }
+  const curQ = questions[state.designIdx];
+  const lastQ = state.designIdx === questions.length - 1;
 
   return (
     <div className="flex h-screen bg-oat">
-      <LeftRail screen={state.screen} go={go} />
+      <LeftRail state={state} go={go} />
       <main className="flex-1 overflow-y-auto px-[72px] py-12">
-        {state.screen === 0 && (
+        {state.phase === "shape" && (
           <ShapeScreen state={state}
             onIdea={(v) => dispatch({ t: "idea", v })}
             onExpertise={(v) => dispatch({ t: "expertise", v })}
             onToggleInterest={(v) => dispatch({ t: "toggleInterest", v })}
-            onNext={() => go(1)} />
+            onNext={startPlanning} />
         )}
-        {state.screen === 1 && (
-          <DesignScreen q={DESIGN_QUESTIONS[0]}
-            selected={state.answers[DESIGN_QUESTIONS[0].id]}
-            otherText={state.answersOther[DESIGN_QUESTIONS[0].id] || ""}
-            onSelect={(key) => dispatch({ t: "answer", q: DESIGN_QUESTIONS[0].id, key })}
-            onOther={(v) => dispatch({ t: "answerOther", q: DESIGN_QUESTIONS[0].id, v })}
-            onBack={() => go(0)} onNext={() => go(2)} />
+        {state.phase === "planning" && (
+          <PlanningScreen idea={state.idea} error={state.planError}
+            onRetry={startPlanning} onSkip={skipToFallbackPlan} />
         )}
-        {state.screen === 2 && (
-          <DesignScreen q={DESIGN_QUESTIONS[1]}
-            selected={state.answers[DESIGN_QUESTIONS[1].id]}
-            otherText={state.answersOther[DESIGN_QUESTIONS[1].id] || ""}
-            onSelect={(key) => dispatch({ t: "answer", q: DESIGN_QUESTIONS[1].id, key })}
-            onOther={(v) => dispatch({ t: "answerOther", q: DESIGN_QUESTIONS[1].id, v })}
-            onBack={() => go(1)} onNext={() => go(3)} />
+        {state.phase === "design" && curQ && (
+          <DesignScreen q={curQ}
+            readBack={state.designIdx === 0 ? state.plan?.read_back : undefined}
+            selected={state.answers[curQ.id]}
+            otherText={state.answersOther[curQ.id] || ""}
+            onSelect={(key) => dispatch({ t: "answer", q: curQ.id, key })}
+            onOther={(v) => dispatch({ t: "answerOther", q: curQ.id, v })}
+            onBack={backDesign} onNext={nextDesign}
+            nextLabel={lastQ ? "See what fits →" : "Next →"} />
         )}
-        {state.screen === 3 && (
-          <AssembleScreen selected={state.capabilities}
+        {state.phase === "assemble" && (
+          <AssembleScreen picks={state.plan?.capabilities ?? []} selected={state.capabilities}
             onToggle={(name) => dispatch({ t: "toggleCap", v: name })}
-            onBack={() => go(2)} onNext={toBlueprint} />
+            onBack={() => { dispatch({ t: "phase", phase: "design" }); dispatch({ t: "designIdx", i: questions.length - 1 }); }}
+            onNext={toBlueprint} />
         )}
-        {state.screen === 4 && (
+        {state.phase === "blueprint" && (
           <BlueprintScreen blueprint={state.blueprint} generating={state.generating} error={state.error}
-            onRetry={generate} onBack={() => go(3)} onNext={() => go(5)} />
+            onRetry={generate} onBack={() => dispatch({ t: "phase", phase: "assemble" })}
+            onNext={() => dispatch({ t: "phase", phase: "build" })} />
         )}
-        {state.screen === 5 && <BuildScreen blueprint={state.blueprint} onBack={() => go(4)} />}
+        {state.phase === "build" && <BuildScreen blueprint={state.blueprint} onBack={() => dispatch({ t: "phase", phase: "blueprint" })} />}
       </main>
     </div>
   );
