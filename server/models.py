@@ -89,3 +89,25 @@ class PlanRequest(BaseModel):
     idea: str
     expertise: str = "New to it"
     interests: list[str] = Field(default_factory=list)
+
+
+# --- Build phase: bite-sized guided Genie Code moves (M3) ---
+class BuildStep(BaseModel):
+    n: int
+    title: str                 # e.g. "Stand up a Genie space"
+    capability: str = ""       # which capability this step builds
+    concept: str               # 2-3 sentences: what you're doing & why it matters
+    move: str                  # the compact instruction to paste into Genie Code
+    verify: str                # "you'll know it worked when…"
+    teach: str = ""            # optional one-liner teaching a Genie Code / Databricks fact
+
+
+class BuildPlan(BaseModel):
+    steps: list[BuildStep] = Field(default_factory=list)
+
+
+class BuildRequest(BaseModel):
+    idea: str
+    expertise: str = "New to it"
+    capabilities: list[str] = Field(default_factory=list)
+    design_answers: dict[str, str] = Field(default_factory=dict)

@@ -40,3 +40,10 @@ export interface DesignPlan {
   capabilities: CapabilityPick[];
 }
 
+// --- Build phase ---
+export interface BuildStep {
+  n: number; title: string; capability: string;
+  concept: string; move: string; verify: string; teach: string;
+}
+export interface BuildPlan { steps: BuildStep[]; }
+

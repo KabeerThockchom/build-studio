@@ -38,7 +38,7 @@ export default function App() {
         }
       })
       .catch(() => {});
-  }, [state.phase, state.designIdx, state.blueprint]); // eslint-disable-line
+  }, [state.phase, state.designIdx, state.blueprint, state.buildStepIdx, state.buildDone]); // eslint-disable-line
 
   // If the user reached the end of the questions we had while the SA plan was
   // still loading, advance them as soon as the follow-ups arrive.
@@ -113,6 +113,24 @@ export default function App() {
     }
   }
 
+  // --- Blueprint -> Build (fetch the guided build plan once) ---
+  async function toBuild() {
+    dispatch({ t: "phase", phase: "build" });
+    if (state.buildPlan) return;  // already have it
+    dispatch({ t: "buildStart" });
+    try {
+      const answers: Record<string, string> = {};
+      for (const q of questions) answers[q.id] = state.answers[q.id] || "";
+      const plan = await api.buildPlan({
+        idea: state.idea, expertise: state.expertise,
+        capabilities: state.capabilities, design_answers: answers,
+      });
+      dispatch({ t: "buildOk", plan });
+    } catch {
+      dispatch({ t: "buildErr" });
+    }
+  }
+
   const curQ = questions[state.designIdx];
   const lastQ = state.designIdx === questions.length - 1;
 
@@ -148,9 +166,15 @@ export default function App() {
           <BlueprintScreen blueprint={state.blueprint} generating={state.generating} error={state.error}
             onRetry={() => generate()} onRefine={(note) => generate(note)}
             onBack={() => dispatch({ t: "phase", phase: "assemble" })}
-            onNext={() => dispatch({ t: "phase", phase: "build" })} />
+            onNext={toBuild} />
         )}
-        {state.phase === "build" && <BuildScreen blueprint={state.blueprint} onBack={() => dispatch({ t: "phase", phase: "blueprint" })} />}
+        {state.phase === "build" && (
+          <BuildScreen plan={state.buildPlan} loading={state.buildLoading}
+            stepIdx={state.buildStepIdx} done={state.buildDone}
+            onStep={(i) => dispatch({ t: "buildStep", i })}
+            onComplete={(n) => dispatch({ t: "buildComplete", n })}
+            onBack={() => dispatch({ t: "phase", phase: "blueprint" })} />
+        )}
       </main>
     </div>
   );

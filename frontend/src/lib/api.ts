@@ -1,4 +1,4 @@
-import type { Blueprint, GenerateRequest, DesignPlan } from "./types";
+import type { Blueprint, GenerateRequest, DesignPlan, BuildPlan } from "./types";
 
 async function j<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, opts);
@@ -30,4 +30,10 @@ export const api = {
       body: JSON.stringify({ session_id, state }),
     }),
   loadSession: (id: string) => j<{ state: any }>(`/api/session/${id}`),
+  buildPlan: (req: { idea: string; expertise?: string; capabilities?: string[]; design_answers?: Record<string, string> }) =>
+    j<BuildPlan>("/api/build_plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    }),
 };

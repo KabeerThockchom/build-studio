@@ -1,5 +1,5 @@
 import { useReducer } from "react";
-import type { Blueprint, DesignPlan, DesignQuestion, CapabilityPick } from "./types";
+import type { Blueprint, DesignPlan, DesignQuestion, CapabilityPick, BuildPlan } from "./types";
 import { FIRST_QUESTION } from "./constants";
 
 // Phases. Design is variable-length (Q1 hard-coded + SA follow-ups), so we track
@@ -22,6 +22,10 @@ export interface StudioState {
   blueprint: Blueprint | null;
   generating: boolean;
   error: string | null;
+  buildPlan: BuildPlan | null;
+  buildLoading: boolean;
+  buildStepIdx: number;
+  buildDone: number[];               // completed step numbers
 }
 
 // The full ordered question list = hard-coded Q1 + SA follow-ups (once loaded).
@@ -56,6 +60,10 @@ const initial: StudioState = {
   blueprint: null,
   generating: false,
   error: null,
+  buildPlan: null,
+  buildLoading: false,
+  buildStepIdx: 0,
+  buildDone: [],
 };
 
 type Action =
@@ -73,6 +81,11 @@ type Action =
   | { t: "genStart" }
   | { t: "genOk"; bp: Blueprint }
   | { t: "genErr"; e: string }
+  | { t: "buildStart" }
+  | { t: "buildOk"; plan: BuildPlan }
+  | { t: "buildErr" }
+  | { t: "buildStep"; i: number }
+  | { t: "buildComplete"; n: number }
   | { t: "hydrate"; s: Partial<StudioState> };
 
 // The slice of state worth persisting (not transient flags like generating).
@@ -81,6 +94,7 @@ export function persistable(s: StudioState) {
     phase: s.phase, designIdx: s.designIdx, idea: s.idea, expertise: s.expertise,
     interests: s.interests, plan: s.plan, answers: s.answers, answersOther: s.answersOther,
     capabilities: s.capabilities, blueprint: s.blueprint,
+    buildPlan: s.buildPlan, buildStepIdx: s.buildStepIdx, buildDone: s.buildDone,
   };
 }
 
@@ -107,7 +121,13 @@ function reducer(s: StudioState, a: Action): StudioState {
     case "genStart": return { ...s, generating: true, error: null };
     case "genOk": return { ...s, generating: false, blueprint: a.bp };
     case "genErr": return { ...s, generating: false, error: a.e };
-    case "hydrate": return { ...s, ...a.s, generating: false, planning: false, error: null, planError: null };
+    case "buildStart": return { ...s, buildLoading: true };
+    case "buildOk": return { ...s, buildLoading: false, buildPlan: a.plan, buildStepIdx: 0 };
+    case "buildErr": return { ...s, buildLoading: false };
+    case "buildStep": return { ...s, buildStepIdx: a.i };
+    case "buildComplete":
+      return { ...s, buildDone: s.buildDone.includes(a.n) ? s.buildDone : [...s.buildDone, a.n] };
+    case "hydrate": return { ...s, ...a.s, generating: false, planning: false, buildLoading: false, error: null, planError: null };
     default: return s;
   }
 }
