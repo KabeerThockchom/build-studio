@@ -154,7 +154,7 @@ export default function App() {
             onOther={(v) => dispatch({ t: "answerOther", q: curQ.id, v })}
             onBack={backDesign} onNext={nextDesign}
             nextLabel={waitingForMore ? "Thinking…" : (lastQ && !state.planning ? "See what fits →" : "Next →")}
-            nextBusy={waitingForMore} />
+            nextBusy={waitingForMore} planning={state.planning} isFirst={state.designIdx === 0} />
         )}
         {state.phase === "assemble" && (
           <AssembleScreen picks={shownPicks(state)} selected={state.capabilities}

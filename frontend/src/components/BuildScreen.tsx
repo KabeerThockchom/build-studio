@@ -112,6 +112,10 @@ function GeniePanel({ step }: { step: BuildStep }) {
         <div><b className="text-[13.5px] font-bold text-white">Genie Code</b>
           <small className="block text-[11px] text-[#6f8b93]">in your Databricks workspace</small></div>
       </div>
+      <div className="border-b border-white/10 px-4 py-2.5 text-[11.5px] leading-snug text-[#8aa2a8]">
+        Genie Code is Databricks' AI assistant, built into your workspace. Open it in a new
+        Agent chat and paste the step below — it runs the work for you, already signed in.
+      </div>
       <div className="flex flex-col gap-3.5 px-4 py-4">
         <div>
           <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#5a7079]">Genie Code</div>

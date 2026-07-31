@@ -11,6 +11,8 @@ interface Props {
   onNext: () => void;
   nextLabel: string;
   nextBusy?: boolean;
+  planning?: boolean;        // SA still generating tailored follow-ups
+  isFirst?: boolean;         // the hard-coded Q1
 }
 
 function Preview({ lines }: { lines: string[] }) {
@@ -29,13 +31,23 @@ function Preview({ lines }: { lines: string[] }) {
   );
 }
 
-export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOther, onBack, onNext, nextLabel, nextBusy }: Props) {
+export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOther, onBack, onNext, nextLabel, nextBusy, planning, isFirst }: Props) {
   const sel = q.options.find((o) => o.key === selected);
   const previewLines = selected === "other" ? q.other_preview : (sel?.preview ?? q.options[0].preview);
 
   return (
     <div className="rise max-w-[1080px]">
-      <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">{q.eyebrow}</div>
+      <div className="mb-4 flex items-center gap-3">
+        <span className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">{q.eyebrow}</span>
+        {isFirst && planning && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-soft px-2.5 py-1 text-[11px] font-semibold text-green-ink">
+            <span className="flex gap-0.5">
+              {[0, 1, 2].map((i) => <span key={i} className="h-1 w-1 rounded-full bg-green" style={{ animation: `dots 1.4s ${i * 0.16}s infinite ease-in-out` }} />)}
+            </span>
+            tailoring your next questions to this idea…
+          </span>
+        )}
+      </div>
       {readBack && (
         <div className="mb-5 rounded-xl border border-green-soft bg-green-soft/60 px-4 py-3 text-[14px] leading-relaxed text-green-ink">
           {readBack}
