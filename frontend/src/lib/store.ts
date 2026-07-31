@@ -72,7 +72,17 @@ type Action =
   | { t: "toggleCap"; v: string }
   | { t: "genStart" }
   | { t: "genOk"; bp: Blueprint }
-  | { t: "genErr"; e: string };
+  | { t: "genErr"; e: string }
+  | { t: "hydrate"; s: Partial<StudioState> };
+
+// The slice of state worth persisting (not transient flags like generating).
+export function persistable(s: StudioState) {
+  return {
+    phase: s.phase, designIdx: s.designIdx, idea: s.idea, expertise: s.expertise,
+    interests: s.interests, plan: s.plan, answers: s.answers, answersOther: s.answersOther,
+    capabilities: s.capabilities, blueprint: s.blueprint,
+  };
+}
 
 function reducer(s: StudioState, a: Action): StudioState {
   switch (a.t) {
@@ -97,6 +107,7 @@ function reducer(s: StudioState, a: Action): StudioState {
     case "genStart": return { ...s, generating: true, error: null };
     case "genOk": return { ...s, generating: false, blueprint: a.bp };
     case "genErr": return { ...s, generating: false, error: a.e };
+    case "hydrate": return { ...s, ...a.s, generating: false, planning: false, error: null, planError: null };
     default: return s;
   }
 }

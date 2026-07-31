@@ -23,4 +23,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req),
     }),
+  saveSession: (session_id: string | null, state: unknown) =>
+    j<{ ok: boolean; session_id: string; persisted: boolean }>("/api/session/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id, state }),
+    }),
+  loadSession: (id: string) => j<{ state: any }>(`/api/session/${id}`),
 };

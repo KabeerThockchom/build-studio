@@ -3,16 +3,30 @@
 Serves the API and the built React SPA. Reuses the North Star SPA-serving pattern.
 """
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from server import sessions
 
-app = FastAPI(title="Build Studio")
 
-from server.routes import health, blueprint, design  # noqa: E402
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        sessions.init_schema()   # no-op if Lakebase env not configured
+    except Exception as e:
+        print(f"session init warning: {e}")
+    yield
+    sessions.close()
+
+
+app = FastAPI(title="Build Studio", lifespan=lifespan)
+
+from server.routes import health, blueprint, design, session  # noqa: E402
 app.include_router(health.router, prefix="/api")
 app.include_router(blueprint.router, prefix="/api")
 app.include_router(design.router, prefix="/api")
+app.include_router(session.router, prefix="/api")
 
 # Serve the built React SPA (frontend/dist) when present.
 frontend_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")

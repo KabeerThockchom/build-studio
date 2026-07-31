@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useStudio, mergedQuestions, shownPicks, type Phase } from "./lib/store";
+import { useState, useEffect, useRef } from "react";
+import { useStudio, mergedQuestions, shownPicks, persistable, type Phase } from "./lib/store";
 import { api } from "./lib/api";
 import { LeftRail } from "./components/LeftRail";
 import { ShapeScreen } from "./components/ShapeScreen";
@@ -11,6 +11,34 @@ import { BuildScreen } from "./components/BuildScreen";
 export default function App() {
   const { state, dispatch } = useStudio();
   const [waitingForMore, setWaitingForMore] = useState(false);
+  const sessionId = useRef<string | null>(null);
+  const restored = useRef(false);
+
+  // Restore a saved session from ?s=<id> on first mount.
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("s");
+    if (!id) { restored.current = true; return; }
+    sessionId.current = id;
+    api.loadSession(id)
+      .then((r) => { if (r?.state) dispatch({ t: "hydrate", s: r.state }); })
+      .catch(() => {})
+      .finally(() => { restored.current = true; });
+  }, []);
+
+  // Auto-save whenever the phase changes (and once restored, not during restore).
+  useEffect(() => {
+    if (!restored.current || state.phase === "shape") return;
+    api.saveSession(sessionId.current, persistable(state))
+      .then((r) => {
+        if (r.session_id && r.session_id !== sessionId.current) {
+          sessionId.current = r.session_id;
+          const url = new URL(location.href);
+          url.searchParams.set("s", r.session_id);
+          history.replaceState(null, "", url.toString());
+        }
+      })
+      .catch(() => {});
+  }, [state.phase, state.designIdx, state.blueprint]); // eslint-disable-line
 
   // If the user reached the end of the questions we had while the SA plan was
   // still loading, advance them as soon as the follow-ups arrive.
