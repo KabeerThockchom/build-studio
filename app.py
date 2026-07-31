@@ -9,8 +9,9 @@ from fastapi.responses import FileResponse
 
 app = FastAPI(title="Build Studio")
 
-from server.routes import health  # noqa: E402
+from server.routes import health, blueprint  # noqa: E402
 app.include_router(health.router, prefix="/api")
+app.include_router(blueprint.router, prefix="/api")
 
 # Serve the built React SPA (frontend/dist) when present.
 frontend_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")
