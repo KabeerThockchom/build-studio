@@ -1,4 +1,6 @@
+import { useState } from "react";
 import Markdown from "react-markdown";
+import { RefreshCw } from "lucide-react";
 import type { Blueprint } from "../lib/types";
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
 
@@ -7,15 +9,43 @@ interface Props {
   generating: boolean;
   error: string | null;
   onRetry: () => void;
+  onRefine: (note: string) => void;
   onBack: () => void;
   onNext: () => void;
+}
+
+const REFINE_CHIPS = ["Make it simpler", "More detail in the plan", "Focus on the manager view", "Assume less Databricks knowledge"];
+
+function RefineBar({ onRefine, disabled }: { onRefine: (n: string) => void; disabled: boolean }) {
+  const [note, setNote] = useState("");
+  return (
+    <div className="mt-6 rounded-2xl border border-line bg-white px-5 py-4">
+      <div className="mb-2.5 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.08em] text-navy-3">
+        <RefreshCw className="h-3.5 w-3.5" /> Not quite right? Refine it
+      </div>
+      <div className="flex gap-2">
+        <input value={note} onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && note.trim()) { onRefine(note); setNote(""); } }}
+          placeholder="Tell the assistant what to change…"
+          className="flex-1 rounded-xl border-[1.5px] border-line px-4 py-2.5 text-[14px] text-navy outline-none focus:border-green focus:ring-[3px] focus:ring-green-soft" />
+        <button onClick={() => { if (note.trim()) { onRefine(note); setNote(""); } }} disabled={disabled || !note.trim()}
+          className="rounded-xl bg-navy px-5 py-2.5 text-[14px] font-bold text-white hover:bg-navy-2 disabled:opacity-40">Regenerate</button>
+      </div>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        {REFINE_CHIPS.map((c) => (
+          <button key={c} onClick={() => onRefine(c)} disabled={disabled}
+            className="rounded-full border border-line px-3 py-1 text-[12.5px] font-medium text-navy-2 hover:border-green hover:text-green-ink disabled:opacity-40">{c}</button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 const SectionH = ({ children }: { children: React.ReactNode }) => (
   <div className="mb-3 mt-6 text-[12px] font-bold uppercase tracking-[0.08em] text-navy-3">{children}</div>
 );
 
-export function BlueprintScreen({ blueprint, generating, error, onRetry, onBack, onNext }: Props) {
+export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefine, onBack, onNext }: Props) {
   return (
     <div className="rise max-w-[1080px]">
       <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Blueprint</div>
@@ -74,6 +104,7 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onBack,
               </div>
             </>
           )}
+          <RefineBar onRefine={onRefine} disabled={generating} />
         </>
       )}
 

@@ -51,6 +51,7 @@ class GenerateRequest(BaseModel):
     interests: list[str] = Field(default_factory=list)
     design_answers: dict[str, str] = Field(default_factory=dict)
     capabilities: list[str] = Field(default_factory=list)
+    adjust: str = ""            # optional refinement note ("make it simpler", ...)
 
 
 # --- Design plan: SA-authored questions + capability preselection (M2.5) ---

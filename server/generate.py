@@ -89,12 +89,17 @@ Return ONLY a single JSON object (no markdown fence, no prose around it) with th
 def _build_user_prompt(req: GenerateRequest) -> str:
     answers = "\n".join(f"  - {k}: {v}" for k, v in req.design_answers.items()) or "  (none)"
     caps = ", ".join(req.capabilities) or "(none chosen)"
+    adjust = ""
+    if req.adjust.strip():
+        adjust = (f"\nThe user reviewed a previous version and asked for this change — honor it:\n"
+                  f"  \"{req.adjust.strip()}\"\n")
     return (
         f"Idea (their words):\n\"\"\"\n{req.idea.strip()}\n\"\"\"\n\n"
         f"Who they are: {req.persona or 'unspecified'} · Databricks familiarity: {req.expertise}\n"
         f"Interests: {', '.join(req.interests) or 'unspecified'}\n"
         f"Design answers:\n{answers}\n\n"
-        f"Chosen capabilities: {caps}\n\n"
+        f"Chosen capabilities: {caps}\n"
+        f"{adjust}\n"
         "Write the plan JSON now."
     )
 

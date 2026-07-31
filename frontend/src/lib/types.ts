@@ -24,6 +24,7 @@ export interface GenerateRequest {
   interests?: string[];
   design_answers?: Record<string, string>;
   capabilities?: string[];
+  adjust?: string;
 }
 
 // --- Design plan (SA-authored) ---

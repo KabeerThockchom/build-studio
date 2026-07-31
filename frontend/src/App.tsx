@@ -67,7 +67,7 @@ export default function App() {
     dispatch({ t: "phase", phase: "blueprint" });
     generate();
   }
-  async function generate() {
+  async function generate(adjust = "") {
     dispatch({ t: "genStart" });
     try {
       const answers: Record<string, string> = {};
@@ -77,7 +77,7 @@ export default function App() {
       }
       const bp = await api.generateBlueprint({
         idea: state.idea, expertise: state.expertise, interests: state.interests,
-        design_answers: answers, capabilities: state.capabilities,
+        design_answers: answers, capabilities: state.capabilities, adjust,
       });
       dispatch({ t: "genOk", bp });
     } catch (e: any) {
@@ -118,7 +118,8 @@ export default function App() {
         )}
         {state.phase === "blueprint" && (
           <BlueprintScreen blueprint={state.blueprint} generating={state.generating} error={state.error}
-            onRetry={generate} onBack={() => dispatch({ t: "phase", phase: "assemble" })}
+            onRetry={() => generate()} onRefine={(note) => generate(note)}
+            onBack={() => dispatch({ t: "phase", phase: "assemble" })}
             onNext={() => dispatch({ t: "phase", phase: "build" })} />
         )}
         {state.phase === "build" && <BuildScreen blueprint={state.blueprint} onBack={() => dispatch({ t: "phase", phase: "blueprint" })} />}
