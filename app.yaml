@@ -1,0 +1,19 @@
+command:
+  - "python"
+  - "-m"
+  - "uvicorn"
+  - "app:app"
+  - "--host"
+  - "0.0.0.0"
+  - "--port"
+  - "8000"
+
+env:
+  # FMAPI model for all generation (Sonnet — omit temperature).
+  - name: SERVING_ENDPOINT
+    value: "databricks-claude-sonnet-5"
+  # Lakebase for auto-saved sessions. PGHOST/PGUSER/PGPORT/PGDATABASE are
+  # auto-injected by the attached database resource; ENDPOINT_NAME is the
+  # instance name used to mint per-connection credentials.
+  - name: ENDPOINT_NAME
+    value: "cona-workshop-lb"

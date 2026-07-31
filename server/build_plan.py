@@ -26,6 +26,10 @@ GUARDRAILS = {
         "write it to Unity Catalog tables. If existing: confirm the exact catalog.schema.table names. "
         "Notebook cells need the '# Databricks notebook source' header and '# COMMAND ----------' "
         "separators or cells silently merge."),
+    "Lakeflow": (
+        "This is the data step, done with Lakeflow (managed ingestion + ETL). Bring the source data into "
+        "Unity Catalog with a managed connector / pipeline rather than hand-rolled ETL; confirm the landed "
+        "tables have rows. For a workshop you can still start from a small sample if a live source isn't ready."),
     "Genie": (
         "A Genie space is the semantic layer over the tables. Creating the asset is NOT enough — you "
         "must configure it with the tables, the joins, and 1-2 example questions, and confirm it "
@@ -72,8 +76,11 @@ Order the steps exactly as given in the ORDER list.
 
 
 def _ordered_targets(req: BuildRequest) -> list[str]:
-    targets = ["data"] + [c for c in STEP_ORDER if c != "data" and c in req.capabilities]
-    return targets
+    # The first step is always about getting data in. If the user chose Lakeflow,
+    # that IS the data step (managed ingestion); otherwise it's a generic data step.
+    first = "Lakeflow" if "Lakeflow" in req.capabilities else "data"
+    rest = [c for c in STEP_ORDER if c not in ("data", "Lakeflow") and c in req.capabilities]
+    return [first] + rest
 
 
 def _user_prompt(req: BuildRequest) -> str:

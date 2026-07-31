@@ -42,7 +42,8 @@ here, phrase them in plain language, not jargon):
 - the scope/shape specific to their idea
 Do NOT ask about things outside Databricks' scope. Do NOT ask about who-it's-for.
 
-Ask 1-3 follow-up questions: 1 for a clear, specific idea; up to 3 for a vague or broad one.
+Ask 1-3 follow-up questions for most ideas (1 if it's already clear and specific). Only for a
+genuinely vague idea, you may ask a 4th. Fewer is better — never pad.
 
 Return ONLY one JSON object (no markdown fence, no prose) with this exact shape:
 {{
