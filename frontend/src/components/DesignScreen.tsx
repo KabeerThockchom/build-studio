@@ -10,6 +10,7 @@ interface Props {
   onBack: () => void;
   onNext: () => void;
   nextLabel: string;
+  nextBusy?: boolean;
 }
 
 function Preview({ lines }: { lines: string[] }) {
@@ -28,7 +29,7 @@ function Preview({ lines }: { lines: string[] }) {
   );
 }
 
-export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOther, onBack, onNext, nextLabel }: Props) {
+export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOther, onBack, onNext, nextLabel, nextBusy }: Props) {
   const sel = q.options.find((o) => o.key === selected);
   const previewLines = selected === "other" ? q.other_preview : (sel?.preview ?? q.options[0].preview);
 
@@ -71,7 +72,7 @@ export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOth
 
       <div className="mt-9 flex items-center justify-between">
         <button onClick={onBack} className="text-[14px] font-semibold text-navy-3 hover:text-navy">← Back</button>
-        <button onClick={onNext} disabled={!selected}
+        <button onClick={onNext} disabled={!selected || nextBusy}
           className="rounded-xl bg-green px-7 py-3.5 text-[15.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-green-l disabled:opacity-40">
           {nextLabel}
         </button>

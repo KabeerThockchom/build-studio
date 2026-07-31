@@ -1,8 +1,8 @@
-import { useStudio, type Phase } from "./lib/store";
+import { useState, useEffect } from "react";
+import { useStudio, mergedQuestions, shownPicks, type Phase } from "./lib/store";
 import { api } from "./lib/api";
 import { LeftRail } from "./components/LeftRail";
 import { ShapeScreen } from "./components/ShapeScreen";
-import { PlanningScreen } from "./components/PlanningScreen";
 import { DesignScreen } from "./components/DesignScreen";
 import { AssembleScreen } from "./components/AssembleScreen";
 import { BlueprintScreen } from "./components/BlueprintScreen";
@@ -10,35 +10,49 @@ import { BuildScreen } from "./components/BuildScreen";
 
 export default function App() {
   const { state, dispatch } = useStudio();
+  const [waitingForMore, setWaitingForMore] = useState(false);
+
+  // If the user reached the end of the questions we had while the SA plan was
+  // still loading, advance them as soon as the follow-ups arrive.
+  useEffect(() => {
+    if (waitingForMore && !state.planning) {
+      setWaitingForMore(false);
+      const total = 1 + (state.plan?.questions.length ?? 0);
+      if (state.designIdx < total - 1) dispatch({ t: "designIdx", i: state.designIdx + 1 });
+      else dispatch({ t: "phase", phase: "assemble" });
+    }
+  }, [waitingForMore, state.planning]); // eslint-disable-line
+
   const go = (phase: Phase, i?: number) => {
     dispatch({ t: "phase", phase });
     if (phase === "design" && i != null) dispatch({ t: "designIdx", i });
   };
 
-  // --- Shape -> plan the design conversation (the SA call) ---
-  async function startPlanning() {
-    dispatch({ t: "phase", phase: "planning" });
+  // --- Shape -> show Q1 instantly, generate the SA follow-ups in the background ---
+  function startDesign() {
+    dispatch({ t: "designIdx", i: 0 });
+    dispatch({ t: "phase", phase: "design" });
+    loadPlan();
+  }
+  async function loadPlan() {
     dispatch({ t: "planStart" });
     try {
       const { plan } = await api.planDesign({ idea: state.idea, expertise: state.expertise, interests: state.interests });
       dispatch({ t: "planOk", plan });
-      dispatch({ t: "designIdx", i: 0 });
-      dispatch({ t: "phase", phase: "design" });
     } catch (e: any) {
       dispatch({ t: "planErr", e: e.message || "Something went wrong" });
     }
   }
-  function skipToFallbackPlan() {
-    // The backend already falls back on its own; this path only triggers if the
-    // whole request failed (network). Re-issue — the server returns a curated plan.
-    startPlanning();
-  }
 
-  const questions = state.plan?.questions ?? [];
+  const questions = mergedQuestions(state);   // [hard-coded Q1, ...SA follow-ups]
 
   function nextDesign() {
+    // If more questions are still loading and we're at the end of what we have,
+    // wait rather than jumping to Assemble prematurely.
     if (state.designIdx < questions.length - 1) {
       dispatch({ t: "designIdx", i: state.designIdx + 1 });
+    } else if (state.planning) {
+      setWaitingForMore(true);   // handled by an effect once the plan lands
     } else {
       dispatch({ t: "phase", phase: "assemble" });
     }
@@ -83,24 +97,21 @@ export default function App() {
             onIdea={(v) => dispatch({ t: "idea", v })}
             onExpertise={(v) => dispatch({ t: "expertise", v })}
             onToggleInterest={(v) => dispatch({ t: "toggleInterest", v })}
-            onNext={startPlanning} />
-        )}
-        {state.phase === "planning" && (
-          <PlanningScreen idea={state.idea} error={state.planError}
-            onRetry={startPlanning} onSkip={skipToFallbackPlan} />
+            onNext={startDesign} />
         )}
         {state.phase === "design" && curQ && (
           <DesignScreen q={curQ}
-            readBack={state.designIdx === 0 ? state.plan?.read_back : undefined}
+            readBack={state.designIdx === 0 ? (state.plan?.read_back || undefined) : undefined}
             selected={state.answers[curQ.id]}
             otherText={state.answersOther[curQ.id] || ""}
             onSelect={(key) => dispatch({ t: "answer", q: curQ.id, key })}
             onOther={(v) => dispatch({ t: "answerOther", q: curQ.id, v })}
             onBack={backDesign} onNext={nextDesign}
-            nextLabel={lastQ ? "See what fits →" : "Next →"} />
+            nextLabel={waitingForMore ? "Thinking…" : (lastQ && !state.planning ? "See what fits →" : "Next →")}
+            nextBusy={waitingForMore} />
         )}
         {state.phase === "assemble" && (
-          <AssembleScreen picks={state.plan?.capabilities ?? []} selected={state.capabilities}
+          <AssembleScreen picks={shownPicks(state)} selected={state.capabilities}
             onToggle={(name) => dispatch({ t: "toggleCap", v: name })}
             onBack={() => { dispatch({ t: "phase", phase: "design" }); dispatch({ t: "designIdx", i: questions.length - 1 }); }}
             onNext={toBlueprint} />

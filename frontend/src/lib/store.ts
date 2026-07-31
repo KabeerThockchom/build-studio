@@ -1,9 +1,11 @@
 import { useReducer } from "react";
-import type { Blueprint, DesignPlan } from "./types";
+import type { Blueprint, DesignPlan, DesignQuestion, CapabilityPick } from "./types";
+import { FIRST_QUESTION } from "./constants";
 
-// Phases. Design is variable-length (0..N questions), so we track a design index
-// rather than a fixed screen number.
-export type Phase = "shape" | "planning" | "design" | "assemble" | "blueprint" | "build";
+// Phases. Design is variable-length (Q1 hard-coded + SA follow-ups), so we track
+// a design index rather than a fixed screen number. No separate "planning" phase —
+// Q1 shows instantly while the SA plan loads in the background.
+export type Phase = "shape" | "design" | "assemble" | "blueprint" | "build";
 
 export interface StudioState {
   phase: Phase;
@@ -20,6 +22,23 @@ export interface StudioState {
   blueprint: Blueprint | null;
   generating: boolean;
   error: string | null;
+}
+
+// The full ordered question list = hard-coded Q1 + SA follow-ups (once loaded).
+export function mergedQuestions(s: StudioState): DesignQuestion[] {
+  return [FIRST_QUESTION, ...(s.plan?.questions ?? [])];
+}
+// Capabilities to show in Assemble: SA picks once loaded, else a sensible default set.
+const DEFAULT_PICKS: CapabilityPick[] = [
+  { name: "Genie", selected: true, fits: "ask your data in plain English" },
+  { name: "Knowledge Assistant", selected: true, fits: "understand notes & docs" },
+  { name: "Supervisor agent", selected: true, fits: "tie the pieces together" },
+  { name: "Lakebase", selected: true, fits: "record decisions" },
+  { name: "Databricks Apps", selected: true, fits: "the front door" },
+  { name: "Lakeflow", selected: false, fits: "bring in live data" },
+];
+export function shownPicks(s: StudioState): CapabilityPick[] {
+  return s.plan?.capabilities ?? DEFAULT_PICKS;
 }
 
 const initial: StudioState = {

@@ -31,17 +31,18 @@ assume their build is an app, or an agent, or anything — you read THEIR idea a
 The ONLY capabilities you may pre-select from (never invent others):
 {chr(10).join(f'- {c}: {CAP_BLURB[c]}' for c in CAPABILITIES)}
 
-Ask questions that genuinely change the design for THIS idea. Good dimensions to consider
-(pick the ones that matter here, phrase them in plain language, not jargon):
-- who uses it and how (act fast / oversee / explore)
-- how fresh the data needs to be (live vs periodic)
+A first question about WHO it's for / how they want it is ALREADY being asked
+separately — do NOT repeat it. Generate only the follow-up questions that are
+specific to THIS idea. Good dimensions to consider (pick the ones that matter
+here, phrase them in plain language, not jargon):
 - where the data comes from (generate sample vs use existing tables vs bring a source)
+- how fresh the data needs to be (live vs periodic)
 - whether the value is mostly numbers, mostly documents/text, or both
 - how the result is delivered (an app they open, a dashboard, just answers)
-Do NOT ask about things outside Databricks' scope, and do NOT ask more than 4 questions.
+- the scope/shape specific to their idea
+Do NOT ask about things outside Databricks' scope. Do NOT ask about who-it's-for.
 
-Ask 2 questions for a clear, specific idea; up to 4 for a vague or broad one.
-The FIRST question should usually be about who it's for / how they want it.
+Ask 1-3 follow-up questions: 1 for a clear, specific idea; up to 3 for a vague or broad one.
 
 Return ONLY one JSON object (no markdown fence, no prose) with this exact shape:
 {{

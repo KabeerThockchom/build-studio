@@ -18,11 +18,11 @@ function buildSteps(s: StudioState): { group: string; steps: RailStep[] }[] {
   ];
 }
 
-const ORDER: Phase[] = ["shape", "planning", "design", "assemble", "blueprint", "build"];
+const ORDER: Phase[] = ["shape", "design", "assemble", "blueprint", "build"];
 
 export function LeftRail({ state, go }: { state: StudioState; go: (p: Phase, i?: number) => void }) {
   const groups = buildSteps(state);
-  const curRank = ORDER.indexOf(state.phase === "planning" ? "design" : state.phase);
+  const curRank = ORDER.indexOf(state.phase);
 
   return (
     <aside className="w-[250px] shrink-0 border-r border-line bg-white px-4 py-5 flex flex-col overflow-y-auto">
