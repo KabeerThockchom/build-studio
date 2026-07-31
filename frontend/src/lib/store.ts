@@ -1,11 +1,11 @@
 import { useReducer } from "react";
 import type { Blueprint, DesignPlan, DesignQuestion, CapabilityPick, BuildPlan } from "./types";
-import { FIRST_QUESTION } from "./constants";
 
-// Phases. Design is variable-length (Q1 hard-coded + SA follow-ups), so we track
-// a design index rather than a fixed screen number. No separate "planning" phase —
-// Q1 shows instantly while the SA plan loads in the background.
-export type Phase = "shape" | "design" | "assemble" | "blueprint" | "build";
+// Phases. "teach" is the interactive scrollytelling loader that plays while the
+// SA authors ALL design questions in the background — every design question is
+// tailored, so there's no instant hard-coded Q1 anymore. Design is variable-length,
+// so we track a design index rather than a fixed screen number.
+export type Phase = "shape" | "teach" | "design" | "assemble" | "blueprint" | "build";
 
 export interface StudioState {
   phase: Phase;
@@ -28,9 +28,9 @@ export interface StudioState {
   buildDone: number[];               // completed step numbers
 }
 
-// The full ordered question list = hard-coded Q1 + SA follow-ups (once loaded).
+// The full ordered question list — every question is SA-authored (tailored to the idea).
 export function mergedQuestions(s: StudioState): DesignQuestion[] {
-  return [FIRST_QUESTION, ...(s.plan?.questions ?? [])];
+  return s.plan?.questions ?? [];
 }
 // Capabilities to show in Assemble: SA picks once loaded, else a sensible default set.
 const DEFAULT_PICKS: CapabilityPick[] = [

@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useStudio, mergedQuestions, shownPicks, persistable, type Phase } from "./lib/store";
 import { api } from "./lib/api";
 import { LeftRail } from "./components/LeftRail";
 import { ShapeScreen } from "./components/ShapeScreen";
+import { TeachingLoader } from "./components/TeachingLoader";
 import { DesignScreen } from "./components/DesignScreen";
 import { AssembleScreen } from "./components/AssembleScreen";
 import { BlueprintScreen } from "./components/BlueprintScreen";
@@ -10,7 +11,6 @@ import { BuildScreen } from "./components/BuildScreen";
 
 export default function App() {
   const { state, dispatch } = useStudio();
-  const [waitingForMore, setWaitingForMore] = useState(false);
   const sessionId = useRef<string | null>(null);
   const restored = useRef(false);
 
@@ -40,26 +40,14 @@ export default function App() {
       .catch(() => {});
   }, [state.phase, state.designIdx, state.blueprint, state.buildStepIdx, state.buildDone]); // eslint-disable-line
 
-  // If the user reached the end of the questions we had while the SA plan was
-  // still loading, advance them as soon as the follow-ups arrive.
-  useEffect(() => {
-    if (waitingForMore && !state.planning) {
-      setWaitingForMore(false);
-      const total = 1 + (state.plan?.questions.length ?? 0);
-      if (state.designIdx < total - 1) dispatch({ t: "designIdx", i: state.designIdx + 1 });
-      else dispatch({ t: "phase", phase: "assemble" });
-    }
-  }, [waitingForMore, state.planning]); // eslint-disable-line
-
   const go = (phase: Phase, i?: number) => {
     dispatch({ t: "phase", phase });
     if (phase === "design" && i != null) dispatch({ t: "designIdx", i });
   };
 
-  // --- Shape -> show Q1 instantly, generate the SA follow-ups in the background ---
+  // --- Shape -> teaching loader, generate ALL tailored questions in background ---
   function startDesign() {
-    dispatch({ t: "designIdx", i: 0 });
-    dispatch({ t: "phase", phase: "design" });
+    dispatch({ t: "phase", phase: "teach" });
     loadPlan();
   }
   async function loadPlan() {
@@ -71,23 +59,21 @@ export default function App() {
       dispatch({ t: "planErr", e: e.message || "Something went wrong" });
     }
   }
+  // Leave the teaching loader for the (now-ready) tailored questions.
+  function enterDesign() {
+    dispatch({ t: "designIdx", i: 0 });
+    dispatch({ t: "phase", phase: "design" });
+  }
 
-  const questions = mergedQuestions(state);   // [hard-coded Q1, ...SA follow-ups]
+  const questions = mergedQuestions(state);   // all SA-authored, tailored to the idea
 
   function nextDesign() {
-    // If more questions are still loading and we're at the end of what we have,
-    // wait rather than jumping to Assemble prematurely.
-    if (state.designIdx < questions.length - 1) {
-      dispatch({ t: "designIdx", i: state.designIdx + 1 });
-    } else if (state.planning) {
-      setWaitingForMore(true);   // handled by an effect once the plan lands
-    } else {
-      dispatch({ t: "phase", phase: "assemble" });
-    }
+    if (state.designIdx < questions.length - 1) dispatch({ t: "designIdx", i: state.designIdx + 1 });
+    else dispatch({ t: "phase", phase: "assemble" });
   }
   function backDesign() {
     if (state.designIdx > 0) dispatch({ t: "designIdx", i: state.designIdx - 1 });
-    else dispatch({ t: "phase", phase: "shape" });
+    else dispatch({ t: "phase", phase: "teach" });
   }
 
   // --- Assemble -> Blueprint (generate) ---
@@ -145,6 +131,11 @@ export default function App() {
             onToggleInterest={(v) => dispatch({ t: "toggleInterest", v })}
             onNext={startDesign} />
         )}
+        {state.phase === "teach" && (
+          <TeachingLoader idea={state.idea} planning={state.planning}
+            ready={!state.planning && (state.plan?.questions.length ?? 0) > 0}
+            onEnter={enterDesign} />
+        )}
         {state.phase === "design" && curQ && (
           <DesignScreen q={curQ}
             readBack={state.designIdx === 0 ? (state.plan?.read_back || undefined) : undefined}
@@ -153,8 +144,7 @@ export default function App() {
             onSelect={(key) => dispatch({ t: "answer", q: curQ.id, key })}
             onOther={(v) => dispatch({ t: "answerOther", q: curQ.id, v })}
             onBack={backDesign} onNext={nextDesign}
-            nextLabel={waitingForMore ? "Thinking…" : (lastQ && !state.planning ? "See what fits →" : "Next →")}
-            nextBusy={waitingForMore} planning={state.planning} isFirst={state.designIdx === 0} />
+            nextLabel={lastQ ? "See what fits →" : "Next →"} />
         )}
         {state.phase === "assemble" && (
           <AssembleScreen picks={shownPicks(state)} selected={state.capabilities}

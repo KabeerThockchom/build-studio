@@ -18,7 +18,8 @@ function buildSteps(s: StudioState): { group: string; steps: RailStep[] }[] {
   ];
 }
 
-const ORDER: Phase[] = ["shape", "design", "assemble", "blueprint", "build"];
+// "teach" shares the Design group's rank — it's the lead-in to the questions.
+const ORDER: Phase[] = ["shape", "teach", "design", "assemble", "blueprint", "build"];
 
 export function LeftRail({ state, go }: { state: StudioState; go: (p: Phase, i?: number) => void }) {
   const groups = buildSteps(state);

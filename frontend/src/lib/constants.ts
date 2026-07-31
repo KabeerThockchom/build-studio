@@ -1,34 +1,7 @@
 import type { Band } from "./types";
-import type { DesignQuestion } from "./types";
 
-// Always-present first question — renders instantly while the SA generates the
-// tailored follow-ups in the background. Universal to any idea.
-export const FIRST_QUESTION: DesignQuestion = {
-  id: "audience",
-  eyebrow: "Design · getting started",
-  title: "Who is this for, and how do they want it?",
-  lead: "A human question, not a technical one. It shapes how the experience leads.",
-  options: [
-    { key: "act", letter: "A", label: "People who need to act quickly",
-      sub: "Busy; want to be told what matters and what to do next.",
-      preview: ["It opens on a ranked shortlist of what needs attention.",
-                "Detail sits one layer in, when they want more.",
-                "More upfront ranking logic, far less asked of the user."] },
-    { key: "oversee", letter: "B", label: "People overseeing a lot at once",
-      sub: "Want the big picture and where to focus.",
-      preview: ["It opens on a grouped overview so patterns jump out.",
-                "Drill into any group to dig deeper.",
-                "Great for oversight; less immediate for a single next action."] },
-    { key: "explore", letter: "C", label: "People who want to explore",
-      sub: "Prefer to ask their own questions.",
-      preview: ["It opens on an open question box, exploration first.",
-                "No ranking imposed; the person drives.",
-                "Most flexible, but assumes they know what to ask."] },
-  ],
-  other_placeholder: "None of these fit? Describe who it's for in your words…",
-  other_preview: ["We'll adapt to the audience you describe.",
-                  "The rest of the design flexes to match.", "Most tailored."],
-};
+// Every design question is now SA-authored (tailored to the idea) — generated in
+// the background while the teaching loader plays. No hard-coded first question.
 
 export const EXPERTISE = ["New to it", "Familiar", "Advanced"] as const;
 export const INTERESTS = ["Analytics & BI", "AI agents", "Data pipelines", "Apps", "Open to anything"] as const;

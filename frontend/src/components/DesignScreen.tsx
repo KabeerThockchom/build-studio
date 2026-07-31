@@ -10,9 +10,6 @@ interface Props {
   onBack: () => void;
   onNext: () => void;
   nextLabel: string;
-  nextBusy?: boolean;
-  planning?: boolean;        // SA still generating tailored follow-ups
-  isFirst?: boolean;         // the hard-coded Q1
 }
 
 function Preview({ lines }: { lines: string[] }) {
@@ -31,7 +28,7 @@ function Preview({ lines }: { lines: string[] }) {
   );
 }
 
-export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOther, onBack, onNext, nextLabel, nextBusy, planning, isFirst }: Props) {
+export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOther, onBack, onNext, nextLabel }: Props) {
   const sel = q.options.find((o) => o.key === selected);
   const previewLines = selected === "other" ? q.other_preview : (sel?.preview ?? q.options[0].preview);
 
@@ -39,14 +36,6 @@ export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOth
     <div className="rise max-w-[1080px]">
       <div className="mb-4 flex items-center gap-3">
         <span className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">{q.eyebrow}</span>
-        {isFirst && planning && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-soft px-2.5 py-1 text-[11px] font-semibold text-green-ink">
-            <span className="flex gap-0.5">
-              {[0, 1, 2].map((i) => <span key={i} className="h-1 w-1 rounded-full bg-green" style={{ animation: `dots 1.4s ${i * 0.16}s infinite ease-in-out` }} />)}
-            </span>
-            tailoring your next questions to this idea…
-          </span>
-        )}
       </div>
       {readBack && (
         <div className="mb-5 rounded-xl border border-green-soft bg-green-soft/60 px-4 py-3 text-[14px] leading-relaxed text-green-ink">
@@ -84,7 +73,7 @@ export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOth
 
       <div className="mt-9 flex items-center justify-between">
         <button onClick={onBack} className="text-[14px] font-semibold text-navy-3 hover:text-navy">← Back</button>
-        <button onClick={onNext} disabled={!selected || nextBusy}
+        <button onClick={onNext} disabled={!selected}
           className="rounded-xl bg-green px-7 py-3.5 text-[15.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-green-l disabled:opacity-40">
           {nextLabel}
         </button>
