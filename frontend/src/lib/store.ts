@@ -12,6 +12,7 @@ export interface StudioState {
   designIdx: number;                       // which design question we're on
   idea: string;
   industry: string;                        // implied from a gallery sample; silent
+  sampleStarter: string;                   // exact starter text of the picked sample (for edit detection)
   expertise: string;
   interests: string[];
   plan: DesignPlan | null;                 // SA-authored questions + cap preselection
@@ -46,11 +47,12 @@ export function shownPicks(s: StudioState): CapabilityPick[] {
   return s.plan?.capabilities ?? DEFAULT_PICKS;
 }
 
-const initial: StudioState = {
+export const initialState: StudioState = {
   phase: "shape",
   designIdx: 0,
   idea: "",
   industry: "",
+  sampleStarter: "",
   expertise: "New to it",
   interests: ["AI agents"],
   plan: null,
@@ -73,7 +75,7 @@ type Action =
   | { t: "phase"; phase: Phase }
   | { t: "designIdx"; i: number }
   | { t: "idea"; v: string }
-  | { t: "pickSample"; idea: string; industry: string; components: string[] }
+  | { t: "pickSample"; idea: string; industry: string; components: string[]; interests: string[] }
   | { t: "expertise"; v: string }
   | { t: "toggleInterest"; v: string }
   | { t: "planStart" }
@@ -95,24 +97,34 @@ type Action =
 // The slice of state worth persisting (not transient flags like generating).
 export function persistable(s: StudioState) {
   return {
-    phase: s.phase, designIdx: s.designIdx, idea: s.idea, industry: s.industry, expertise: s.expertise,
+    phase: s.phase, designIdx: s.designIdx, idea: s.idea, industry: s.industry,
+    sampleStarter: s.sampleStarter, expertise: s.expertise,
     interests: s.interests, plan: s.plan, answers: s.answers, answersOther: s.answersOther,
     capabilities: s.capabilities, capsPinned: s.capsPinned, blueprint: s.blueprint,
     buildPlan: s.buildPlan, buildStepIdx: s.buildStepIdx, buildDone: s.buildDone,
   };
 }
 
-function reducer(s: StudioState, a: Action): StudioState {
+export function reducer(s: StudioState, a: Action): StudioState {
   switch (a.t) {
     case "phase": return { ...s, phase: a.phase };
     case "designIdx": return { ...s, designIdx: a.i };
-    case "idea": return { ...s, idea: a.v };
+    // Typing in the idea box. If they picked a sample and have now edited its starter
+    // text, the accelerator drops away: it becomes a custom idea, so we unpin the
+    // components (SA picks them) and clear the industry hint. No edit -> defaults hold.
+    case "idea": {
+      const edited = s.sampleStarter !== "" && a.v.trim() !== s.sampleStarter.trim();
+      if (edited) return { ...s, idea: a.v, industry: "", sampleStarter: "", capsPinned: false };
+      return { ...s, idea: a.v };
+    }
     // Picking a gallery sample seeds the (editable) idea, silently records the vertical,
-    // and pre-selects the sample's default app components (pinned so the SA plan, which
-    // lands later, won't overwrite them — the user's template choice wins, still tweakable).
+    // pre-selects the sample's default app components (pinned so the SA plan won't
+    // overwrite them), and lights up the matching interest chips. All still tweakable;
+    // editing the idea text afterward turns it back into a plain custom prompt (see "idea").
     case "pickSample":
-      return { ...s, idea: a.idea, industry: a.industry,
-        capabilities: a.components, capsPinned: a.components.length > 0 };
+      return { ...s, idea: a.idea, sampleStarter: a.idea, industry: a.industry,
+        capabilities: a.components, capsPinned: a.components.length > 0,
+        interests: a.interests.length ? a.interests : s.interests };
     case "expertise": return { ...s, expertise: a.v };
     case "toggleInterest":
       return { ...s, interests: s.interests.includes(a.v)
@@ -146,6 +158,6 @@ function reducer(s: StudioState, a: Action): StudioState {
 }
 
 export function useStudio() {
-  const [state, dispatch] = useReducer(reducer, initial);
+  const [state, dispatch] = useReducer(reducer, initialState);
   return { state, dispatch };
 }

@@ -127,7 +127,7 @@ export default function App() {
         {state.phase === "shape" && (
           <ShapeScreen state={state}
             onIdea={(v) => dispatch({ t: "idea", v })}
-            onPickSample={(idea, industry, components) => dispatch({ t: "pickSample", idea, industry, components })}
+            onPickSample={(idea, industry, components, interests) => dispatch({ t: "pickSample", idea, industry, components, interests })}
             onExpertise={(v) => dispatch({ t: "expertise", v })}
             onToggleInterest={(v) => dispatch({ t: "toggleInterest", v })}
             onNext={startDesign} />

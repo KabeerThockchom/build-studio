@@ -30,6 +30,17 @@ export interface GalleryVertical {
   columns: OutcomeColumn[]; // exactly 3 columns per vertical
 }
 
+// Map a sample's app pieces to the interest chips on the Shape page, so picking a
+// card lights up what shapes it. "Apps" is on nearly everything; an agent/assistant
+// shape reads as "AI agents", otherwise a data-question shape reads as "Analytics & BI".
+export function interestsForComponents(components: string[]): string[] {
+  const out: string[] = [];
+  if (components.includes("Supervisor agent") || components.includes("Knowledge Assistant")) out.push("AI agents");
+  else if (components.includes("Genie")) out.push("Analytics & BI");
+  if (components.includes("Databricks Apps")) out.push("Apps");
+  return out;
+}
+
 export const GALLERY: GalleryVertical[] = [
   {
     id: "retail",
