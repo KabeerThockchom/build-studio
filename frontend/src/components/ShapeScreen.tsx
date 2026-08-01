@@ -20,12 +20,38 @@ export function ShapeScreen({ state, onIdea, onPickSample, onExpertise, onToggle
         Describe it in a few sentences, in your own words. The more you tell us about the problem and who it helps, the better we can shape it with you.
       </p>
 
+      {/* Inputs grouped on the left, guidance on the right — one consistent divide. */}
       <div className="grid grid-cols-[1.5fr_1fr] gap-8 items-start">
-        <textarea
-          value={state.idea} onChange={(e) => onIdea(e.target.value)}
-          placeholder={"Start typing…\n\nWhat's the problem? Who runs into it? What would a good outcome look like?"}
-          className="min-h-[180px] w-full resize-none rounded-2xl border-[1.5px] border-line bg-white px-6 py-5 text-[17px] leading-[1.55] text-navy outline-none focus:border-green focus:ring-4 focus:ring-green-soft"
-        />
+        <div className="flex flex-col gap-6">
+          <textarea
+            value={state.idea} onChange={(e) => onIdea(e.target.value)}
+            placeholder={"Start typing…\n\nWhat's the problem? Who runs into it? What would a good outcome look like?"}
+            className="min-h-[180px] w-full resize-none rounded-2xl border-[1.5px] border-line bg-white px-6 py-5 text-[17px] leading-[1.55] text-navy outline-none focus:border-green focus:ring-4 focus:ring-green-soft"
+          />
+          <div>
+            <div className="text-[13px] font-bold text-navy">How much Databricks do you know?</div>
+            <div className="mb-[11px] text-[12.5px] text-navy-3">Tunes how much we explain as we go.</div>
+            <div className="flex flex-wrap gap-2">
+              {EXPERTISE.map((e) => (
+                <button key={e} onClick={() => onExpertise(e)}
+                  className={`rounded-full border-[1.5px] px-4 py-2 text-[14px] font-semibold transition-colors
+                    ${state.expertise === e ? "border-navy bg-navy text-white" : "border-line bg-white text-navy-2 hover:border-navy-3"}`}>{e}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="text-[13px] font-bold text-navy">Interested in anything specific?</div>
+            <div className="mb-[11px] text-[12.5px] text-navy-3">Optional. Shapes what we surface, not a filter.</div>
+            <div className="flex flex-wrap gap-2">
+              {INTERESTS.map((it) => (
+                <button key={it} onClick={() => onToggleInterest(it)}
+                  className={`rounded-full border-[1.5px] px-4 py-2 text-[14px] font-semibold transition-colors
+                    ${state.interests.includes(it) ? "border-green bg-green text-white" : "border-line bg-white text-navy-2 hover:border-navy-3"}`}>{it}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-line bg-white px-[22px] py-5">
           <div className="mb-3 text-[12px] font-bold uppercase tracking-[0.06em] text-navy-3">A good description covers</div>
           <ul className="flex flex-col gap-[11px]">
@@ -42,31 +68,6 @@ export function ShapeScreen({ state, onIdea, onPickSample, onExpertise, onToggle
       </div>
 
       <SamplesGallery onPick={onPickSample} />
-
-      <div className="mt-8 grid grid-cols-2 gap-7">
-        <div>
-          <div className="text-[13px] font-bold text-navy">How much Databricks do you know?</div>
-          <div className="mb-[11px] text-[12.5px] text-navy-3">Tunes how much we explain as we go.</div>
-          <div className="flex flex-wrap gap-2">
-            {EXPERTISE.map((e) => (
-              <button key={e} onClick={() => onExpertise(e)}
-                className={`rounded-full border-[1.5px] px-4 py-2 text-[14px] font-semibold transition-colors
-                  ${state.expertise === e ? "border-navy bg-navy text-white" : "border-line bg-white text-navy-2 hover:border-navy-3"}`}>{e}</button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <div className="text-[13px] font-bold text-navy">Interested in anything specific?</div>
-          <div className="mb-[11px] text-[12.5px] text-navy-3">Optional. Shapes what we surface, not a filter.</div>
-          <div className="flex flex-wrap gap-2">
-            {INTERESTS.map((it) => (
-              <button key={it} onClick={() => onToggleInterest(it)}
-                className={`rounded-full border-[1.5px] px-4 py-2 text-[14px] font-semibold transition-colors
-                  ${state.interests.includes(it) ? "border-green bg-green text-white" : "border-line bg-white text-navy-2 hover:border-navy-3"}`}>{it}</button>
-            ))}
-          </div>
-        </div>
-      </div>
 
       <div className="mt-9 flex justify-end">
         <button onClick={onNext} disabled={state.idea.trim().length < 12}

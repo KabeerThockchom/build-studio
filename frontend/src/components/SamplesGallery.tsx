@@ -1,60 +1,75 @@
 import { useState } from "react";
-import { Sparkles, ChevronDown, ArrowUpRight } from "lucide-react";
-import { GALLERY } from "../lib/gallery";
+import { Sparkles, ArrowUpRight, X } from "lucide-react";
+import { GALLERY, type SampleApp } from "../lib/gallery";
 
-/* Progressive-disclosure samples gallery for the Shape screen. Collapsed by
-   default (just an affordance beside the idea box); expands to an outcome-map
-   grid — verticals as tabs, each a set of outcome-grouped columns of sample
-   apps. Picking a card SEEDS the idea box with an editable starter sentence and
-   silently records the vertical's industry for the SA prompt. It seeds; it does
-   not hijack — the user can edit freely afterward. */
+/* Samples gallery for the Shape screen. A teaser row of representative sample
+   apps is ALWAYS visible (discoverable without a click); "see all" expands the
+   full per-vertical outcome map. Picking any card SEEDS the idea box with an
+   editable starter and silently records the vertical's industry for the SA
+   prompt. It seeds; it does not hijack — the user edits freely afterward. */
 
 interface Props {
   onPick: (idea: string, industry: string) => void;
 }
 
+// One representative card per vertical for the always-on teaser row.
+const FEATURED: { app: SampleApp; industry: string }[] = GALLERY.map((v) => ({
+  app: v.columns[0].apps[0],
+  industry: v.industry,
+}));
+
 export function SamplesGallery({ onPick }: Props) {
-  const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [vert, setVert] = useState(GALLERY[0].id);
   const active = GALLERY.find((v) => v.id === vert) ?? GALLERY[0];
 
   return (
-    <div className="mt-5">
-      <button onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 text-[13.5px] font-semibold text-green-ink hover:text-green">
-        <Sparkles className="h-4 w-4" />
-        Need inspiration? See what people build
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+    <div className="mt-7">
+      <div className="mb-3 flex items-end justify-between">
+        <div className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.1em] text-navy-3">
+          <Sparkles className="h-4 w-4 text-green" /> Or start from an example
+        </div>
+        <button onClick={() => setShowAll((s) => !s)}
+          className="text-[13px] font-bold text-green-ink hover:text-green">
+          {showAll ? "Show fewer" : "See all examples →"}
+        </button>
+      </div>
 
-      {open && (
-        <div className="rise mt-4 rounded-2xl border border-line bg-white p-5">
-          {/* vertical tabs */}
-          <div className="mb-4 flex flex-wrap gap-2">
-            {GALLERY.map((v) => (
-              <button key={v.id} onClick={() => setVert(v.id)}
-                className={`rounded-full border-[1.5px] px-3.5 py-1.5 text-[13px] font-semibold transition-colors
-                  ${v.id === vert ? "border-navy bg-navy text-white" : "border-line bg-white text-navy-2 hover:border-navy-3"}`}>
-                {v.label}
-              </button>
-            ))}
+      {/* always-visible teaser row: one card per vertical */}
+      {!showAll && (
+        <div className="grid grid-cols-3 gap-3">
+          {FEATURED.map(({ app, industry }, i) => (
+            <SampleCard key={app.id} app={app} tag={GALLERY[i].label}
+              onClick={() => onPick(app.starter, industry)} />
+          ))}
+        </div>
+      )}
+
+      {/* expanded: full per-vertical outcome map */}
+      {showAll && (
+        <div className="rise rounded-2xl border border-line bg-white p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex flex-wrap gap-2">
+              {GALLERY.map((v) => (
+                <button key={v.id} onClick={() => setVert(v.id)}
+                  className={`rounded-full border-[1.5px] px-3.5 py-1.5 text-[13px] font-semibold transition-colors
+                    ${v.id === vert ? "border-navy bg-navy text-white" : "border-line bg-white text-navy-2 hover:border-navy-3"}`}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowAll(false)} className="text-navy-3 hover:text-navy" aria-label="Collapse examples">
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
-          {/* outcome-map: one column per business outcome */}
           <div className="grid grid-cols-3 gap-3.5">
             {active.columns.map((col) => (
               <div key={col.outcome}>
                 <div className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.1em] text-green-ink">{col.outcome}</div>
                 <div className="flex flex-col gap-2">
                   {col.apps.map((app) => (
-                    <button key={app.id} onClick={() => onPick(app.starter, active.industry)}
-                      className="group rounded-xl border border-line bg-oat/40 px-3.5 py-3 text-left transition-colors hover:border-green hover:bg-green-soft">
-                      <div className="flex items-start justify-between gap-2">
-                        <b className="text-[13.5px] font-semibold leading-tight text-navy">{app.label}</b>
-                        <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-line-2 group-hover:text-green" />
-                      </div>
-                      <p className="mt-1 text-[12px] leading-snug text-navy-3">{app.blurb}</p>
-                    </button>
+                    <SampleCard key={app.id} app={app} onClick={() => onPick(app.starter, active.industry)} />
                   ))}
                 </div>
               </div>
@@ -67,5 +82,19 @@ export function SamplesGallery({ onPick }: Props) {
         </div>
       )}
     </div>
+  );
+}
+
+function SampleCard({ app, tag, onClick }: { app: SampleApp; tag?: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="group flex h-full flex-col rounded-xl border border-line bg-white px-3.5 py-3 text-left transition-all hover:-translate-y-px hover:border-green hover:bg-green-soft hover:shadow-[0_6px_18px_rgba(0,168,112,0.1)]">
+      {tag && <div className="mb-1 text-[9.5px] font-bold uppercase tracking-[0.1em] text-navy-3">{tag}</div>}
+      <div className="flex items-start justify-between gap-2">
+        <b className="text-[13.5px] font-semibold leading-tight text-navy">{app.label}</b>
+        <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-line-2 group-hover:text-green" />
+      </div>
+      <p className="mt-1 text-[12px] leading-snug text-navy-3">{app.blurb}</p>
+    </button>
   );
 }
