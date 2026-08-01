@@ -20,6 +20,7 @@ export interface StudioState {
   answers: Record<string, string>;         // question id -> option key ("other" allowed)
   answersOther: Record<string, string>;
   capabilities: string[];                  // selected capability names
+  capsPinned: boolean;                     // a picked sample set the components; SA plan won't overwrite
   blueprint: Blueprint | null;
   generating: boolean;
   error: string | null;
@@ -58,6 +59,7 @@ const initial: StudioState = {
   answers: {},
   answersOther: {},
   capabilities: [],
+  capsPinned: false,
   blueprint: null,
   generating: false,
   error: null,
@@ -71,7 +73,7 @@ type Action =
   | { t: "phase"; phase: Phase }
   | { t: "designIdx"; i: number }
   | { t: "idea"; v: string }
-  | { t: "pickSample"; idea: string; industry: string }
+  | { t: "pickSample"; idea: string; industry: string; components: string[] }
   | { t: "expertise"; v: string }
   | { t: "toggleInterest"; v: string }
   | { t: "planStart" }
@@ -95,7 +97,7 @@ export function persistable(s: StudioState) {
   return {
     phase: s.phase, designIdx: s.designIdx, idea: s.idea, industry: s.industry, expertise: s.expertise,
     interests: s.interests, plan: s.plan, answers: s.answers, answersOther: s.answersOther,
-    capabilities: s.capabilities, blueprint: s.blueprint,
+    capabilities: s.capabilities, capsPinned: s.capsPinned, blueprint: s.blueprint,
     buildPlan: s.buildPlan, buildStepIdx: s.buildStepIdx, buildDone: s.buildDone,
   };
 }
@@ -105,16 +107,23 @@ function reducer(s: StudioState, a: Action): StudioState {
     case "phase": return { ...s, phase: a.phase };
     case "designIdx": return { ...s, designIdx: a.i };
     case "idea": return { ...s, idea: a.v };
-    // Picking a gallery sample seeds the (editable) idea and silently records the vertical.
-    case "pickSample": return { ...s, idea: a.idea, industry: a.industry };
+    // Picking a gallery sample seeds the (editable) idea, silently records the vertical,
+    // and pre-selects the sample's default app components (pinned so the SA plan, which
+    // lands later, won't overwrite them — the user's template choice wins, still tweakable).
+    case "pickSample":
+      return { ...s, idea: a.idea, industry: a.industry,
+        capabilities: a.components, capsPinned: a.components.length > 0 };
     case "expertise": return { ...s, expertise: a.v };
     case "toggleInterest":
       return { ...s, interests: s.interests.includes(a.v)
         ? s.interests.filter((x) => x !== a.v) : [...s.interests, a.v] };
     case "planStart": return { ...s, planning: true, planError: null };
     case "planOk":
+      // Keep the SA's questions, but only adopt its capability picks if a sample
+      // hasn't already pinned the components (the user's template choice wins).
       return { ...s, planning: false, plan: a.plan,
-        capabilities: a.plan.capabilities.filter((c) => c.selected).map((c) => c.name) };
+        capabilities: s.capsPinned ? s.capabilities
+          : a.plan.capabilities.filter((c) => c.selected).map((c) => c.name) };
     case "planErr": return { ...s, planning: false, planError: a.e };
     case "answer": return { ...s, answers: { ...s.answers, [a.q]: a.key } };
     case "answerOther":

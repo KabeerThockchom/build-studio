@@ -4,7 +4,7 @@ curated fallback so the flow never dead-ends if the model misbehaves.
 """
 import json
 from . import llm
-from .scope import WORKSHOP_SCOPE
+from .scope import WORKSHOP_SCOPE, VOICE
 from .models import DesignPlan, DesignQuestion, DesignOption, CapabilityPick, PlanRequest
 
 # The fixed capability vocabulary the SA may choose from (no inventing).
@@ -40,6 +40,8 @@ You speak plainly and warmly, like a good SA who respects the person's time. You
 assume their build is an app, or an agent, or anything — you read THEIR idea and adapt.
 
 {WORKSHOP_SCOPE}
+
+{VOICE}
 
 The ONLY capabilities you may pre-select from (never invent others):
 {chr(10).join(f'- {c}: {CAP_BLURB[c]}' for c in CAPABILITIES)}

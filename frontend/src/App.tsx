@@ -127,7 +127,7 @@ export default function App() {
         {state.phase === "shape" && (
           <ShapeScreen state={state}
             onIdea={(v) => dispatch({ t: "idea", v })}
-            onPickSample={(idea, industry) => dispatch({ t: "pickSample", idea, industry })}
+            onPickSample={(idea, industry, components) => dispatch({ t: "pickSample", idea, industry, components })}
             onExpertise={(v) => dispatch({ t: "expertise", v })}
             onToggleInterest={(v) => dispatch({ t: "toggleInterest", v })}
             onNext={startDesign} />
@@ -148,7 +148,7 @@ export default function App() {
             nextLabel={lastQ ? "See what fits →" : "Next →"} />
         )}
         {state.phase === "assemble" && (
-          <AssembleScreen picks={shownPicks(state)} selected={state.capabilities}
+          <AssembleScreen picks={shownPicks(state)} selected={state.capabilities} fromSample={state.capsPinned}
             onToggle={(name) => dispatch({ t: "toggleCap", v: name })}
             onBack={() => { dispatch({ t: "phase", phase: "design" }); dispatch({ t: "designIdx", i: questions.length - 1 }); }}
             onNext={toBlueprint} />

@@ -9,7 +9,7 @@ import { GALLERY, type SampleApp } from "../lib/gallery";
    prompt. It seeds; it does not hijack — the user edits freely afterward. */
 
 interface Props {
-  onPick: (idea: string, industry: string) => void;
+  onPick: (idea: string, industry: string, components: string[]) => void;
 }
 
 // One representative card per vertical for the always-on teaser row.
@@ -40,7 +40,7 @@ export function SamplesGallery({ onPick }: Props) {
         <div className="grid grid-cols-3 gap-3">
           {FEATURED.map(({ app, industry }, i) => (
             <SampleCard key={app.id} app={app} tag={GALLERY[i].label}
-              onClick={() => onPick(app.starter, industry)} />
+              onClick={() => onPick(app.starter, industry, app.components)} />
           ))}
         </div>
       )}
@@ -69,7 +69,7 @@ export function SamplesGallery({ onPick }: Props) {
                 <div className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.1em] text-green-ink">{col.outcome}</div>
                 <div className="flex flex-col gap-2">
                   {col.apps.map((app) => (
-                    <SampleCard key={app.id} app={app} onClick={() => onPick(app.starter, active.industry)} />
+                    <SampleCard key={app.id} app={app} onClick={() => onPick(app.starter, active.industry, app.components)} />
                   ))}
                 </div>
               </div>
@@ -77,7 +77,7 @@ export function SamplesGallery({ onPick }: Props) {
           </div>
 
           <p className="mt-4 text-[12px] text-navy-3">
-            Pick one to start from it — we'll drop it into the box above, yours to edit.
+            Pick one to start from it. We'll drop it into the box above, yours to edit.
           </p>
         </div>
       )}

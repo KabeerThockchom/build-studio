@@ -25,6 +25,14 @@ WORKSHOP_SCOPE = """WORKSHOP-DAY SCOPE — this is a build a new user finishes i
 - Favor what's demonstrably achievable in a day over what's impressive on a slide. If something
   is bigger than a day, name it as a follow-up rather than folding it into the build."""
 
+# Voice guardrail — the copy the model generates is read by brand-new users, so it
+# must sound like a plain-spoken person, not a product deck. Fed into every prompt.
+VOICE = """WRITING STYLE — write for someone brand new to this:
+- Plain, human language. No hype and no adjectives like powerful, seamless, cutting-edge, intelligent.
+- No jargon or internal product terms (do not write "RAG", "LLM", "semantic layer", "vector", "agentic").
+  Say what a thing does in everyday words instead.
+- Do NOT use em-dashes (—). Use a period, comma, or "like" instead. Keep sentences short."""
+
 # Things that routinely feel in-reach to a newcomer but do NOT fit a workshop day.
 # Used to guide the "save for later" list the SA surfaces on the blueprint.
 COMMON_LATER = [

@@ -113,8 +113,8 @@ function GeniePanel({ step }: { step: BuildStep }) {
           <small className="block text-[11px] text-[#6f8b93]">in your Databricks workspace</small></div>
       </div>
       <div className="border-b border-white/10 px-4 py-2.5 text-[11.5px] leading-snug text-[#8aa2a8]">
-        Genie Code is Databricks' AI assistant, built into your workspace. Open it in a new
-        Agent chat and paste the step below — it runs the work for you, already signed in.
+        Genie Code is the assistant built into your Databricks workspace. Open it in a new
+        Agent chat and paste the step below. It runs the work for you, already signed in.
       </div>
       <div className="flex flex-col gap-3.5 px-4 py-4">
         <div>
@@ -136,7 +136,7 @@ function GeniePanel({ step }: { step: BuildStep }) {
         <span className="grid h-6 w-6 place-items-center rounded-md" style={{ background: "#00A870" }}><Send className="h-3 w-3 text-[#08221a]" /></span>
       </div>
       <div className="flex items-center gap-1.5 border-t border-white/10 px-4 py-2.5 text-[11px] text-[#5a7079]">
-        <Sparkles className="h-3 w-3" /> Runs in your workspace — already signed in, no terminal needed.
+        <Sparkles className="h-3 w-3" /> Runs in your workspace. Already signed in, no terminal needed.
       </div>
     </aside>
   );

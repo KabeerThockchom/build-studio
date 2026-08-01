@@ -5,7 +5,7 @@ import { SamplesGallery } from "./SamplesGallery";
 interface Props {
   state: StudioState;
   onIdea: (v: string) => void;
-  onPickSample: (idea: string, industry: string) => void;
+  onPickSample: (idea: string, industry: string, components: string[]) => void;
   onExpertise: (v: string) => void;
   onToggleInterest: (v: string) => void;
   onNext: () => void;

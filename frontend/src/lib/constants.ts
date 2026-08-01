@@ -7,20 +7,6 @@ export const EXPERTISE = ["New to it", "Familiar", "Advanced"] as const;
 export const INTERESTS = ["Analytics & BI", "AI agents", "Data pipelines", "Apps", "Open to anything"] as const;
 
 // --- capability palette (Assemble) ---
-export interface Capability {
-  name: string;
-  blurb: string;
-  fits: string;      // rationale shown as the "Fits:" tag
-  preselected: boolean;
-}
-export const CAPABILITIES: Capability[] = [
-  { name: "Genie", blurb: "Turns plain-English questions into governed answers, no SQL.", fits: "catch what's slipping", preselected: true },
-  { name: "Knowledge Assistant", blurb: "Managed RAG over your notes and docs. Nothing to wire.", fits: "the \"why\" behind it", preselected: true },
-  { name: "Supervisor agent", blurb: "Picks the right piece per question and answers.", fits: "AI agents", preselected: true },
-  { name: "Lakebase", blurb: "Fast Postgres beside your data. What you flag sticks.", fits: "tell them what to do", preselected: true },
-  { name: "Databricks Apps", blurb: "Host the interface people actually open.", fits: "something they use daily", preselected: true },
-];
-
 // --- SVG node styling by band (mirrors prototype COLORS) ---
 export const BAND_LABELS: Record<Band, string> = {
   data: "Data", capability: "Capabilities", agent: "Agent", delivery: "Delivery",

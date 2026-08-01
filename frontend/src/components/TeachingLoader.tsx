@@ -36,15 +36,15 @@ const ROADMAP = [
 const TIPS = [
   { icon: Target, tag: "Be specific",
     title: "Specific beats verbose.",
-    body: "Name the real thing — the table, the metric, who looks at it. The clearer your intent, the closer the first result lands.",
+    body: "Name the real thing: the table, the metric, who looks at it. The clearer your intent, the closer the first result lands.",
     aside: '"Flag stores whose weekly sales dropped >15% vs last month" › "make it better"' },
   { icon: ShieldCheck, tag: "Trust, but verify",
     title: "Read what it built.",
-    body: "It writes real code and runs it on real data — fast and usually right. But you're the one who ships it, so glance at each step and confirm the number makes sense.",
+    body: "It writes real code and runs it on real data, fast and usually right. But you're the one who ships it, so glance at each step and confirm the number makes sense.",
     aside: "You stay the reviewer. It does the typing." },
   { icon: RefreshCw, tag: "Iteration is the point",
     title: "The first pass is a draft.",
-    body: "Nobody nails it in one prompt. Say what's off — \"group by region, not store\" — and go again. Small corrections compound into what you pictured.",
+    body: "Nobody nails it in one prompt. Say what's off, like \"group by region, not store,\" and go again. Small corrections compound into what you pictured.",
     aside: "Steer in small nudges, not one giant prompt." },
 ];
 
@@ -59,8 +59,8 @@ function BeatOrient({ idea }: { idea: string }) {
       </h1>
       <p className="mt-5 max-w-[54ch] text-[17px] leading-relaxed text-navy-2">
         {idea1
-          ? <>Give us a few seconds with <span className="font-semibold text-navy">"{idea1}"</span>. While we do, here's the path we'll take together — and a couple of things worth knowing first.</>
-          : <>Give us a few seconds. While we do, here's the path we'll take together — and a couple of things worth knowing first.</>}
+          ? <>Give us a few seconds with <span className="font-semibold text-navy">"{idea1}"</span>. While we do, here's the path we'll take together, and a couple of things worth knowing first.</>
+          : <>Give us a few seconds. While we do, here's the path we'll take together, and a couple of things worth knowing first.</>}
       </p>
       {/* the workshop path */}
       <div className="mt-8 flex flex-wrap items-stretch gap-2">
@@ -89,14 +89,14 @@ function BeatMindset() {
         You're the architect,<br />not the bricklayer.
       </h1>
       <p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-navy-2">
-        The agent handles the syntax and plumbing now. Your job is the part only you can do —
+        The agent handles the syntax and plumbing now. Your job is the part only you can do:
         deciding <span className="font-semibold text-navy">what</span> is worth building.
       </p>
       <div className="mt-7 grid grid-cols-2 gap-3.5">
         <div className="rounded-2xl border border-line bg-white p-5">
           <div className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.12em] text-navy-3">The old bottleneck</div>
           <div className="text-[16px] font-bold text-navy-2 line-through decoration-line-2 decoration-2">How do I build it?</div>
-          <p className="mt-2.5 text-[13px] leading-relaxed text-navy-3">Which library, what schema, why won't this join run — hours on plumbing before you learn anything.</p>
+          <p className="mt-2.5 text-[13px] leading-relaxed text-navy-3">Which library, what schema, why won't this join run. Hours on plumbing before you learn anything.</p>
         </div>
         <div className="rounded-2xl border-[1.5px] border-green bg-green-soft p-5">
           <div className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.12em] text-green-ink">The new one</div>
@@ -138,60 +138,79 @@ function BeatHabits() {
   );
 }
 
-function BeatPieces() {
+// Two foundational beats, one per piece, so a newcomer meets each on its own.
+function BeatGenie() {
   return (
     <div>
-      <div className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">The pieces you'll use</div>
-      <h1 className="text-[34px] font-extrabold leading-[1.1] tracking-[-0.025em] text-navy">Two ways to talk to your data.</h1>
-      <p className="mt-3 max-w-[54ch] text-[15px] leading-relaxed text-navy-2">
-        Everything runs inside Databricks — already signed in, already governed. You meet it through
-        two front doors, depending on whether you're <span className="font-semibold text-navy">asking</span> or <span className="font-semibold text-navy">building</span>.
+      <div className="mb-2 flex items-center gap-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">
+        The first piece · for everyone
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 place-items-center rounded-xl bg-green-soft text-green-ink"><GenieMark className="h-5 w-5" /></span>
+        <h1 className="text-[34px] font-extrabold leading-[1.05] tracking-[-0.025em] text-navy">Meet Genie.</h1>
+      </div>
+      <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-navy-2">
+        Genie lets anyone <span className="font-semibold text-navy">ask questions of your data in plain English</span> and
+        get a real answer back. You type a question the way you'd say it out loud. Genie figures out
+        the query, runs it against your tables, and replies in a sentence. No SQL, no waiting on an analyst.
       </p>
 
-      <div className="mt-6 grid grid-cols-2 gap-3.5">
-        {/* Genie */}
-        <div className="overflow-hidden rounded-2xl border border-line bg-white">
-          <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-            <span className="grid h-6 w-6 place-items-center rounded-lg bg-green-soft text-green-ink"><GenieMark className="h-3.5 w-3.5" /></span>
-            <b className="text-[13px] font-bold text-navy">Genie</b>
-            <span className="ml-auto text-[10.5px] font-medium text-navy-3">for everyone</span>
-          </div>
-          <div className="px-4 py-4">
-            <div className="rounded-lg border border-line bg-oat px-3 py-2 text-[13px] text-navy">
-              Which regions are down this quarter?<span className="tl-caret font-semibold text-green">|</span>
-            </div>
-            <p className="mt-3 text-[13px] leading-relaxed text-navy-2">
-              Ask in plain English. Genie writes the SQL, runs it on your governed tables, and answers
-              in a sentence — how a business user gets to data without waiting on anyone.
-            </p>
-          </div>
+      <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-white">
+        <div className="flex items-center gap-2 border-b border-line px-4 py-3">
+          <span className="grid h-6 w-6 place-items-center rounded-lg bg-green-soft text-green-ink"><GenieMark className="h-3.5 w-3.5" /></span>
+          <b className="text-[13px] font-bold text-navy">Genie</b>
         </div>
-        {/* Genie Code */}
-        <div className="overflow-hidden rounded-2xl border border-line" style={{ background: "#132029" }}>
-          <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-            <span className="grid h-6 w-6 place-items-center rounded-lg text-white" style={{ background: "linear-gradient(135deg,#00A870,#2BC48A)" }}>◆</span>
-            <b className="text-[13px] font-bold text-white">Genie Code</b>
-            <span className="ml-auto text-[10.5px] font-medium text-[#6f8b93]">for builders — you</span>
+        <div className="px-4 py-4">
+          <div className="rounded-lg border border-line bg-oat px-3.5 py-2.5 text-[14px] text-navy">
+            Which regions are down this quarter?<span className="tl-caret font-semibold text-green">|</span>
           </div>
-          <div className="px-4 py-4">
-            <div className="rounded-lg bg-green/15 px-3 py-2 text-[12.5px] leading-relaxed text-[#eafaf3]">
-              Build a table of daily sales, then an app that flags stores falling behind.
-            </div>
-            <p className="mt-3 text-[13px] leading-relaxed text-[#c4d4d8]">
-              Describe what to build; it writes and runs the code in your workspace. The same agent
-              that powers this Studio — it's what you'll build with today.
-            </p>
+          <div className="mt-3 rounded-lg bg-green-soft px-3.5 py-2.5 text-[13.5px] leading-relaxed text-navy">
+            The Northeast and Midwest are both down from last quarter, about 8% and 5%. The rest held steady.
           </div>
         </div>
       </div>
+      <p className="mt-4 text-[14px] leading-relaxed text-navy-3">
+        Who it's for: the business users and analysts on your team who need answers, not a data project.
+      </p>
+    </div>
+  );
+}
 
-      <div className="mt-3.5 flex items-start gap-2.5 rounded-xl border border-line bg-white px-4 py-3">
-        <span className="mt-0.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-navy-3">Underneath</span>
-        <p className="text-[13px] leading-relaxed text-navy-2">
-          Both sit on one governed platform — the same Lakehouse, the same Unity Catalog permissions.
-          <span className="text-navy-3"> (And when a whole org brings its own coding agents, Omnigent governs them under one roof — for later, not today.)</span>
-        </p>
+function BeatGenieCode() {
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">
+        The second piece · what you'll use today
       </div>
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#00A870,#2BC48A)" }}>◆</span>
+        <h1 className="text-[34px] font-extrabold leading-[1.05] tracking-[-0.025em] text-navy">Meet Genie Code.</h1>
+      </div>
+      <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-navy-2">
+        Where Genie <span className="font-semibold text-navy">answers</span> questions, Genie Code <span className="font-semibold text-navy">builds</span> things.
+        You describe what you want in plain words, and it writes and runs the work for you, right in your
+        workspace. Tables, an app, a dashboard. It's what you'll use to build your idea today.
+      </p>
+
+      <div className="mt-6 overflow-hidden rounded-2xl border border-line" style={{ background: "#132029" }}>
+        <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+          <span className="grid h-6 w-6 place-items-center rounded-lg text-white" style={{ background: "linear-gradient(135deg,#00A870,#2BC48A)" }}>◆</span>
+          <b className="text-[13px] font-bold text-white">Genie Code</b>
+          <span className="ml-auto text-[10.5px] font-medium text-[#6f8b93]">in your workspace</span>
+        </div>
+        <div className="flex flex-col gap-2.5 px-4 py-4">
+          <div className="self-end rounded-xl rounded-tr-sm bg-green/15 px-3.5 py-2.5 text-[13px] leading-relaxed text-[#eafaf3]">
+            Build a table of daily sales by store, then an app that flags the ones falling behind.
+          </div>
+          <div className="rounded-xl rounded-tl-sm border border-white/10 bg-white/5 px-3.5 py-2.5 text-[13px] leading-relaxed text-[#c4d4d8]">
+            <span className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-green-l"><Check className="h-3 w-3" /> Made the table · built the app</span>
+            Here's your app. Want me to add a weekly summary next?
+          </div>
+        </div>
+      </div>
+      <p className="mt-4 text-[14px] leading-relaxed text-navy-3">
+        Who it's for: anyone building something. You steer in plain language; it does the typing.
+      </p>
     </div>
   );
 }
@@ -222,7 +241,7 @@ function BeatReady({ idea, ready, onEnter }: { idea: string; ready: boolean; onE
           ${ready ? "tl-glow bg-green text-white hover:-translate-y-px hover:bg-green-l" : "cursor-default bg-oat-2 text-navy-3"}`}>
         {ready ? <>Design my build <ChevronRight className="h-5 w-5" /></> : "Preparing your questions…"}
       </button>
-      {!ready && <p className="mt-4 text-[12.5px] text-navy-3">This lights up the moment they land — usually a few more seconds.</p>}
+      {!ready && <p className="mt-4 text-[12.5px] text-navy-3">This lights up the moment they land, usually a few more seconds.</p>}
     </div>
   );
 }
@@ -234,7 +253,8 @@ export function TeachingLoader({ idea, planning, ready, onEnter }: Props) {
     <BeatOrient key="orient" idea={idea} />,
     <BeatMindset key="mindset" />,
     <BeatHabits key="habits" />,
-    <BeatPieces key="pieces" />,
+    <BeatGenie key="genie" />,
+    <BeatGenieCode key="genie-code" />,
     <BeatReady key="ready" idea={idea} ready={ready} onEnter={onEnter} />,
   ];
   const last = beats.length - 1;

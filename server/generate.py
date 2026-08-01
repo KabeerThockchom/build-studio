@@ -12,7 +12,7 @@ Split of responsibility:
 """
 import json
 from . import llm
-from .scope import WORKSHOP_SCOPE
+from .scope import WORKSHOP_SCOPE, VOICE
 from .models import Blueprint, DiagramSpec, Node, FlowStep, Decision, GenerateRequest
 
 # --- capability -> diagram node (the spine mapping) ---
@@ -73,7 +73,9 @@ they have chosen to build with.
 
 {WORKSHOP_SCOPE}
 
-PRD discipline (borrowed from the real Databricks workshop — follow it strictly):
+{VOICE}
+
+PRD discipline (borrowed from the real Databricks workshop, follow it strictly):
 - Do NOT write code, SQL, table schemas/definitions, table names, or API endpoints. This is a
   plan, not an implementation — those come later, in the build steps.
 - Do NOT invent capabilities they did not choose. Work only with the given list.

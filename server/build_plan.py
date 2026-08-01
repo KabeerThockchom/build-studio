@@ -14,7 +14,7 @@ Design notes:
 """
 import json
 from . import llm
-from .scope import WORKSHOP_SCOPE
+from .scope import WORKSHOP_SCOPE, VOICE
 from .models import BuildPlan, BuildStep, BuildRequest
 
 # Canonical dependency order for the steps we know how to guide. No Lakeflow —
@@ -69,6 +69,8 @@ short, confidence-building build plan for someone NEW to Databricks, working in 
 in-workspace AI coding agent). For each capability they chose, write ONE bite-sized step.
 
 {WORKSHOP_SCOPE}
+
+{VOICE}
 
 Each step has four parts, kept SHORT and plain:
 - concept: 2-3 sentences — what you're building and why it matters for THEIR idea. Teach, don't lecture.
