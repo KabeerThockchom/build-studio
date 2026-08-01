@@ -7,7 +7,6 @@ const BLURB: Record<string, string> = {
   "Supervisor agent": "An agent that routes across the other pieces to answer.",
   "Lakebase": "Fast Postgres beside your data. What you record sticks.",
   "Databricks Apps": "Hosts the interface people actually open.",
-  "Lakeflow": "Managed ingestion and ETL to bring in live data.",
 };
 
 interface Props {

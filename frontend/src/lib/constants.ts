@@ -19,7 +19,6 @@ export const CAPABILITIES: Capability[] = [
   { name: "Supervisor agent", blurb: "Picks the right piece per question and answers.", fits: "AI agents", preselected: true },
   { name: "Lakebase", blurb: "Fast Postgres beside your data. What you flag sticks.", fits: "tell them what to do", preselected: true },
   { name: "Databricks Apps", blurb: "Host the interface people actually open.", fits: "something they use daily", preselected: true },
-  { name: "Lakeflow", blurb: "Managed ingestion and ETL from a source.", fits: "bring in live data", preselected: false },
 ];
 
 // --- SVG node styling by band (mirrors prototype COLORS) ---

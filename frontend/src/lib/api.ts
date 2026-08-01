@@ -11,7 +11,7 @@ async function j<T>(url: string, opts?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => j<{ status: string; mode: string }>("/api/health"),
-  planDesign: (req: { idea: string; expertise?: string; interests?: string[] }) =>
+  planDesign: (req: { idea: string; expertise?: string; interests?: string[]; industry?: string }) =>
     j<{ plan: DesignPlan; source: string }>("/api/plan_design", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

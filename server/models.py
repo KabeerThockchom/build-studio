@@ -42,6 +42,8 @@ class Blueprint(BaseModel):
     flow: list[FlowStep] = Field(default_factory=list)
     prd_markdown: str = ""
     decisions: list[Decision] = Field(default_factory=list)
+    scope_in: list[str] = Field(default_factory=list)     # what we'll get done today
+    scope_later: list[str] = Field(default_factory=list)  # honest "save for later"
 
 
 class GenerateRequest(BaseModel):
@@ -89,6 +91,7 @@ class PlanRequest(BaseModel):
     idea: str
     expertise: str = "New to it"
     interests: list[str] = Field(default_factory=list)
+    industry: str = ""            # silently implied when the idea came from a gallery sample
 
 
 # --- Build phase: bite-sized guided Genie Code moves (M3) ---

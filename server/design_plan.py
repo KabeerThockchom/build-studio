@@ -4,12 +4,15 @@ curated fallback so the flow never dead-ends if the model misbehaves.
 """
 import json
 from . import llm
+from .scope import WORKSHOP_SCOPE
 from .models import DesignPlan, DesignQuestion, DesignOption, CapabilityPick, PlanRequest
 
 # The fixed capability vocabulary the SA may choose from (no inventing).
+# No Lakeflow: a one-day workshop never stands up a new live ingestion source —
+# data is sample data, a spreadsheet turned into a table, or an existing table.
 CAPABILITIES = [
     "Genie", "Knowledge Assistant", "Supervisor agent",
-    "Lakebase", "Databricks Apps", "Lakeflow",
+    "Lakebase", "Databricks Apps",
 ]
 CAP_BLURB = {
     "Genie": "plain-English questions over governed data",
@@ -17,8 +20,16 @@ CAP_BLURB = {
     "Supervisor agent": "an agent that routes across the other tools",
     "Lakebase": "Postgres for app state / recording decisions",
     "Databricks Apps": "hosts the interface people open",
-    "Lakeflow": "managed ingestion + ETL from a source",
 }
+
+# The three workshop-realistic data paths. The SA must ask ONE question whose id is
+# "data_mode" and whose option keys are exactly these — the rest of the app keys off them.
+DATA_MODE_GUIDANCE = """One of your questions MUST be about where the data comes from. Give it id
+"data_mode" and use EXACTLY these three option keys (phrase the labels/subs for their idea):
+- "synthetic": we generate realistic sample data that fits their idea (no data needed from them)
+- "upload": they have a spreadsheet / CSV / file we turn into a Unity Catalog table together
+- "existing": they point at a table that already exists in the workspace (may be read-only)
+Do NOT offer "connect a live source / ingest a new pipeline" — that is out of scope for one day."""
 
 SYSTEM_PROMPT = f"""You are a senior Databricks Solutions Architect guiding a workshop
 participant. They have just described, in their own words, something they want to build.
@@ -27,6 +38,8 @@ what they should build, and pre-select which Databricks capabilities fit their i
 
 You speak plainly and warmly, like a good SA who respects the person's time. You do NOT
 assume their build is an app, or an agent, or anything — you read THEIR idea and adapt.
+
+{WORKSHOP_SCOPE}
 
 The ONLY capabilities you may pre-select from (never invent others):
 {chr(10).join(f'- {c}: {CAP_BLURB[c]}' for c in CAPABILITIES)}
@@ -38,16 +51,17 @@ not appear. Ground the wording (and the options) in the user's actual subject ma
 Good dimensions to consider (pick the ones that genuinely matter for this idea, phrase them in
 plain language, not jargon):
 - who uses it and how they want it (act fast on what matters / oversee the whole picture / explore freely)
-- where the data comes from (generate sample vs use existing tables vs bring a source)
-- how fresh the data needs to be (live vs periodic)
 - whether the value is mostly numbers, mostly documents/text, or both
 - how the result is delivered (an app they open, a dashboard, just answers)
 - the scope/shape specific to their idea
-Do NOT ask about things outside Databricks' scope.
+Do NOT ask about things outside Databricks' scope. Do NOT ask about data freshness / live-vs-batch
+— a workshop day works off static data, so that choice does not apply.
+
+{DATA_MODE_GUIDANCE}
 
 The FIRST question should usually establish who it's for / how they want it — but phrased for
-THIS idea, not generically. Ask 2-3 questions for a clear, specific idea; up to 4 for a vague or
-broad one. Fewer is better — never pad.
+THIS idea, not generically. Include the required "data_mode" question too. Ask 2-3 questions for a
+clear, specific idea; up to 4 for a vague or broad one. Fewer is better — never pad.
 
 Return ONLY one JSON object (no markdown fence, no prose) with this exact shape:
 {{
@@ -75,10 +89,12 @@ Return ONLY one JSON object (no markdown fence, no prose) with this exact shape:
 
 
 def _user_prompt(req: PlanRequest) -> str:
+    industry = f"Industry context: {req.industry.strip()}\n" if req.industry.strip() else ""
     return (
         f"Their idea (verbatim):\n\"\"\"\n{req.idea.strip()}\n\"\"\"\n\n"
         f"Databricks familiarity: {req.expertise}\n"
-        f"Interests they flagged: {', '.join(req.interests) or 'none specified'}\n\n"
+        f"Interests they flagged: {', '.join(req.interests) or 'none specified'}\n"
+        f"{industry}\n"
         "Plan the design conversation now. Return the JSON object only."
     )
 
@@ -181,21 +197,26 @@ def fallback_plan() -> DesignPlan:
             DesignQuestion(
                 id="data_mode", eyebrow="Design · 2 of 2",
                 title="Where does the data come from?",
-                lead="This sets your very first build step.",
+                lead="This sets your very first build step — and we keep it to what fits a workshop day.",
                 options=[
                     DesignOption(key="synthetic", letter="A", label="Make realistic sample data",
-                                 sub="We generate tables that fit your idea.",
+                                 sub="We generate tables that fit your idea — nothing needed from you.",
                                  preview=["A synthetic dataset shaped to your idea, in Unity Catalog.",
                                           "You skip data wrangling and get to the interesting parts.",
                                           "No setup risk, but the data is made up. Swap in real tables later."]),
-                    DesignOption(key="existing", letter="B", label="Use data already in my workspace",
-                                 sub="Point at real Unity Catalog tables.",
-                                 preview=["Your build reads real tables you already have.",
+                    DesignOption(key="upload", letter="B", label="I have a spreadsheet or file",
+                                 sub="A CSV/Excel we turn into a Unity Catalog table together.",
+                                 preview=["We walk you through loading your file into a table.",
+                                          "Your build runs on your own numbers from the start.",
+                                          "A little setup, and the file needs to be reasonably clean."]),
+                    DesignOption(key="existing", letter="C", label="Point at a table that already exists",
+                                 sub="Read from a Unity Catalog table you already have.",
+                                 preview=["Your build reads a real table you already have.",
                                           "Nothing to generate; reflects your actual business.",
-                                          "Most realistic, but depends on access and clean tables."]),
+                                          "Most realistic; read-only is fine — we won't need to change it."]),
                 ],
                 other_preview=["We'll adapt the first step to however your data arrives.",
-                               "Upload, connect a source, or something else.", "We'll confirm specifics first."]),
+                               "Sample, a file you upload, or an existing table.", "We'll confirm specifics first."]),
         ],
         capabilities=[
             CapabilityPick(name="Genie", selected=True, fits="ask your data in plain English"),
@@ -203,6 +224,5 @@ def fallback_plan() -> DesignPlan:
             CapabilityPick(name="Supervisor agent", selected=True, fits="tie the pieces together"),
             CapabilityPick(name="Lakebase", selected=True, fits="record decisions"),
             CapabilityPick(name="Databricks Apps", selected=True, fits="the front door"),
-            CapabilityPick(name="Lakeflow", selected=False, fits="bring in live data"),
         ],
     )

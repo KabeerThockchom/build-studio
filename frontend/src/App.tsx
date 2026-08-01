@@ -53,7 +53,7 @@ export default function App() {
   async function loadPlan() {
     dispatch({ t: "planStart" });
     try {
-      const { plan } = await api.planDesign({ idea: state.idea, expertise: state.expertise, interests: state.interests });
+      const { plan } = await api.planDesign({ idea: state.idea, expertise: state.expertise, interests: state.interests, industry: state.industry });
       dispatch({ t: "planOk", plan });
     } catch (e: any) {
       dispatch({ t: "planErr", e: e.message || "Something went wrong" });
@@ -127,6 +127,7 @@ export default function App() {
         {state.phase === "shape" && (
           <ShapeScreen state={state}
             onIdea={(v) => dispatch({ t: "idea", v })}
+            onPickSample={(idea, industry) => dispatch({ t: "pickSample", idea, industry })}
             onExpertise={(v) => dispatch({ t: "expertise", v })}
             onToggleInterest={(v) => dispatch({ t: "toggleInterest", v })}
             onNext={startDesign} />

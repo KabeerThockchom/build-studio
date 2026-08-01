@@ -11,6 +11,7 @@ export interface StudioState {
   phase: Phase;
   designIdx: number;                       // which design question we're on
   idea: string;
+  industry: string;                        // implied from a gallery sample; silent
   expertise: string;
   interests: string[];
   plan: DesignPlan | null;                 // SA-authored questions + cap preselection
@@ -39,7 +40,6 @@ const DEFAULT_PICKS: CapabilityPick[] = [
   { name: "Supervisor agent", selected: true, fits: "tie the pieces together" },
   { name: "Lakebase", selected: true, fits: "record decisions" },
   { name: "Databricks Apps", selected: true, fits: "the front door" },
-  { name: "Lakeflow", selected: false, fits: "bring in live data" },
 ];
 export function shownPicks(s: StudioState): CapabilityPick[] {
   return s.plan?.capabilities ?? DEFAULT_PICKS;
@@ -49,6 +49,7 @@ const initial: StudioState = {
   phase: "shape",
   designIdx: 0,
   idea: "",
+  industry: "",
   expertise: "New to it",
   interests: ["AI agents"],
   plan: null,
@@ -70,6 +71,7 @@ type Action =
   | { t: "phase"; phase: Phase }
   | { t: "designIdx"; i: number }
   | { t: "idea"; v: string }
+  | { t: "pickSample"; idea: string; industry: string }
   | { t: "expertise"; v: string }
   | { t: "toggleInterest"; v: string }
   | { t: "planStart" }
@@ -91,7 +93,7 @@ type Action =
 // The slice of state worth persisting (not transient flags like generating).
 export function persistable(s: StudioState) {
   return {
-    phase: s.phase, designIdx: s.designIdx, idea: s.idea, expertise: s.expertise,
+    phase: s.phase, designIdx: s.designIdx, idea: s.idea, industry: s.industry, expertise: s.expertise,
     interests: s.interests, plan: s.plan, answers: s.answers, answersOther: s.answersOther,
     capabilities: s.capabilities, blueprint: s.blueprint,
     buildPlan: s.buildPlan, buildStepIdx: s.buildStepIdx, buildDone: s.buildDone,
@@ -103,6 +105,8 @@ function reducer(s: StudioState, a: Action): StudioState {
     case "phase": return { ...s, phase: a.phase };
     case "designIdx": return { ...s, designIdx: a.i };
     case "idea": return { ...s, idea: a.v };
+    // Picking a gallery sample seeds the (editable) idea and silently records the vertical.
+    case "pickSample": return { ...s, idea: a.idea, industry: a.industry };
     case "expertise": return { ...s, expertise: a.v };
     case "toggleInterest":
       return { ...s, interests: s.interests.includes(a.v)

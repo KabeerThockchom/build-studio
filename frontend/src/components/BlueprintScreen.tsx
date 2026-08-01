@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Markdown from "react-markdown";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Check, Clock } from "lucide-react";
 import type { Blueprint } from "../lib/types";
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
 
@@ -65,6 +65,10 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefin
 
       {blueprint && !generating && (
         <>
+          {(blueprint.scope_in.length > 0 || blueprint.scope_later.length > 0) && (
+            <ScopeCard scopeIn={blueprint.scope_in} scopeLater={blueprint.scope_later} />
+          )}
+
           <SectionH>How someone uses it</SectionH>
           <div className="flex items-center gap-2 overflow-x-auto rounded-[13px] border border-line bg-white px-5 py-4">
             {blueprint.flow.map((f, i) => (
@@ -114,6 +118,39 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefin
           className="rounded-xl bg-green px-7 py-3.5 text-[15.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-green-l disabled:opacity-40">
           Start building →
         </button>
+      </div>
+    </div>
+  );
+}
+
+// The visible workshop-day scope contract — the SA telling you, plainly, what
+// you'll walk out with today and what's honestly a follow-up.
+function ScopeCard({ scopeIn, scopeLater }: { scopeIn: string[]; scopeLater: string[] }) {
+  return (
+    <div className="mt-2 grid grid-cols-2 gap-3.5">
+      <div className="rounded-2xl border-[1.5px] border-green bg-green-soft px-5 py-4">
+        <div className="mb-2.5 flex items-center gap-2 text-[11.5px] font-bold uppercase tracking-[0.1em] text-green-ink">
+          <Check className="h-4 w-4" /> In scope today
+        </div>
+        <ul className="flex flex-col gap-2">
+          {scopeIn.map((s, i) => (
+            <li key={i} className="flex items-start gap-2 text-[13.5px] leading-snug text-navy">
+              <span className="mt-[7px] h-[6px] w-[6px] shrink-0 rounded-full bg-green" />{s}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="rounded-2xl border border-line bg-white px-5 py-4">
+        <div className="mb-2.5 flex items-center gap-2 text-[11.5px] font-bold uppercase tracking-[0.1em] text-navy-3">
+          <Clock className="h-4 w-4" /> Save for later
+        </div>
+        <ul className="flex flex-col gap-2">
+          {scopeLater.map((s, i) => (
+            <li key={i} className="flex items-start gap-2 text-[13.5px] leading-snug text-navy-2">
+              <span className="mt-[7px] h-[6px] w-[6px] shrink-0 rounded-full bg-line-2" />{s}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

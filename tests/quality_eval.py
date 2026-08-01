@@ -83,10 +83,10 @@ def check(label, kw, terms):
         "flow_3_4": 3 <= len(bp.flow) <= 4,
         "decisions_cover_caps": {d.tag for d in bp.decisions} and {d.tag for d in bp.decisions}.issubset(chosen | {"Data"}),
         "decision_per_cap": all(any(d.tag == c for d in bp.decisions) for c in chosen),
-        "spec_bands_ok": {n.band for n in bp.spec.nodes} >= ({"capability"} if chosen - {"Databricks Apps", "Lakeflow"} else set()),
+        "spec_bands_ok": {n.band for n in bp.spec.nodes} >= ({"capability"} if chosen - {"Databricks Apps"} else set()),
         "edges_valid": all(f in node_ids and t in node_ids for f, t in bp.spec.edges),
         "no_invented_caps": all(
-            n.label in {"Sample data", "Your tables", "Lakeflow"} or
+            n.label in {"Sample data", "Your file", "Existing table"} or
             any(n.label.startswith(c.split()[0]) or c.startswith(n.label.split()[0]) for c in chosen)
             for n in bp.spec.nodes),
     }

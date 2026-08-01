@@ -1,15 +1,17 @@
 import type { StudioState } from "../lib/store";
 import { EXPERTISE, INTERESTS } from "../lib/constants";
+import { SamplesGallery } from "./SamplesGallery";
 
 interface Props {
   state: StudioState;
   onIdea: (v: string) => void;
+  onPickSample: (idea: string, industry: string) => void;
   onExpertise: (v: string) => void;
   onToggleInterest: (v: string) => void;
   onNext: () => void;
 }
 
-export function ShapeScreen({ state, onIdea, onExpertise, onToggleInterest, onNext }: Props) {
+export function ShapeScreen({ state, onIdea, onPickSample, onExpertise, onToggleInterest, onNext }: Props) {
   return (
     <div className="rise max-w-[1080px]">
       <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Vibe to Value</div>
@@ -38,6 +40,8 @@ export function ShapeScreen({ state, onIdea, onExpertise, onToggleInterest, onNe
           </div>
         </div>
       </div>
+
+      <SamplesGallery onPick={onPickSample} />
 
       <div className="mt-8 grid grid-cols-2 gap-7">
         <div>

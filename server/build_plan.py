@@ -14,22 +14,34 @@ Design notes:
 """
 import json
 from . import llm
+from .scope import WORKSHOP_SCOPE
 from .models import BuildPlan, BuildStep, BuildRequest
 
-# Canonical dependency order for the steps we know how to guide.
+# Canonical dependency order for the steps we know how to guide. No Lakeflow —
+# a workshop day never stands up a live ingestion source.
 STEP_ORDER = ["data", "Genie", "Knowledge Assistant", "Lakebase", "Supervisor agent", "Databricks Apps"]
+
+# The data step is one of three workshop-realistic paths, keyed by data_mode.
+DATA_GUARDRAIL = {
+    "synthetic": (
+        "Generate a small, realistic sample dataset matching the idea and write it to Unity Catalog "
+        "tables. Keep it to a few tables with believable rows — enough to make the build feel real."),
+    "upload": (
+        "The user has a spreadsheet/CSV. Walk them through loading it into a Unity Catalog table: "
+        "in the workspace use the 'Create table' / upload-file UI (or read the file in a notebook and "
+        "write a managed table). Confirm the table exists and has their rows before moving on. This is "
+        "many newcomers' first real Databricks table — keep it concrete and encouraging."),
+    "existing": (
+        "The user is pointing at a table that already exists. Confirm the exact catalog.schema.table "
+        "name and that they can read it — do NOT create or alter it (assume read-only access). Verify a "
+        "simple SELECT returns rows before building on it."),
+}
 
 # The distilled, must-preserve guardrails per capability (fed to the model).
 GUARDRAILS = {
     "data": (
-        "Data comes first. If synthetic: generate a small, realistic sample matching the idea and "
-        "write it to Unity Catalog tables. If existing: confirm the exact catalog.schema.table names. "
-        "Notebook cells need the '# Databricks notebook source' header and '# COMMAND ----------' "
-        "separators or cells silently merge."),
-    "Lakeflow": (
-        "This is the data step, done with Lakeflow (managed ingestion + ETL). Bring the source data into "
-        "Unity Catalog with a managed connector / pipeline rather than hand-rolled ETL; confirm the landed "
-        "tables have rows. For a workshop you can still start from a small sample if a live source isn't ready."),
+        "Data comes first. Notebook cells need the '# Databricks notebook source' header and "
+        "'# COMMAND ----------' separators or cells silently merge."),
     "Genie": (
         "A Genie space is the semantic layer over the tables. Creating the asset is NOT enough — you "
         "must configure it with the tables, the joins, and 1-2 example questions, and confirm it "
@@ -52,9 +64,11 @@ GUARDRAILS = {
         "Use requirements.txt (never a uv.lock — it can leak internal proxy URLs)."),
 }
 
-SYSTEM_PROMPT = """You are a senior Databricks Solutions Architect turning a designed blueprint into a
+SYSTEM_PROMPT = f"""You are a senior Databricks Solutions Architect turning a designed blueprint into a
 short, confidence-building build plan for someone NEW to Databricks, working in Genie Code (the
 in-workspace AI coding agent). For each capability they chose, write ONE bite-sized step.
+
+{WORKSHOP_SCOPE}
 
 Each step has four parts, kept SHORT and plain:
 - concept: 2-3 sentences — what you're building and why it matters for THEIR idea. Teach, don't lecture.
@@ -69,24 +83,25 @@ Honor the provided guardrails for each capability — they are hard-won and must
 move or verify. Keep the whole thing readable by a beginner. No ceremony, no code.
 
 Return ONLY one JSON object (no fence, no prose):
-{ "steps": [ { "capability": "<name or 'data'>", "title": "<short imperative>",
-              "concept": "...", "move": "...", "verify": "...", "teach": "..." }, ... ] }
+{{ "steps": [ {{ "capability": "<name or 'data'>", "title": "<short imperative>",
+              "concept": "...", "move": "...", "verify": "...", "teach": "..." }}, ... ] }}
 Order the steps exactly as given in the ORDER list.
 """
 
 
 def _ordered_targets(req: BuildRequest) -> list[str]:
-    # The first step is always about getting data in. If the user chose Lakeflow,
-    # that IS the data step (managed ingestion); otherwise it's a generic data step.
-    first = "Lakeflow" if "Lakeflow" in req.capabilities else "data"
-    rest = [c for c in STEP_ORDER if c not in ("data", "Lakeflow") and c in req.capabilities]
-    return [first] + rest
+    # The first step is always the data step; the rest follow the dependency order.
+    rest = [c for c in STEP_ORDER if c != "data" and c in req.capabilities]
+    return ["data"] + rest
 
 
 def _user_prompt(req: BuildRequest) -> str:
     targets = _ordered_targets(req)
     data_mode = req.design_answers.get("data_mode", "synthetic")
-    gl = "\n".join(f"- {t}: {GUARDRAILS.get(t, '')}" for t in targets)
+    # The generic data guardrail plus the path-specific one for this data_mode.
+    guardrails = dict(GUARDRAILS)
+    guardrails["data"] = f"{GUARDRAILS['data']} {DATA_GUARDRAIL.get(data_mode, DATA_GUARDRAIL['synthetic'])}"
+    gl = "\n".join(f"- {t}: {guardrails.get(t, '')}" for t in targets)
     return (
         f"Idea:\n\"\"\"\n{req.idea.strip()}\n\"\"\"\n\n"
         f"Databricks familiarity: {req.expertise}\n"

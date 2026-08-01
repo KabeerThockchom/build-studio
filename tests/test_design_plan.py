@@ -39,7 +39,7 @@ def test_capabilities_constrained_and_complete():
     with patch.object(llm, "complete", return_value=GOOD):
         plan = design_plan.plan_design(PlanRequest(idea="x"))
     names = [c.name for c in plan.capabilities]
-    assert names == design_plan.CAPABILITIES          # all six, in order
+    assert names == design_plan.CAPABILITIES          # all five, in order
     assert "Made Up Thing" not in names               # bogus dropped
     sel = {c.name for c in plan.capabilities if c.selected}
     assert sel == {"Genie", "Databricks Apps"}        # only the valid picks

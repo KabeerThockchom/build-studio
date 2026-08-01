@@ -15,10 +15,19 @@ def test_spec_bands_and_data_node():
     assert {n.band for n in spec.nodes} >= {"data", "capability", "agent", "delivery"}
 
 
-def test_spec_lakeflow_replaces_data_node():
+def test_spec_data_node_reflects_mode():
+    # All three workshop-realistic paths share the "data" node id, with mode-specific labels.
+    for mode, label in [("synthetic", "Sample data"), ("upload", "Your file"), ("existing", "Existing table")]:
+        spec = generate.compute_spec(["Genie"], data_mode=mode)
+        data = next(n for n in spec.nodes if n.id == "data")
+        assert data.label == label
+
+
+def test_spec_no_lakeflow_capability():
+    # Lakeflow is gone from the palette; passing it produces no node for it.
     spec = generate.compute_spec(["Genie", "Lakeflow", "Databricks Apps"])
     ids = {n.id for n in spec.nodes}
-    assert "lakeflow" in ids and "data" not in ids
+    assert "lakeflow" not in ids and "data" in ids
 
 
 def test_spec_edges_route_through_agent():

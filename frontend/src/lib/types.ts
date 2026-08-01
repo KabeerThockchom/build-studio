@@ -15,6 +15,8 @@ export interface Blueprint {
   flow: FlowStep[];
   prd_markdown: string;
   decisions: Decision[];
+  scope_in: string[];      // what we'll get done today
+  scope_later: string[];   // honest "save for later"
 }
 
 export interface GenerateRequest {
