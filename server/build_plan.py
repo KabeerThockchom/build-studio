@@ -47,9 +47,12 @@ GUARDRAILS = {
         "must configure it with the tables, the joins, and 1-2 example questions, and confirm it "
         "actually answers one with a real number. An empty/unconfigured space looks created but is useless."),
     "Knowledge Assistant": (
-        "Knowledge Assistant is Databricks' managed RAG — no embedding pipeline to build. Point it at the "
-        "text source (a table column or docs), let it index, and confirm it returns a relevant passage. "
-        "It needs at least one source before it's ready; wait for indexing."),
+        "Knowledge Assistant lets the app answer from documents/notes with no embedding pipeline to build. "
+        "Point it at the text source (a table column or docs) and kick off indexing. IMPORTANT: indexing runs "
+        "in the background and takes several minutes to tens of minutes; do NOT sit and poll waiting for it to "
+        "finish, and do NOT block the rest of the build on it. Kick it off, tell the user it's indexing in the "
+        "background (they can move on and check back), and treat 'a query returns a relevant passage' as a "
+        "later verification once indexing is READY, not a same-step confirm."),
     "Lakebase": (
         "Lakebase is managed Postgres for the app's writes/state (e.g. recording a decision). Create the "
         "table you need; the app authenticates with a short-lived token minted per connection (no password). "),
