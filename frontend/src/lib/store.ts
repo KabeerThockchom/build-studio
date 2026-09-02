@@ -5,7 +5,7 @@ import type { Blueprint, DesignPlan, DesignQuestion, CapabilityPick, BuildPlan }
 // SA authors ALL design questions in the background — every design question is
 // tailored, so there's no instant hard-coded Q1 anymore. Design is variable-length,
 // so we track a design index rather than a fixed screen number.
-export type Phase = "shape" | "teach" | "design" | "assemble" | "blueprint" | "build";
+export type Phase = "overview" | "shape" | "teach" | "design" | "assemble" | "blueprint" | "build";
 
 export interface StudioState {
   phase: Phase;
@@ -48,7 +48,7 @@ export function shownPicks(s: StudioState): CapabilityPick[] {
 }
 
 export const initialState: StudioState = {
-  phase: "shape",
+  phase: "overview",
   designIdx: 0,
   idea: "",
   industry: "",

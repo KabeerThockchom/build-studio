@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useStudio, mergedQuestions, shownPicks, persistable, type Phase } from "./lib/store";
 import { api } from "./lib/api";
 import { LeftRail } from "./components/LeftRail";
+import { OverviewScreen } from "./components/OverviewScreen";
 import { ShapeScreen } from "./components/ShapeScreen";
 import { TeachingLoader } from "./components/TeachingLoader";
 import { DesignScreen } from "./components/DesignScreen";
@@ -27,7 +28,7 @@ export default function App() {
 
   // Auto-save whenever the phase changes (and once restored, not during restore).
   useEffect(() => {
-    if (!restored.current || state.phase === "shape") return;
+    if (!restored.current || state.phase === "overview" || state.phase === "shape") return;
     api.saveSession(sessionId.current, persistable(state))
       .then((r) => {
         if (r.session_id && r.session_id !== sessionId.current) {
@@ -124,6 +125,9 @@ export default function App() {
     <div className="flex h-screen bg-oat">
       <LeftRail state={state} go={go} />
       <main className="flex-1 overflow-y-auto px-[72px] py-12">
+        {state.phase === "overview" && (
+          <OverviewScreen onStart={() => dispatch({ t: "phase", phase: "shape" })} />
+        )}
         {state.phase === "shape" && (
           <ShapeScreen state={state}
             onIdea={(v) => dispatch({ t: "idea", v })}

@@ -18,8 +18,9 @@ function buildSteps(s: StudioState): { group: string; steps: RailStep[] }[] {
   ];
 }
 
-// "teach" shares the Design group's rank — it's the lead-in to the questions.
-const ORDER: Phase[] = ["shape", "teach", "design", "assemble", "blueprint", "build"];
+// "overview" is the pre-start roadmap (not a numbered rail step); "teach" shares the
+// Design group's rank — it's the lead-in to the questions.
+const ORDER: Phase[] = ["overview", "shape", "teach", "design", "assemble", "blueprint", "build"];
 
 export function LeftRail({ state, go }: { state: StudioState; go: (p: Phase, i?: number) => void }) {
   const groups = buildSteps(state);
@@ -33,11 +34,13 @@ export function LeftRail({ state, go }: { state: StudioState; go: (p: Phase, i?:
       </div>
       <div className="px-1.5 text-[11px] text-navy-3 mb-5">Your idea to something real, on Databricks</div>
 
-      {groups.map((g) => {
+      {groups.map((g, gi) => {
         const gRank = ORDER.indexOf(g.steps[0].phase);
         return (
           <div key={g.group}>
-            <div className="px-2 pt-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-navy-3">{g.group}</div>
+            <div className="flex items-center gap-1.5 px-2 pt-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.12em] text-navy-3">
+              <span className="text-green">{gi + 1}</span><span className="text-line-2">·</span>{g.group}
+            </div>
             {g.steps.map((st, idx) => {
               const isDesign = st.phase === "design";
               const cur = state.phase === st.phase && (!isDesign || state.designIdx === st.designIdx);

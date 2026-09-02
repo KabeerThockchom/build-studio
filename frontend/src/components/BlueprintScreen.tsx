@@ -87,7 +87,12 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefin
             <ArchitectureDiagram spec={blueprint.spec} />
           </div>
 
-          <SectionH>The plan</SectionH>
+          <SectionH>The plan — your PRD</SectionH>
+          <p className="-mt-1 mb-3 max-w-[70ch] text-[13.5px] leading-relaxed text-navy-3">
+            This is your PRD (product requirements doc): the first milestone of any build, and
+            what you'll hand the agent to build from. Read it, and edit anything that's off below —
+            a clear PRD is what makes the build come out right.
+          </p>
           <div className="rounded-2xl border border-line bg-white px-6 py-5 prose-tight text-[14.5px] text-navy">
             <Markdown>{blueprint.prd_markdown}</Markdown>
           </div>

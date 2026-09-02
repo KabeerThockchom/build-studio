@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Target, ShieldCheck, RefreshCw, Check, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
+import { Target, ShieldCheck, RefreshCw, Check, X, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
 
 /* The teaching sequence that plays while the SA authors the design questions in
    the background. Instead of a long scroll, it's a focused deck: ONE beat at a
@@ -215,6 +215,68 @@ function BeatGenieCode() {
   );
 }
 
+// A quick check-your-understanding on what the previous beats taught. Not graded —
+// just makes the learner wrestle with the material (Akil's ask) and reinforces the ideas.
+const QUIZ = [
+  { q: "In this workshop, what's mainly YOUR job?",
+    options: ["Write all the code by hand", "Decide what's worth building and steer the agent", "Memorize the Databricks UI"],
+    answer: 1, why: "You're the architect, not the bricklayer — the agent handles the code; you decide what to build." },
+  { q: "You want to BUILD something (a table, an app). Which do you reach for?",
+    options: ["Genie", "Genie Code"],
+    answer: 1, why: "Genie answers questions about your data; Genie Code builds things for you." },
+  { q: "What's a PRD, and why do it first?",
+    options: ["A finished app, so you can skip planning", "A short plan of what to build — it's what you hand the agent so the build comes out right", "A billing report"],
+    answer: 1, why: "The PRD is the first milestone: a clear plan of what to build, which the agent builds from." },
+];
+
+function BeatQuiz() {
+  const [picked, setPicked] = useState<Record<number, number>>({});
+  return (
+    <div>
+      <div className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Quick check</div>
+      <h1 className="text-[32px] font-extrabold leading-[1.1] tracking-[-0.025em] text-navy">A few quick ones before we design.</h1>
+      <p className="mt-3 max-w-[52ch] text-[15px] leading-relaxed text-navy-2">No grade — just to make the ideas stick.</p>
+      <div className="mt-6 flex flex-col gap-5">
+        {QUIZ.map((item, qi) => {
+          const chosen = picked[qi];
+          const answered = chosen !== undefined;
+          return (
+            <div key={qi} className="rounded-2xl border border-line bg-white p-5">
+              <div className="mb-3 text-[15px] font-bold text-navy">{qi + 1}. {item.q}</div>
+              <div className="flex flex-col gap-2">
+                {item.options.map((opt, oi) => {
+                  const isChosen = chosen === oi;
+                  const isCorrect = oi === item.answer;
+                  const show = answered && (isChosen || isCorrect);
+                  return (
+                    <button key={oi} disabled={answered}
+                      onClick={() => setPicked((p) => ({ ...p, [qi]: oi }))}
+                      className={`flex items-center gap-2.5 rounded-xl border-[1.5px] px-4 py-2.5 text-left text-[14px] transition-colors
+                        ${!answered ? "border-line bg-white hover:border-green text-navy"
+                          : show && isCorrect ? "border-green bg-green-soft text-navy"
+                          : isChosen ? "border-lava/40 bg-[#fdecef] text-navy"
+                          : "border-line bg-white text-navy-3 opacity-60"}`}>
+                      {answered && show && (isCorrect
+                        ? <Check className="h-4 w-4 shrink-0 text-green" />
+                        : <X className="h-4 w-4 shrink-0 text-lava" />)}
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+              {answered && (
+                <div className="mt-3 flex items-start gap-2 rounded-lg bg-oat px-3.5 py-2.5 text-[13px] leading-snug text-navy-2">
+                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green" />{item.why}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function BeatReady({ idea, ready, onEnter }: { idea: string; ready: boolean; onEnter: () => void }) {
   const idea1 = idea.trim().length > 0 && idea.trim().length <= 70 ? idea.trim() : "";
   return (
@@ -255,6 +317,7 @@ export function TeachingLoader({ idea, planning, ready, onEnter }: Props) {
     <BeatHabits key="habits" />,
     <BeatGenie key="genie" />,
     <BeatGenieCode key="genie-code" />,
+    <BeatQuiz key="quiz" />,
     <BeatReady key="ready" idea={idea} ready={ready} onEnter={onEnter} />,
   ];
   const last = beats.length - 1;
