@@ -30,16 +30,35 @@ DBX = gr.DBX
 EVAL_PROFILE = gr.PROFILE           # ai_devtools
 EVAL_CATALOG = os.environ.get("GENIE_EVAL_CATALOG", "build_studio")
 
-# Small, cheap-to-run cases first; scale up once the pipeline is proven.
+# Baseline suite. All synthetic data_mode so each case is self-contained (no
+# pre-seeding). Chosen to cover every move type — data + Genie + App are already
+# proven, so these emphasize the untested ones: Knowledge Assistant, Lakebase,
+# Supervisor agent, and full-agentic integration.
 CASES = {
-    "genie_minimal": dict(
+    "genie_minimal": dict(  # baseline: Genie only (fast)
         idea="Let a store manager ask plain-English questions about daily sales by store, "
              "like which stores are trending down this week.",
         expertise="New to it", capabilities=["Genie"],
         design_answers={"data_mode": "synthetic"}),
-    "genie_app": dict(
+    "genie_app": dict(  # data + Genie + App (proven)
         idea="Let a store manager see which stores are slipping on daily sales and ask why.",
         expertise="New to it", capabilities=["Genie", "Databricks Apps"],
+        design_answers={"data_mode": "synthetic"}),
+    "ka_app": dict(  # tests Knowledge Assistant (unstructured text) + App
+        idea="Help support agents find the right answer from our product help articles and "
+             "past ticket resolutions instead of digging through documents.",
+        expertise="New to it", capabilities=["Knowledge Assistant", "Databricks Apps"],
+        design_answers={"data_mode": "synthetic"}),
+    "lakebase_app": dict(  # tests Lakebase (record decisions) + Genie + App
+        idea="Let an ops analyst review flagged transactions and mark which ones they "
+             "investigated, so the team keeps track of what's been handled.",
+        expertise="Familiar", capabilities=["Genie", "Lakebase", "Databricks Apps"],
+        design_answers={"data_mode": "synthetic"}),
+    "agentic_full": dict(  # the hero: every piece incl. Supervisor agent
+        idea="Field reps manage 80 accounts and only notice one slipping once orders drop. "
+             "Catch the early signs, explain why using account notes, and record what to do.",
+        expertise="New to it",
+        capabilities=["Genie", "Knowledge Assistant", "Supervisor agent", "Lakebase", "Databricks Apps"],
         design_answers={"data_mode": "synthetic"}),
 }
 
@@ -157,11 +176,12 @@ def run_case(case_key: str, keep: bool = False) -> dict:
               f"new_tables={new_tables} new_apps={[a['name'] for a in new_apps]}")
         print(f"      genie: {(r['final'] or '(no final message — stream cut)')[:200]}")
         results.append({"n": s.n, "title": s.title, "capability": s.capability,
-                        "move": s.move, "verify": s.verify, "genie_ok": r["ok"],
+                        "concept": s.concept, "move": s.move, "verify": s.verify,
+                        "teach": s.teach, "genie_ok": r["ok"],
                         "materialized": materialized, "verdict": verdict,
                         "gateway_drop": gateway_drop, "timed_out": r["timed_out"],
                         "final": r["final"], "new_tables": new_tables,
-                        "new_apps": [a["name"] for a in new_apps],
+                        "new_apps": new_apps,  # full dicts: name, url, state
                         "events_path": r["events_path"]})
 
     n_pass = sum(1 for m in results if m["verdict"] == "PASS")
