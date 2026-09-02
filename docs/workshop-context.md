@@ -16,10 +16,12 @@ onboarding for collaborators.
 
 ## Decisions made
 1. **Build Studio over V2V** (hard commit, V2V as fallback).
-2. **Migrate Azure → AWS.** The Azure FEVM tenant-guest friction (users must join the
-   FEVM Azure AD tenant via Opal before they can open the app) is too much for a workshop.
-   AWS avoids it. *(Note: this directly affects the current deploy target — Build Studio
-   is on the Azure `build-studio` workspace today, and the Genie CLI eval runs there too.)*
+2. **Staying on Azure** (updated 2026-09-02). The AWS migration was considered to dodge
+   the Azure FEVM tenant-guest friction (users must join the FEVM Azure AD tenant via Opal
+   before opening the app), but the Opal flow now works reliably (Akil got in via it), so
+   Build Studio stays on the Azure `build-studio` workspace and the Genie CLI eval runs
+   there too. Participants complete the one-time Opal request + Entra invite before the
+   session.
 3. **Agentic applications** as the workshop track (steer the customer here since they're
    open / not prescriptive). Possibly drop the "advanced" module.
 4. **Synthetic data**, not real customer data — far easier to manage live; real data only
@@ -95,8 +97,8 @@ Search / KA indexing exceeds the move window — the fix is to treat KA indexing
 - **Costa/customer team** — "Matt" (lead), "Brian" (agenda). Persona mix TBD.
 
 ## Next steps (from the meetings)
-- [ ] Ashwin: migrate environment Azure → AWS.
-- [ ] Ashwin: share the GitHub repo with Akil (he'll branch + PR; Ashwin PRs early work in
+- [x] Environment: staying on Azure (Opal flow works; no AWS migration).
+- [x] Ashwin: share the GitHub repo with Akil (he'll branch + PR; Ashwin PRs early work in
       to avoid ugly merges).
 - [ ] Ashwin: keep both V2V and Build Studio deployable for a dry-run.
 - [ ] Ashwin: consult Carrie Ross (Joy to send contact).

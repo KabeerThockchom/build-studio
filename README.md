@@ -15,11 +15,11 @@ Build Studio is itself a Databricks App (FastAPI + React) and an agentic app
 
 ## Local dev
 
-Requires a Databricks CLI profile (default `coke-canada-workshop-dev`):
+Requires a Databricks CLI profile (`build-studio`, on Azure):
 
 ```bash
-databricks auth login --profile coke-canada-workshop-dev   # once, when the token expires
-./dev.sh                                                    # uvicorn :8000 + vite :5173
+databricks auth login --profile build-studio   # once, when the token expires
+DATABRICKS_PROFILE=build-studio ./dev.sh        # uvicorn :8000 + vite :5173
 ```
 
 Open http://localhost:5173 (Vite proxies `/api` → :8000).
