@@ -16,4 +16,4 @@ env:
   # auto-injected by the attached database resource; ENDPOINT_NAME is the
   # instance name used to mint per-connection credentials.
   - name: ENDPOINT_NAME
-    value: "cona-workshop-lb"
+    value: "build-studio-lb"
