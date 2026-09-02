@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Check, Copy, Send, Sparkles, Lightbulb } from "lucide-react";
+import { Check, Copy, Send, Sparkles, Lightbulb, GraduationCap, ExternalLink, BookOpen, X } from "lucide-react";
 import type { BuildPlan, BuildStep } from "../lib/types";
+import { CONCEPTS } from "../lib/learn";
 
 interface Props {
   plan: BuildPlan | null;
@@ -77,6 +78,10 @@ export function BuildScreen({ plan, loading, stepIdx, done, onStep, onComplete, 
           </div>
         )}
 
+        {/* Learning-during-waits: this step runs in Genie Code for minutes — fill
+            the wait with the durable concept + a quick check, keyed to the step. */}
+        <WhileItRuns key={step.n} capability={step.capability} />
+
         <div className="mt-8 flex items-center justify-between">
           <button onClick={stepIdx === 0 ? onBack : () => onStep(stepIdx - 1)}
             className="text-[14px] font-semibold text-navy-3 hover:text-navy">← {stepIdx === 0 ? "Blueprint" : "Previous"}</button>
@@ -98,6 +103,73 @@ export function BuildScreen({ plan, loading, stepIdx, done, onStep, onComplete, 
 
       {/* right: simulated Genie Code panel */}
       <GeniePanel step={step} />
+    </div>
+  );
+}
+
+// While a step runs in Genie Code (minutes), offer the durable concept behind it +
+// a quick check + docs to go deeper. Collapsed by default so it doesn't crowd the
+// action; expand while you wait.
+function WhileItRuns({ capability }: { capability: string }) {
+  const card = CONCEPTS[capability];
+  const [open, setOpen] = useState(false);
+  if (!card) return null;
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-white overflow-hidden">
+      <button onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2.5 px-4 py-3 text-left hover:bg-oat/50">
+        <GraduationCap className="h-4 w-4 shrink-0 text-green" />
+        <span className="text-[13.5px] font-bold text-navy">While this runs — {card.title}</span>
+        <span className="ml-auto text-[12px] font-semibold text-green-ink">{open ? "Hide" : "Learn"}</span>
+      </button>
+      {open && (
+        <div className="border-t border-line px-4 py-4">
+          <p className="text-[14px] leading-relaxed text-navy-2">{card.deeper}</p>
+          <MiniQuiz card={card} />
+          {card.links.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {card.links.map((l) => (
+                <a key={l.url} href={l.url} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold text-navy-2 hover:border-green hover:text-green-ink">
+                  {l.kind === "watch" ? <ExternalLink className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}
+                  {l.label}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MiniQuiz({ card }: { card: (typeof CONCEPTS)[string] }) {
+  const [picked, setPicked] = useState<number | null>(null);
+  const answered = picked !== null;
+  return (
+    <div className="mt-3.5 rounded-xl bg-oat px-4 py-3.5">
+      <div className="mb-2.5 text-[13.5px] font-semibold text-navy">{card.quiz.q}</div>
+      <div className="flex flex-col gap-2">
+        {card.quiz.options.map((opt, i) => {
+          const isCorrect = i === card.quiz.answer;
+          const show = answered && (picked === i || isCorrect);
+          return (
+            <button key={i} disabled={answered} onClick={() => setPicked(i)}
+              className={`flex items-center gap-2 rounded-lg border-[1.5px] px-3 py-2 text-left text-[13px] transition-colors
+                ${!answered ? "border-line bg-white hover:border-green text-navy"
+                  : show && isCorrect ? "border-green bg-green-soft text-navy"
+                  : picked === i ? "border-lava/40 bg-[#fdecef] text-navy" : "border-line bg-white text-navy-3 opacity-60"}`}>
+              {answered && show && (isCorrect ? <Check className="h-3.5 w-3.5 shrink-0 text-green" /> : <X className="h-3.5 w-3.5 shrink-0 text-lava" />)}
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+      {answered && (
+        <div className="mt-2.5 flex items-start gap-2 text-[12.5px] leading-snug text-navy-2">
+          <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green" />{card.quiz.why}
+        </div>
+      )}
     </div>
   );
 }
