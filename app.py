@@ -13,7 +13,8 @@ from server import sessions
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        sessions.init_schema()   # no-op if Lakebase env not configured
+        sessions.init_schema()          # no-op if Lakebase env not configured
+        sessions.init_config_schema()   # workshop config store
     except Exception as e:
         print(f"session init warning: {e}")
     yield
@@ -22,12 +23,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Build Studio", lifespan=lifespan)
 
-from server.routes import health, blueprint, design, session, build  # noqa: E402
+from server.routes import health, blueprint, design, session, build, admin  # noqa: E402
 app.include_router(health.router, prefix="/api")
 app.include_router(blueprint.router, prefix="/api")
 app.include_router(design.router, prefix="/api")
 app.include_router(session.router, prefix="/api")
 app.include_router(build.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 
 # Serve the built React SPA (frontend/dist) when present.
 frontend_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")

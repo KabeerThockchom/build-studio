@@ -109,6 +109,74 @@ def load(session_id: str) -> dict | None:
     return row[0] if isinstance(row[0], dict) else json.loads(row[0])
 
 
+def list_sessions(limit: int = 200) -> list[dict]:
+    """Roster for the proctor board: every session with who, its state, and timing."""
+    if not _ENABLED:
+        return []
+    rows = []
+    with _get_pool().connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT session_id, app_user, state, created_at, updated_at
+                   FROM build_studio_sessions ORDER BY updated_at DESC LIMIT %s""", (limit,))
+            for sid, user, state, created, updated in cur.fetchall():
+                st = state if isinstance(state, dict) else json.loads(state)
+                rows.append({"session_id": sid, "app_user": user, "state": st,
+                             "created_at": created.isoformat() if created else None,
+                             "updated_at": updated.isoformat() if updated else None})
+    return rows
+
+
+# --- Workshop config: a single-row store the harness + console share -----------
+_CONFIG_DDL = """
+CREATE TABLE IF NOT EXISTS build_studio_config (
+    id          TEXT PRIMARY KEY DEFAULT 'default',
+    config      JSONB NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+"""
+
+
+def init_config_schema():
+    if not _ENABLED:
+        return
+    try:
+        with _get_pool().connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(_CONFIG_DDL)
+            conn.commit()
+    except Exception as e:
+        print(f"config schema init failed: {e}")
+
+
+def get_config() -> dict | None:
+    if not _ENABLED:
+        return None
+    try:
+        with _get_pool().connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT config FROM build_studio_config WHERE id = 'default'")
+                row = cur.fetchone()
+        if not row:
+            return None
+        return row[0] if isinstance(row[0], dict) else json.loads(row[0])
+    except Exception as e:
+        print(f"get_config failed: {e}")
+        return None
+
+
+def set_config(config: dict):
+    if not _ENABLED:
+        return
+    with _get_pool().connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO build_studio_config (id, config) VALUES ('default', %s)
+                   ON CONFLICT (id) DO UPDATE SET config = EXCLUDED.config, updated_at = now()""",
+                (json.dumps(config),))
+        conn.commit()
+
+
 def close():
     if _pool is not None:
         _pool.close()

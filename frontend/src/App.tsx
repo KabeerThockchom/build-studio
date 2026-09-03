@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStudio, mergedQuestions, shownPicks, persistable, type Phase } from "./lib/store";
 import { api } from "./lib/api";
 import { LeftRail } from "./components/LeftRail";
@@ -9,11 +9,22 @@ import { DesignScreen } from "./components/DesignScreen";
 import { AssembleScreen } from "./components/AssembleScreen";
 import { BlueprintScreen } from "./components/BlueprintScreen";
 import { BuildScreen } from "./components/BuildScreen";
+import { AdminConsole } from "./components/AdminConsole";
 
 export default function App() {
   const { state, dispatch } = useStudio();
   const sessionId = useRef<string | null>(null);
   const restored = useRef(false);
+  const [admin, setAdmin] = useState<{ email: string; is_admin: boolean } | null>(null);
+  const [inConsole, setInConsole] = useState(false);
+
+  // Am I a proctor? (CAN_MANAGE). Deep-link ?admin=1 opens the console directly.
+  useEffect(() => {
+    api.adminMe().then((r) => {
+      setAdmin(r);
+      if (r.is_admin && new URLSearchParams(location.search).get("admin") === "1") setInConsole(true);
+    }).catch(() => {});
+  }, []);
 
   // Restore a saved session from ?s=<id> on first mount.
   useEffect(() => {
@@ -121,10 +132,20 @@ export default function App() {
   const curQ = questions[state.designIdx];
   const lastQ = state.designIdx === questions.length - 1;
 
+  if (inConsole && admin?.is_admin) {
+    return <AdminConsole email={admin.email} onExit={() => setInConsole(false)} />;
+  }
+
   return (
     <div className="flex h-screen bg-oat">
       <LeftRail state={state} go={go} />
-      <main className="flex-1 overflow-y-auto px-[72px] py-12">
+      <main className="relative flex-1 overflow-y-auto px-[72px] py-12">
+        {admin?.is_admin && (
+          <button onClick={() => setInConsole(true)}
+            className="absolute right-5 top-4 z-10 rounded-full border border-line bg-white px-3 py-1.5 text-[12px] font-bold text-navy-2 shadow-sm hover:border-green hover:text-green-ink">
+            Proctor console →
+          </button>
+        )}
         {state.phase === "overview" && (
           <OverviewScreen onStart={() => dispatch({ t: "phase", phase: "shape" })} />
         )}

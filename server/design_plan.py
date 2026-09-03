@@ -151,15 +151,35 @@ def _coerce_plan(parsed: dict) -> DesignPlan:
 
 
 def plan_design(req: PlanRequest) -> DesignPlan:
+    # Per-workshop config shapes the plan: inject its context and constrain the
+    # capability palette to what the facilitator allowed.
+    try:
+        from . import workshop
+        cfg = workshop.effective_config()
+        allowed = set(cfg.get("allowed_capabilities") or CAPABILITIES)
+        ctx = workshop.config_context_for_prompt(cfg)
+    except Exception:
+        allowed, ctx = set(CAPABILITIES), ""
+    user = _user_prompt(req)
+    if ctx:
+        user += f"\n{ctx}"
+    # Always tell the model about a narrowed palette, independent of other config,
+    # so its read_back/questions don't reference capabilities we then strip.
+    if allowed and allowed != set(CAPABILITIES):
+        user += f"\nOnly pre-select capabilities from this allowed set: {sorted(allowed)}."
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": _user_prompt(req)},
+        {"role": "user", "content": user},
     ]
     last = None
     for _ in range(2):
         raw = llm.complete(messages, max_tokens=2600)
         try:
-            return _coerce_plan(_extract_json(raw))
+            plan = _coerce_plan(_extract_json(raw))
+            # Constrain the palette to the workshop's allowed capabilities.
+            if allowed and allowed != set(CAPABILITIES):
+                plan.capabilities = [c for c in plan.capabilities if c.name in allowed]
+            return plan
         except Exception as e:
             last = e
             messages.append({"role": "assistant", "content": raw[:400]})
