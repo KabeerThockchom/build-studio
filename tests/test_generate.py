@@ -79,9 +79,11 @@ def test_generate_retries_on_bad_json_then_succeeds():
     assert bp.prd_markdown
 
 
-def test_generate_raises_after_two_bad():
+def test_generate_raises_after_all_attempts_bad():
+    # generate_blueprint retries several times (no fallback exists downstream), so it
+    # only raises once every attempt has produced unparseable JSON.
     req = GenerateRequest(idea="x", capabilities=["Genie"])
-    with patch.object(llm, "complete", side_effect=["nope", "still nope"]):
+    with patch.object(llm, "complete", side_effect=["nope"] * 4):
         try:
             generate.generate_blueprint(req)
             assert False, "should have raised"

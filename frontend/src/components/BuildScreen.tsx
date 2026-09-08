@@ -3,6 +3,7 @@ import { Check, Copy, Send, Sparkles, Lightbulb, GraduationCap, ExternalLink, Bo
 import type { BuildPlan, BuildStep } from "../lib/types";
 import { CONCEPTS } from "../lib/learn";
 import { GeneratingPanel } from "./GeneratingPanel";
+import { VideoEmbed } from "./VideoEmbed";
 
 interface Props {
   plan: BuildPlan | null;
@@ -20,26 +21,55 @@ export function BuildScreen({ plan, loading, stepIdx, done, onStep, onComplete, 
   const [confirming, setConfirming] = useState(false);
   // After everything's done we show a real completion screen; "review" drops back in.
   const [reviewing, setReviewing] = useState(false);
+  // Whether the user has chosen to leave the intro and start step 1. We never auto-advance
+  // into the steps — that used to cut off the Genie Code video the moment the plan was ready.
+  // Skip the gate for someone already mid-build (returning to this screen).
+  const [entered, setEntered] = useState(() => done.length > 0);
   useEffect(() => { setConfirming(false); }, [stepIdx]);  // reset the gate when the step changes
 
-  if (loading || !plan) {
+  // Intro phase: the build is still generating OR it's ready and waiting for the user.
+  // The video sits BELOW the status and stays mounted across both, so it keeps playing
+  // until the user themselves clicks "Start building" — their decision, not ours.
+  if (!entered) {
+    const ready = !loading && !!plan;
     return (
       <div className="rise max-w-[680px]">
         <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Build</div>
-        <h2 className="mb-5 text-[29px] font-extrabold leading-tight text-navy">Planning your build…</h2>
-        <GeneratingPanel
-          intervalMs={11000}
-          steps={["Reading your approved plan",
-                  "Ordering the build into safe steps",
-                  "Writing what to paste into Genie Code",
-                  "Still working — hang tight, almost there"]}
-          note="Breaking your blueprint into bite-sized steps you can follow one at a time. This can take up to a minute."
-          video={{ id: "heouBA5U1bE", title: "Intro to Genie Code",
-                   sub: "The tool you'll build with in a moment. Worth two minutes." }} />
+        <h2 className="mb-5 text-[29px] font-extrabold leading-tight text-navy">
+          {ready ? "Your build is ready when you are." : "Planning your build…"}
+        </h2>
+        {ready ? (
+          <div className="rounded-2xl border-[1.5px] border-green bg-green-soft px-6 py-5">
+            <div className="flex items-center gap-2 text-[15.5px] font-bold text-navy">
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-green text-white text-[11px]">✓</span>
+              Your step-by-step build plan is ready.
+            </div>
+            <p className="mt-2 text-[14px] leading-relaxed text-navy-2">
+              No rush — finish the video below if you're mid-watch. Start step 1 whenever you're ready.
+            </p>
+            <button onClick={() => setEntered(true)}
+              className="tl-glow mt-4 inline-flex items-center gap-2 rounded-xl bg-green px-7 py-3.5 text-[15.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-green-l">
+              Start building — go to step 1 →
+            </button>
+          </div>
+        ) : (
+          <GeneratingPanel
+            intervalMs={11000}
+            steps={["Reading your approved plan",
+                    "Ordering the build into safe steps",
+                    "Writing what to paste into Genie Code",
+                    "Still working — hang tight, almost there"]}
+            note="Breaking your blueprint into bite-sized steps you can follow one at a time. This can take up to a minute." />
+        )}
+        <div className="mt-4">
+          <VideoEmbed id="heouBA5U1bE" title="Intro to Genie Code"
+            sub="The tool you'll build with in a moment. Worth a watch while you wait." />
+        </div>
       </div>
     );
   }
 
+  if (!plan) return null;  // safety: entered is only reachable with a plan present
   const steps = plan.steps;
   const step = steps[stepIdx];
   const allDone = done.length >= steps.length;

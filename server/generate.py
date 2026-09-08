@@ -209,9 +209,14 @@ def generate_blueprint(req: GenerateRequest) -> Blueprint:
         {"role": "user", "content": _build_user_prompt(req)},
     ]
 
+    # The model occasionally emits malformed JSON (a missing comma, a stray quote).
+    # loads_tolerant handles control chars / trailing commas, but a genuine syntax slip
+    # only clears on a fresh generation — and this endpoint has no fallback, so a 500
+    # here dead-ends the participant. Give it several attempts (observed: the failure is
+    # transient — a later attempt succeeds), correcting more firmly each round.
     parsed = None
     last_err = None
-    for attempt in range(2):
+    for attempt in range(4):
         raw = llm.complete(messages, max_tokens=2200)
         try:
             parsed = _extract_json(raw)
@@ -220,9 +225,11 @@ def generate_blueprint(req: GenerateRequest) -> Blueprint:
             last_err = e
             messages.append({"role": "assistant", "content": raw[:500]})
             messages.append({"role": "user", "content":
-                             "That was not valid JSON. Return ONLY the JSON object, no fences, no prose."})
+                             "That was not valid JSON (parse error: %s). Return ONLY one valid JSON object — "
+                             "check every string is closed and every field/array element is comma-separated. "
+                             "No markdown fences, no prose." % e})
     if parsed is None:
-        raise ValueError(f"LLM did not return valid JSON after retry: {last_err}")
+        raise ValueError(f"LLM did not return valid JSON after {4} attempts: {last_err}")
 
     # What to tell the user about their refine. A capability change (structural) is the
     # most concrete, so it wins; otherwise use the model's own account of what it changed

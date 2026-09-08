@@ -157,7 +157,7 @@ def build_plan(req: BuildRequest) -> BuildPlan:
         {"role": "user", "content": _user_prompt(req)},
     ]
     last = None
-    for _ in range(2):
+    for _ in range(3):
         raw = llm.complete(messages, max_tokens=2600)
         try:
             parsed = _extract_json(raw)
@@ -173,5 +173,7 @@ def build_plan(req: BuildRequest) -> BuildPlan:
         except Exception as ex:
             last = ex
             messages.append({"role": "assistant", "content": raw[:400]})
-            messages.append({"role": "user", "content": "Return ONLY the JSON object in the exact shape, no fences."})
+            messages.append({"role": "user", "content":
+                             "That was not valid JSON. Return ONLY one valid JSON object in the exact shape — "
+                             "every string closed, every element comma-separated, no fences."})
     raise ValueError(f"build plan generation failed: {last}")

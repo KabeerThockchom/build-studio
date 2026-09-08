@@ -79,7 +79,7 @@ function BeatOrient({ idea }: { idea: string }) {
         ))}
       </div>
       {/* Optional orientation while the questions come back — new to Databricks? 3 min. */}
-      <div className="mt-8 max-w-[420px]">
+      <div className="mt-8">
         <VideoEmbed id="jBy-qUsU1sw" title="Databricks in 3 minutes"
           sub="New to Databricks? The whole platform, quickly." short eyebrow="New here? Watch this" />
       </div>

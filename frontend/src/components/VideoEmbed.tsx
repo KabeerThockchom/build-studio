@@ -18,7 +18,7 @@ interface Props {
 export function VideoEmbed({ id, title, sub, short, eyebrow = "Watch while you wait" }: Props) {
   const src = `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1`;
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-[0_2px_14px_rgba(20,32,41,0.05)]">
+    <div className={`overflow-hidden rounded-2xl border border-line bg-white shadow-[0_2px_14px_rgba(20,32,41,0.05)] ${short ? "mx-auto w-full max-w-[320px]" : ""}`}>
       <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-green-soft text-green">
           <Play className="h-4 w-4 fill-current" />
@@ -29,7 +29,7 @@ export function VideoEmbed({ id, title, sub, short, eyebrow = "Watch while you w
         </div>
       </div>
       <div className="p-3">
-        <div className={`relative w-full overflow-hidden rounded-xl bg-black ${short ? "mx-auto max-w-[280px]" : ""}`}
+        <div className="relative w-full overflow-hidden rounded-xl bg-black"
           style={{ aspectRatio: short ? "9 / 16" : "16 / 9" }}>
           <iframe
             className="absolute inset-0 h-full w-full"
@@ -42,10 +42,10 @@ export function VideoEmbed({ id, title, sub, short, eyebrow = "Watch while you w
           />
         </div>
         <div className="mt-2.5 flex items-center justify-between gap-3 px-0.5">
-          {sub ? <p className="text-[12.5px] leading-snug text-navy-3">{sub}</p> : <span />}
+          {sub ? <p className="text-[12px] leading-snug text-navy-3">{sub}</p> : <span />}
           <a href={`https://youtu.be/${id}`} target="_blank" rel="noreferrer"
             className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-navy-3 hover:text-green-ink">
-            <ExternalLink className="h-3.5 w-3.5" /> Open on YouTube
+            <ExternalLink className="h-3.5 w-3.5" /> YouTube
           </a>
         </div>
       </div>
