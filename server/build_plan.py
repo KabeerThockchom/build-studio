@@ -12,8 +12,8 @@ Design notes:
   Code session). Best-effort from the V2V reference + first principles; treat as
   the known-soft area to refine with real runs.
 """
-import json
 from . import llm
+from .jsonx import loads_tolerant
 from .scope import WORKSHOP_SCOPE, VOICE
 from .models import BuildPlan, BuildStep, BuildRequest
 
@@ -87,6 +87,18 @@ Each step has four parts, kept SHORT and plain:
 Honor the provided guardrails for each capability — they are hard-won and must be reflected in the
 move or verify. Keep the whole thing readable by a beginner. No ceremony, no code.
 
+WHO READS WHAT (critical — this is where plans lose beginners):
+- The "move" is pasted straight into Genie Code, which is a coding agent and understands technical
+  detail — so a guardrail's engineering specifics (packaging files, notebook cell headers, model
+  parameters, log pages) belong ONLY inside the move, phrased as an instruction TO Genie Code, never
+  as something the user must understand.
+- The "concept", "verify", and "teach" are read by the PERSON, whose Databricks familiarity is
+  stated in the request. If they are new to it: do NOT put raw jargon (uv.lock, "temperature",
+  /logz, "# COMMAND", Unity Catalog internals) in concept/verify/teach — say what it means in plain
+  words or leave it out. The person should never have to look up a term to follow a step.
+- The first step's concept should briefly reassure a newcomer how this works: they paste the move
+  into Genie Code, it does the technical work, they check the result. Don't assume they've used it.
+
 Return ONLY one JSON object (no fence, no prose):
 {{ "steps": [ {{ "capability": "<name or 'data'>", "title": "<short imperative>",
               "concept": "...", "move": "...", "verify": "...", "teach": "..." }}, ... ] }}
@@ -107,8 +119,18 @@ def _user_prompt(req: BuildRequest) -> str:
     guardrails = dict(GUARDRAILS)
     guardrails["data"] = f"{GUARDRAILS['data']} {DATA_GUARDRAIL.get(data_mode, DATA_GUARDRAIL['synthetic'])}"
     gl = "\n".join(f"- {t}: {guardrails.get(t, '')}" for t in targets)
+    # The PRD is authoritative: the user may have refined the blueprint (changed the
+    # whole idea) after describing it. Build from the plan they approved, not the first
+    # thing they typed. Fall back to the raw idea only if no PRD was passed.
+    if req.prd_markdown.strip():
+        what = (f"The approved plan (PRD) — build EXACTLY this, it is what the user settled on:\n"
+                f"\"\"\"\n{req.prd_markdown.strip()}\n\"\"\"\n")
+        if req.idea.strip():
+            what += f"\n(Their original one-liner, for tone only — the PRD wins if they differ: \"{req.idea.strip()}\")\n"
+    else:
+        what = f"Idea:\n\"\"\"\n{req.idea.strip()}\n\"\"\"\n"
     return (
-        f"Idea:\n\"\"\"\n{req.idea.strip()}\n\"\"\"\n\n"
+        f"{what}\n"
         f"Databricks familiarity: {req.expertise}\n"
         f"Data mode: {data_mode}\n"
         f"ORDER (produce exactly these steps, in this order): {targets}\n\n"
@@ -126,7 +148,7 @@ def _extract_json(text: str) -> dict:
     s, e = t.find("{"), t.rfind("}")
     if s != -1 and e != -1 and e > s:
         t = t[s:e + 1]
-    return json.loads(t)
+    return loads_tolerant(t)
 
 
 def build_plan(req: BuildRequest) -> BuildPlan:

@@ -19,7 +19,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from server.generate import generate_blueprint, compute_spec  # noqa: E402
-from server.models import GenerateRequest  # noqa: E402
+from server.build_plan import build_plan  # noqa: E402
+from server.design_plan import plan_design  # noqa: E402
+from server.models import GenerateRequest, BuildRequest, PlanRequest  # noqa: E402
 
 RESULTS = []
 
@@ -117,6 +119,62 @@ def contradictory():
     return no_invented and len(bp.prd_markdown) > 150, f"caps={sorted(_caps(bp))}"
 
 
+# --- 3b. Refine acknowledgement + build follows the refined plan ---------------
+def refine_note_fires_on_intent_change():
+    # Rosa's bug: a refine that changes the INTENT but keeps the same pieces used to
+    # come back with an empty refine_note and no signal anything changed.
+    base = GenerateRequest(idea="Track when our washing machines break down.",
+                           capabilities=["Genie", "Databricks Apps"],
+                           design_answers={"data_mode": "synthetic"})
+    bp0 = generate_blueprint(base)
+    ref = GenerateRequest(idea=base.idea, capabilities=["Genie", "Databricks Apps"],
+                          design_answers={"data_mode": "synthetic"},
+                          adjust="Actually forget breakdowns — just show revenue by location instead.")
+    bp1 = generate_blueprint(ref)
+    # caps legitimately unchanged (still Genie + App), but the user MUST get an acknowledgement.
+    return bool(bp1.refine_note.strip()), f"refine_note={bp1.refine_note!r}"
+
+
+def build_follows_refined_prd():
+    # Rosa's core failure: build_plan built the ORIGINAL idea after a pivot. Now the PRD
+    # is authoritative — a build built from a revenue PRD must not be about machines.
+    prd = ("## Summary\nShow revenue by store location and highlight the slowest store.\n"
+           "## What it does\nRanks locations by revenue and flags the lowest performer.\n")
+    bp = build_plan(BuildRequest(idea="Track when our washing machines break down.",
+                                 capabilities=["Genie", "Databricks Apps"],
+                                 design_answers={"data_mode": "synthetic"},
+                                 prd_markdown=prd))
+    blob = " ".join(f"{s.title} {s.concept} {s.move}" for s in bp.steps).lower()
+    machiney = any(w in blob for w in ["breakdown", "break down", "machine", "maintenance"])
+    revenuey = any(w in blob for w in ["revenue", "location", "store", "sales"])
+    return (not machiney) and revenuey, f"machiney={machiney} revenuey={revenuey}"
+
+
+# --- 3c. Design answers are honored: dashboard means no chat box ---------------
+def dashboard_answer_suppresses_chat():
+    # Kenji's bug: answering "just a dashboard, no chat" still produced a Genie question box.
+    bp = generate_blueprint(GenerateRequest(
+        idea="A dashboard showing which schools are missing attendance data and trending down.",
+        capabilities=["Genie", "Databricks Apps"],
+        design_answers={"data_mode": "existing",
+                        "delivery": "A visual dashboard only — charts and a report, NOT a chat or question box."}))
+    flow_blob = " ".join(f"{f.title} {f.sub}" for f in bp.flow).lower()
+    prd = bp.prd_markdown.lower()
+    chatty = any(w in flow_blob for w in ["question box", "ask a question", "chat", "type a question", "ask genie"])
+    return not chatty, f"chatty_flow={chatty}; flow={[f.title for f in bp.flow]}"
+
+
+# --- 3d. Conservative preselection: don't accumulate uninvited pieces ----------
+def plan_does_not_overselect():
+    # Priya/Ashley: Lakebase + Supervisor agent arrived pre-selected without being asked for.
+    # A plain "look at my data" idea should not pre-select persistence or an orchestrator.
+    plan = plan_design(PlanRequest(idea="I just want to look at my monthly sales numbers.",
+                                   expertise="New to it", interests=[]))
+    sel = {c.name for c in plan.capabilities if c.selected}
+    # neither of the two "accumulated without consent" pieces should be auto-on here
+    return ("Lakebase" not in sel and "Supervisor agent" not in sel), f"selected={sorted(sel)}"
+
+
 # --- 4. Config constraint (deterministic, no LLM needed) -----------------------
 def spec_respects_restricted_palette():
     # If a workshop only allows Genie+Apps, a spec built from that must not contain others.
@@ -131,6 +189,11 @@ def main():
     case("refine removes Lakebase from architecture", refine_removes_lakebase)
     case("non-structural refine doesn't change caps", refine_nonstructural_is_noop_on_caps)
     case("refine can add a capability", refine_adds_capability)
+    print("1b. Refine acknowledgement + build follows refined plan")
+    case("refine_note fires on intent change (no cap change)", refine_note_fires_on_intent_change)
+    case("build follows refined PRD, not stale idea", build_follows_refined_prd)
+    case("dashboard answer suppresses chat box", dashboard_answer_suppresses_chat)
+    case("plan does not over-select uninvited pieces", plan_does_not_overselect)
     print("2. Capability combos")
     case("Lakebase-only spec is well-formed", lakebase_only)
     case("Genie-only (no app) is coherent", no_app_genie_only)

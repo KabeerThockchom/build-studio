@@ -2,8 +2,8 @@
 capability preselection from the user's idea. Guardrailed JSON, retried, with a
 curated fallback so the flow never dead-ends if the model misbehaves.
 """
-import json
 from . import llm
+from .jsonx import loads_tolerant
 from .scope import WORKSHOP_SCOPE, VOICE
 from .models import DesignPlan, DesignQuestion, DesignOption, CapabilityPick, PlanRequest
 
@@ -45,6 +45,21 @@ assume their build is an app, or an agent, or anything — you read THEIR idea a
 
 The ONLY capabilities you may pre-select from (never invent others):
 {chr(10).join(f'- {c}: {CAP_BLURB[c]}' for c in CAPABILITIES)}
+
+Pre-select CONSERVATIVELY — only mark selected:true for pieces the idea clearly needs. A workshop
+build shouldn't accumulate pieces the person never asked for. Guidance:
+- Genie and Databricks Apps are the usual core for an interactive build; select them when they fit.
+- Do NOT auto-select Lakebase unless the idea implies recording/saving something between sessions
+  (a decision log, saved state, a queue). "Just look at data" does not need it.
+- Do NOT auto-select a Supervisor agent unless the idea genuinely needs to route across MULTIPLE
+  tools. A single-purpose build (one dashboard, one Q&A) does not.
+- Do NOT auto-select Knowledge Assistant unless there are documents/notes/text to answer from.
+- If the idea reads like a dashboard/report rather than a chat, reflect that — don't assume a chat agent.
+  And when you DO select Genie for a dashboard/report build, write its "fits" as powering the numbers
+  and charts behind the scenes — NOT "ask follow-up questions" or "chat," which contradicts a person
+  who wants a dashboard. Match the "fits" language to how they said they want to interact.
+For anything you leave unselected, set a short "fits" saying when they'd add it. The person can always
+turn pieces on in the next step; start them with the honest minimum, not the maximum.
 
 Generate ALL of the design questions, every one tailored to THIS specific idea. Do not use
 generic templated questions — a question a smart SA wouldn't bother asking for this idea should
@@ -110,7 +125,7 @@ def _extract_json(text: str) -> dict:
     s, e = t.find("{"), t.rfind("}")
     if s != -1 and e != -1 and e > s:
         t = t[s:e + 1]
-    return json.loads(t)
+    return loads_tolerant(t)
 
 
 def _coerce_plan(parsed: dict) -> DesignPlan:
@@ -189,9 +204,17 @@ def plan_design(req: PlanRequest) -> DesignPlan:
 
 
 # --- Curated fallback (mirrors the frontend defaults) if the SA call fails. ---
-def fallback_plan() -> DesignPlan:
+def fallback_plan(idea: str = "") -> DesignPlan:
+    # Echo their idea back even on the fallback path — this line is the "I heard you"
+    # moment, and it matters MOST when the input was messy enough to trip generation.
+    idea = (idea or "").strip()
+    if idea:
+        snippet = idea if len(idea) <= 140 else idea[:137].rstrip() + "…"
+        read_back = f"Here's what I heard: \"{snippet}\". Let's shape it with a couple of quick choices."
+    else:
+        read_back = "Let's shape your idea with a couple of quick choices."
     return DesignPlan(
-        read_back="Here are a couple of design choices that shape most builds.",
+        read_back=read_back,
         questions=[
             DesignQuestion(
                 id="audience", eyebrow="Design · 1 of 2",

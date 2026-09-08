@@ -12,5 +12,7 @@ def build_plan_route(req: BuildRequest):
     try:
         return build_plan.build_plan(req).model_dump()
     except Exception as e:
+        print(f"build_plan failed: {traceback.format_exc()[-1200:]}")
         return JSONResponse(status_code=500, content={
-            "error": str(e), "detail": traceback.format_exc()[-1200:]})
+            "error": "Couldn't lay out the build steps that time. Try again — "
+                     "it usually works on a second pass.", "cause": str(e)})

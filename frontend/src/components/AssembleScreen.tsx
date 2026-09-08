@@ -1,12 +1,14 @@
 import type { CapabilityPick } from "../lib/types";
 
-// Short, stable description per capability (the SA supplies the idea-specific "fits").
+// Short, stable description per capability, in plain outcome language — no product
+// jargon (a nervous newcomer stalled on "Postgres" here). The SA supplies the
+// idea-specific "fits"; this is the "what it does for you" the decision needs.
 const BLURB: Record<string, string> = {
-  "Genie": "Ask your data questions in plain English. No SQL to write.",
-  "Knowledge Assistant": "Point it at your notes and docs and it can answer from them. Nothing to wire up.",
-  "Supervisor agent": "An assistant that picks the right piece for each question and answers back.",
-  "Lakebase": "Fast Postgres beside your data. What you record sticks.",
-  "Databricks Apps": "Hosts the interface people actually open.",
+  "Genie": "Ask your data questions in plain English and get real answers back.",
+  "Knowledge Assistant": "Point it at your notes and documents and it can answer from them.",
+  "Supervisor agent": "Ties the pieces together — picks the right one for each request and replies.",
+  "Lakebase": "A place for your app to save things, like the decisions people make, so they stick.",
+  "Databricks Apps": "The interface people actually open and use.",
 };
 
 interface Props {

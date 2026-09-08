@@ -13,4 +13,4 @@ def plan_design(req: PlanRequest):
         plan = design_plan.plan_design(req)
         return {"plan": plan.model_dump(), "source": "sa"}
     except Exception:
-        return {"plan": design_plan.fallback_plan().model_dump(), "source": "fallback"}
+        return {"plan": design_plan.fallback_plan(req.idea).model_dump(), "source": "fallback"}

@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Check, Copy, Send, Sparkles, Lightbulb, GraduationCap, ExternalLink, BookOpen, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, Copy, Send, Sparkles, Lightbulb, GraduationCap, ExternalLink, BookOpen, X, PartyPopper, ArrowRight } from "lucide-react";
 import type { BuildPlan, BuildStep } from "../lib/types";
 import { CONCEPTS } from "../lib/learn";
+import { GeneratingPanel } from "./GeneratingPanel";
 
 interface Props {
   plan: BuildPlan | null;
@@ -14,17 +15,25 @@ interface Props {
 }
 
 export function BuildScreen({ plan, loading, stepIdx, done, onStep, onComplete, onBack }: Props) {
+  // Confirm gate: "I did this" opens a check tied to the step's verify condition, so
+  // people actually look at whether it worked instead of clicking straight through.
+  const [confirming, setConfirming] = useState(false);
+  // After everything's done we show a real completion screen; "review" drops back in.
+  const [reviewing, setReviewing] = useState(false);
+  useEffect(() => { setConfirming(false); }, [stepIdx]);  // reset the gate when the step changes
+
   if (loading || !plan) {
     return (
       <div className="rise max-w-[680px]">
         <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Build</div>
-        <h2 className="mb-4 text-[29px] font-extrabold leading-tight text-navy">Planning your build…</h2>
-        <div className="flex items-center gap-3 rounded-2xl border border-line bg-white px-6 py-7 text-[15px] text-navy-2">
-          <span className="flex gap-1">
-            {[0, 1, 2].map((i) => <span key={i} className="h-2 w-2 rounded-full bg-green" style={{ animation: `dots 1.4s ${i * 0.16}s infinite ease-in-out` }} />)}
-          </span>
-          Breaking your blueprint into bite-sized steps for Genie Code…
-        </div>
+        <h2 className="mb-5 text-[29px] font-extrabold leading-tight text-navy">Planning your build…</h2>
+        <GeneratingPanel
+          intervalMs={11000}
+          steps={["Reading your approved plan",
+                  "Ordering the build into safe steps",
+                  "Writing what to paste into Genie Code",
+                  "Still working — hang tight, almost there"]}
+          note="Breaking your blueprint into bite-sized steps you can follow one at a time. This can take up to a minute." />
       </div>
     );
   }
@@ -32,6 +41,12 @@ export function BuildScreen({ plan, loading, stepIdx, done, onStep, onComplete, 
   const steps = plan.steps;
   const step = steps[stepIdx];
   const allDone = done.length >= steps.length;
+
+  // Everything built — a real finish, not an inline emoji.
+  if (allDone && !reviewing) {
+    return <CompletionScreen steps={steps}
+      onReview={() => { setReviewing(true); onStep(0); }} onBack={onBack} />;
+  }
 
   return (
     <div className="rise flex gap-7 max-w-[1180px]">
@@ -59,6 +74,17 @@ export function BuildScreen({ plan, loading, stepIdx, done, onStep, onComplete, 
           })}
         </div>
 
+        {stepIdx === 0 && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-line bg-oat/60 px-4 py-3">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-green" />
+            <div className="text-[13.5px] leading-snug text-navy-2">
+              <b className="text-navy">How this works:</b> each step gives you one thing to paste into Genie Code
+              (the assistant in your workspace, on the right). It does the technical part; you read the result and
+              confirm it worked before moving on. You don't need to write any code.
+            </div>
+          </div>
+        )}
+
         <h2 className="mb-1.5 text-[27px] font-extrabold leading-[1.12] tracking-[-0.02em] text-navy">{step.title}</h2>
 
         <section className="mt-5 rounded-2xl border border-line bg-white px-6 py-5">
@@ -82,20 +108,37 @@ export function BuildScreen({ plan, loading, stepIdx, done, onStep, onComplete, 
             the wait with the durable concept + a quick check, keyed to the step. */}
         <WhileItRuns key={step.n} capability={step.capability} />
 
+        {/* Confirm gate — clicking "I did this" asks them to actually check the verify
+            condition before it counts, instead of clicking straight through. */}
+        {confirming && !done.includes(step.n) && (
+          <div className="mt-6 rounded-2xl border-[1.5px] border-green bg-green-soft px-5 py-4">
+            <div className="text-[14px] font-bold text-navy">Before you move on — did it work?</div>
+            <div className="mt-1.5 flex items-start gap-2 text-[13.5px] leading-snug text-navy-2">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-green" />{step.verify}
+            </div>
+            <div className="mt-3.5 flex items-center gap-2.5">
+              <button onClick={() => { onComplete(step.n); setConfirming(false); if (stepIdx < steps.length - 1) onStep(stepIdx + 1); }}
+                className="rounded-xl bg-green px-5 py-2.5 text-[14px] font-bold text-white hover:bg-green-l">Yes, that worked →</button>
+              <button onClick={() => setConfirming(false)}
+                className="rounded-xl border border-line bg-white px-4 py-2.5 text-[14px] font-semibold text-navy-2 hover:border-navy-3">Not yet — still working on it</button>
+            </div>
+          </div>
+        )}
+
         <div className="mt-8 flex items-center justify-between">
           <button onClick={stepIdx === 0 ? onBack : () => onStep(stepIdx - 1)}
             className="text-[14px] font-semibold text-navy-3 hover:text-navy">← {stepIdx === 0 ? "Blueprint" : "Previous"}</button>
           <div className="flex items-center gap-3">
-            {!done.includes(step.n) && (
-              <button onClick={() => { onComplete(step.n); if (stepIdx < steps.length - 1) onStep(stepIdx + 1); }}
+            {!done.includes(step.n) && !confirming && (
+              <button onClick={() => setConfirming(true)}
                 className="rounded-xl bg-green px-6 py-3 text-[15px] font-bold text-white hover:bg-green-l">I did this →</button>
+            )}
+            {done.includes(step.n) && (
+              <span className="flex items-center gap-1.5 text-[13.5px] font-semibold text-green-ink"><Check className="h-4 w-4" /> Done</span>
             )}
             {done.includes(step.n) && stepIdx < steps.length - 1 && (
               <button onClick={() => onStep(stepIdx + 1)}
                 className="rounded-xl bg-green px-6 py-3 text-[15px] font-bold text-white hover:bg-green-l">Next step →</button>
-            )}
-            {allDone && stepIdx === steps.length - 1 && (
-              <span className="rounded-xl bg-green-soft px-5 py-3 text-[15px] font-bold text-green-ink">🎉 You built it</span>
             )}
           </div>
         </div>
@@ -103,6 +146,60 @@ export function BuildScreen({ plan, loading, stepIdx, done, onStep, onComplete, 
 
       {/* right: simulated Genie Code panel */}
       <GeniePanel step={step} />
+    </div>
+  );
+}
+
+// A real finish line — a recap of what they stood up and honest next steps, instead
+// of an inline emoji you could hit without doing anything.
+function CompletionScreen({ steps, onReview, onBack }: { steps: BuildStep[]; onReview: () => void; onBack: () => void }) {
+  const NEXT = [
+    "Open your app and use it the way the people it's for would.",
+    "Show it to a colleague — the fastest way to find what to improve.",
+    "Keep going in Genie Code: ask it for one change at a time, the same way you built it.",
+    "When you're ready, swap the sample data for your real tables.",
+  ];
+  return (
+    <div className="rise max-w-[760px]">
+      <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Build · complete</div>
+      <div className="flex items-center gap-3">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-green-soft text-green"><PartyPopper className="h-6 w-6" /></span>
+        <h2 className="text-[32px] font-extrabold leading-[1.05] tracking-[-0.025em] text-navy">You built it.</h2>
+      </div>
+      <p className="mt-4 max-w-[58ch] text-[16.5px] leading-relaxed text-navy-2">
+        You went from an idea to a working build, one step at a time. Here's what you stood up today.
+      </p>
+
+      <div className="mt-6 rounded-2xl border border-line bg-white px-6 py-5">
+        <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-navy-3">What you built</div>
+        <ul className="flex flex-col gap-2.5">
+          {steps.map((s) => (
+            <li key={s.n} className="flex items-start gap-2.5 text-[14.5px] leading-snug text-navy">
+              <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-green text-white text-[10px]">✓</span>
+              {s.title}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-line bg-oat/50 px-6 py-5">
+        <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-green-ink">
+          <ArrowRight className="h-4 w-4" /> Where to go next
+        </div>
+        <ul className="flex flex-col gap-2">
+          {NEXT.map((n, i) => (
+            <li key={i} className="flex items-start gap-2 text-[14px] leading-snug text-navy-2">
+              <span className="mt-[7px] h-[6px] w-[6px] shrink-0 rounded-full bg-green" />{n}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-8 flex items-center justify-between">
+        <button onClick={onBack} className="text-[14px] font-semibold text-navy-3 hover:text-navy">← Back to blueprint</button>
+        <button onClick={onReview}
+          className="rounded-xl border border-line bg-white px-6 py-3 text-[15px] font-bold text-navy-2 hover:border-green hover:text-green-ink">Review the steps</button>
+      </div>
     </div>
   );
 }
@@ -203,12 +300,14 @@ function GeniePanel({ step }: { step: BuildStep }) {
           <div className="font-mono text-[12.5px] leading-relaxed text-[#eafaf3] whitespace-pre-wrap">{step.move}</div>
         </div>
       </div>
-      <div className="m-4 mt-1 flex items-center justify-between gap-2.5 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5">
-        <span className="text-[12.5px] text-[#5a7079]">Message Genie Code…</span>
-        <span className="grid h-6 w-6 place-items-center rounded-md" style={{ background: "#00A870" }}><Send className="h-3 w-3 text-[#08221a]" /></span>
+      {/* An illustrative preview of the real Genie Code composer — deliberately inert
+          (a tester tried to type here). Labeled so it doesn't read as a live input. */}
+      <div className="m-4 mt-1 flex items-center justify-between gap-2.5 rounded-xl border border-dashed border-white/10 bg-white/5 px-3.5 py-2.5 opacity-60">
+        <span className="text-[12.5px] italic text-[#5a7079]">You'll type here in the real Genie Code</span>
+        <span className="grid h-6 w-6 place-items-center rounded-md bg-white/10"><Send className="h-3 w-3 text-[#5a7079]" /></span>
       </div>
       <div className="flex items-center gap-1.5 border-t border-white/10 px-4 py-2.5 text-[11px] text-[#5a7079]">
-        <Sparkles className="h-3 w-3" /> Runs in your workspace. Already signed in, no terminal needed.
+        <Sparkles className="h-3 w-3" /> This panel is a preview. You'll do this in Genie Code, in your workspace — already signed in.
       </div>
     </aside>
   );

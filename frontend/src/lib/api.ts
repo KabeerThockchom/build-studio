@@ -30,7 +30,7 @@ export const api = {
       body: JSON.stringify({ session_id, state }),
     }),
   loadSession: (id: string) => j<{ state: any }>(`/api/session/${id}`),
-  buildPlan: (req: { idea: string; expertise?: string; capabilities?: string[]; design_answers?: Record<string, string> }) =>
+  buildPlan: (req: { idea: string; expertise?: string; capabilities?: string[]; design_answers?: Record<string, string>; prd_markdown?: string }) =>
     j<BuildPlan>("/api/build_plan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

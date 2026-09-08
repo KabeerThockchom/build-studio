@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Target, ShieldCheck, RefreshCw, Check, X, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
 
 /* The teaching sequence that plays while the SA authors the design questions in
@@ -310,6 +310,17 @@ function BeatReady({ idea, ready, onEnter }: { idea: string; ready: boolean; onE
 
 export function TeachingLoader({ idea, planning, ready, onEnter }: Props) {
   const [beat, setBeat] = useState(0);
+  // Non-skippable: you step through the beats in order (dots only go back to ones
+  // you've seen), and a short dwell on each stops anyone from sprinting past the
+  // teaching into dead air while the questions are still generating.
+  const [maxSeen, setMaxSeen] = useState(0);
+  const [dwelling, setDwelling] = useState(true);
+  useEffect(() => {
+    setDwelling(true);
+    const t = setTimeout(() => setDwelling(false), 1200);
+    return () => clearTimeout(t);
+  }, [beat]);
+  const goTo = (i: number) => setBeat((b) => { const n = Math.max(0, Math.min(beats.length - 1, i)); setMaxSeen((m) => Math.max(m, n)); return n; });
 
   const beats = [
     <BeatOrient key="orient" idea={idea} />,
@@ -337,11 +348,7 @@ export function TeachingLoader({ idea, planning, ready, onEnter }: Props) {
             </span> Tailoring your design questions…</>
           )}
         </div>
-        {ready && !onLast && (
-          <button onClick={onEnter} className="flex items-center gap-1 text-[12.5px] font-bold text-green-ink hover:text-green">
-            Skip to questions <ChevronRight className="h-3.5 w-3.5" />
-          </button>
-        )}
+        <div className="text-[12px] font-medium text-navy-3">A quick primer while we work · {beat + 1} of {beats.length}</div>
       </div>
 
       {/* the current beat, centered, re-animated on change */}
@@ -357,15 +364,20 @@ export function TeachingLoader({ idea, planning, ready, onEnter }: Props) {
         </button>
 
         <div className="flex items-center gap-2">
-          {beats.map((_, i) => (
-            <button key={i} onClick={() => setBeat(i)} aria-label={`Go to beat ${i + 1}`}
-              className={`h-2 rounded-full transition-all ${i === beat ? "w-6 bg-green" : "w-2 bg-line-2 hover:bg-navy-3"}`} />
-          ))}
+          {beats.map((_, i) => {
+            const seen = i <= maxSeen;
+            return (
+              <button key={i} onClick={() => seen && goTo(i)} disabled={!seen}
+                aria-label={seen ? `Go to beat ${i + 1}` : `Beat ${i + 1} — unlocks as you go`}
+                title={seen ? `Beat ${i + 1}` : "Unlocks as you go — hit Next"}
+                className={`h-2 rounded-full transition-all ${i === beat ? "w-6 bg-green" : seen ? "w-2 bg-line-2 hover:bg-navy-3" : "w-2 bg-line cursor-default"}`} />
+            );
+          })}
         </div>
 
         {!onLast ? (
-          <button onClick={() => setBeat((b) => Math.min(last, b + 1))}
-            className="flex items-center gap-1.5 rounded-xl bg-navy px-5 py-2.5 text-[14.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-navy-2">
+          <button onClick={() => goTo(beat + 1)} disabled={dwelling}
+            className="flex items-center gap-1.5 rounded-xl bg-navy px-5 py-2.5 text-[14.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-navy-2 disabled:opacity-40 disabled:hover:translate-y-0">
             Next <ChevronRight className="h-4 w-4" />
           </button>
         ) : (

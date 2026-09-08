@@ -10,8 +10,8 @@ Split of responsibility:
   - The PRD / flow / decisions come from the LLM, JSON-guardrailed and validated
     against the Blueprint model, with one retry on malformed output.
 """
-import json
 from . import llm
+from .jsonx import loads_tolerant
 from .scope import WORKSHOP_SCOPE, VOICE
 from .models import Blueprint, DiagramSpec, Node, FlowStep, Decision, GenerateRequest
 
@@ -27,11 +27,12 @@ CAP_TO_NODE = {
 }
 CAP_IDS = {cap: cap.lower().replace(" ", "_") for cap in CAP_TO_NODE}
 
-# The data node label/sub per workshop-realistic data path.
+# The data node label/sub per workshop-realistic data path. Plain language — these
+# render in the diagram for newcomers, so no product jargon (no "UC").
 DATA_NODE = {
-    "synthetic": {"label": "Sample data", "sub": "synthetic tables in UC"},
-    "upload":    {"label": "Your file", "sub": "spreadsheet → UC table"},
-    "existing":  {"label": "Existing table", "sub": "read from UC"},
+    "synthetic": {"label": "Sample data", "sub": "tables we create for you"},
+    "upload":    {"label": "Your file", "sub": "your spreadsheet, as a table"},
+    "existing":  {"label": "Existing table", "sub": "a table you already have"},
 }
 
 
@@ -79,6 +80,12 @@ PRD discipline (borrowed from the real Databricks workshop, follow it strictly):
 - Do NOT write code, SQL, table schemas/definitions, table names, or API endpoints. This is a
   plan, not an implementation — those come later, in the build steps.
 - Do NOT invent capabilities they did not choose. Work only with the given list.
+- The design answers are the user's EXPLICIT choices — honor them over any default assumption.
+  In particular, how they want to interact is their call: if an answer says they want a dashboard,
+  a report, or "just charts" (i.e. NOT a conversational / chat / question-box experience), do NOT put
+  a chat box, "ask a question" step, or Q&A flow in the flow or PRD, even if Genie is a chosen
+  capability. Genie can power the numbers behind a dashboard without any chat UI. Only include a
+  question box when the user actually wants to ask questions.
 - Keep it simple. High-value workflows only, happy path only. Do not over-engineer.
 - 1-2 personas maximum. Ground everything in THEIR idea and words. No generic filler, no hype.
 
@@ -97,7 +104,12 @@ Return ONLY a single JSON object (no markdown fence, no prose around it) with th
   "decisions": [ {{"tag": "<capability name>", "text": "<why it's in the build, one line>",
                   "tradeoff": "<the cost/con, one line>"}}, ... one per chosen capability ],
   "scope_in": [ "<a specific thing they'll get working today>", ... 3 to 4, grounded in their idea ],
-  "scope_later": [ "<an honest follow-up beyond a workshop day>", ... 2 to 3, grounded in their idea ]
+  "scope_later": [ "<an honest follow-up beyond a workshop day>", ... 2 to 3, grounded in their idea ],
+  "change_note": "<ONLY when the user asked for a change (a refine note is present above): one plain
+                   sentence saying what you changed in response. If their request could not be fully
+                   honored — e.g. it needs something outside the workshop toolset, or contradicts the
+                   pieces chosen — say so plainly and what you did instead. Empty string when there was
+                   no change request.>"
 }}
 """
 
@@ -140,7 +152,7 @@ def _extract_json(text: str) -> dict:
     start, end = t.find("{"), t.rfind("}")
     if start != -1 and end != -1 and end > start:
         t = t[start:end + 1]
-    return json.loads(t)
+    return loads_tolerant(t)
 
 
 # What each capability provides — used so a refine can explain the ripple of removing one.
@@ -187,9 +199,9 @@ def generate_blueprint(req: GenerateRequest) -> Blueprint:
     # Interpret it into a capability edit first, then the deterministic spec + PRD both
     # reflect the real change — the diagram is dynamic to iteration, not just to Assemble.
     capabilities = list(req.capabilities)
-    refine_note = ""
+    cap_ripple = ""
     if req.adjust.strip() and capabilities:
-        capabilities, refine_note = _refine_capabilities(req.adjust, capabilities)
+        capabilities, cap_ripple = _refine_capabilities(req.adjust, capabilities)
         req.capabilities = capabilities  # so the PRD prompt sees the adjusted list too
     spec = compute_spec(capabilities, req.design_answers.get("data_mode", "synthetic"))
     messages = [
@@ -211,6 +223,14 @@ def generate_blueprint(req: GenerateRequest) -> Blueprint:
                              "That was not valid JSON. Return ONLY the JSON object, no fences, no prose."})
     if parsed is None:
         raise ValueError(f"LLM did not return valid JSON after retry: {last_err}")
+
+    # What to tell the user about their refine. A capability change (structural) is the
+    # most concrete, so it wins; otherwise use the model's own account of what it changed
+    # in the plan. Either way a refine now always gets an acknowledgement (was: only when
+    # the capability set changed, which left PRD-only refines silent).
+    refine_note = ""
+    if req.adjust.strip():
+        refine_note = cap_ripple or (parsed.get("change_note") or "").strip()
 
     return Blueprint(
         archetype=req.design_answers.get("archetype", "agentic_app"),

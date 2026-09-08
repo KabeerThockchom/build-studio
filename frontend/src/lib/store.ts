@@ -54,7 +54,7 @@ export const initialState: StudioState = {
   industry: "",
   sampleStarter: "",
   expertise: "New to it",
-  interests: ["AI agents"],
+  interests: [],   // no default — a pre-checked interest fabricated capability picks the user never chose
   plan: null,
   planning: false,
   planError: null,
@@ -146,8 +146,11 @@ export function reducer(s: StudioState, a: Action): StudioState {
     case "genStart": return { ...s, generating: true, error: null };
     // Sync capabilities from the blueprint — a refine ("remove Lakebase") can change
     // which capabilities are in play, and Assemble should reflect that if they go back.
+    // Also invalidate any build plan: a refined blueprint (esp. a pivot) makes the old
+    // steps stale, so they must regenerate from the new plan on the next visit to Build.
     case "genOk": return { ...s, generating: false, blueprint: a.bp,
-      capabilities: a.bp.capabilities?.length ? a.bp.capabilities : s.capabilities };
+      capabilities: a.bp.capabilities?.length ? a.bp.capabilities : s.capabilities,
+      buildPlan: null, buildStepIdx: 0, buildDone: [] };
     case "genErr": return { ...s, generating: false, error: a.e };
     case "buildStart": return { ...s, buildLoading: true };
     case "buildOk": return { ...s, buildLoading: false, buildPlan: a.plan, buildStepIdx: 0 };

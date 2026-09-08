@@ -13,6 +13,13 @@ body { font-family: "DM Sans", system-ui, sans-serif; -webkit-font-smoothing: an
 
 @keyframes dots { 0%,80%,100% { opacity:.3 } 40% { opacity:1 } }
 
+/* Indeterminate progress sweep — for the long generation waits so they read as
+   "working", never frozen. A bar segment slides left-to-right on a track. */
+@keyframes sweep { 0% { left: -40%; } 100% { left: 100%; } }
+.sweep { position: absolute; top: 0; height: 100%; width: 40%; border-radius: 999px;
+  background: linear-gradient(90deg, rgba(0,168,112,0) 0%, #00A870 50%, rgba(0,168,112,0) 100%);
+  animation: sweep 1.5s cubic-bezier(.4,0,.6,1) infinite; }
+
 /* Teaching loader — scroll-reveal (IntersectionObserver toggles .tl-in) */
 .tl-reveal { opacity: 0; transform: translateY(28px);
   transition: opacity .75s cubic-bezier(.2,.7,.2,1), transform .75s cubic-bezier(.2,.7,.2,1); }

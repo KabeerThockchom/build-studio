@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import { RefreshCw, Check, Clock } from "lucide-react";
 import type { Blueprint } from "../lib/types";
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
+import { GeneratingPanel } from "./GeneratingPanel";
 
 interface Props {
   blueprint: Blueprint | null;
@@ -54,7 +55,15 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefin
         Built from what you described and the pieces you picked. The flow is how a person moves through it; the diagram is how the parts connect.
       </p>
 
-      {generating && <GeneratingState />}
+      {generating && (
+        <GeneratingPanel
+          intervalMs={13000}
+          steps={["Reading your idea and design choices",
+                  "Laying out how the pieces connect",
+                  "Writing your plan and the tradeoffs",
+                  "Still working — putting it on one page"]}
+          note="This takes up to a minute or two. It's writing a real plan tailored to what you described, not a template." />
+      )}
       {error && !generating && (
         <div className="rounded-2xl bg-[#fdecef] px-5 py-4">
           <p className="text-[14px] font-bold text-lava">Couldn't generate the blueprint</p>
@@ -167,15 +176,3 @@ function ScopeCard({ scopeIn, scopeLater }: { scopeIn: string[]; scopeLater: str
   );
 }
 
-function GeneratingState() {
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-line bg-white px-6 py-8 text-[15px] text-navy-2">
-      <span className="flex gap-1">
-        {[0, 1, 2].map((i) => (
-          <span key={i} className="h-2 w-2 rounded-full bg-green" style={{ animation: `dots 1.4s ${i * 0.16}s infinite ease-in-out` }} />
-        ))}
-      </span>
-      Designing your architecture and writing the plan…
-    </div>
-  );
-}

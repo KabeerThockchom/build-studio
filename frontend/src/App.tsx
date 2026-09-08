@@ -122,6 +122,9 @@ export default function App() {
       const plan = await api.buildPlan({
         idea: state.idea, expertise: state.expertise,
         capabilities: state.capabilities, design_answers: answers,
+        // The blueprint's PRD is authoritative — it reflects any refinements/pivots,
+        // so the build steps follow what the user actually approved, not the raw idea.
+        prd_markdown: state.blueprint?.prd_markdown || "",
       });
       dispatch({ t: "buildOk", plan });
     } catch {

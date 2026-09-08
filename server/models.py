@@ -115,3 +115,7 @@ class BuildRequest(BaseModel):
     expertise: str = "New to it"
     capabilities: list[str] = Field(default_factory=list)
     design_answers: dict[str, str] = Field(default_factory=dict)
+    # After the blueprint, the user may have refined it. The PRD is the true, current
+    # description of what they're building — build steps must follow it, not the raw idea.
+    prd_markdown: str = ""       # the (possibly refined) blueprint PRD — authoritative
+    adjust: str = ""             # the last refine note, if any (for extra signal)
