@@ -62,7 +62,9 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefin
                   "Laying out how the pieces connect",
                   "Writing your plan and the tradeoffs",
                   "Still working — putting it on one page"]}
-          note="This takes up to a minute or two. It's writing a real plan tailored to what you described, not a template." />
+          note="This takes up to a minute or two. It's writing a real plan tailored to what you described, not a template."
+          video={{ id: "_nMgCvsCcns", title: "Vibe-coding an AI app",
+                   sub: "The idea behind what you're doing right now.", short: true }} />
       )}
       {error && !generating && (
         <div className="rounded-2xl bg-[#fdecef] px-5 py-4">

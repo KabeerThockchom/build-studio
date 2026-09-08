@@ -33,7 +33,9 @@ export function BuildScreen({ plan, loading, stepIdx, done, onStep, onComplete, 
                   "Ordering the build into safe steps",
                   "Writing what to paste into Genie Code",
                   "Still working — hang tight, almost there"]}
-          note="Breaking your blueprint into bite-sized steps you can follow one at a time. This can take up to a minute." />
+          note="Breaking your blueprint into bite-sized steps you can follow one at a time. This can take up to a minute."
+          video={{ id: "heouBA5U1bE", title: "Intro to Genie Code",
+                   sub: "The tool you'll build with in a moment. Worth two minutes." }} />
       </div>
     );
   }

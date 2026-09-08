@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Target, ShieldCheck, RefreshCw, Check, X, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
+import { VideoEmbed } from "./VideoEmbed";
 
 /* The teaching sequence that plays while the SA authors the design questions in
    the background. Instead of a long scroll, it's a focused deck: ONE beat at a
@@ -76,6 +77,11 @@ function BeatOrient({ idea }: { idea: string }) {
             {i < ROADMAP.length - 1 && <ChevronRight className="h-4 w-4 shrink-0 text-line-2" />}
           </div>
         ))}
+      </div>
+      {/* Optional orientation while the questions come back — new to Databricks? 3 min. */}
+      <div className="mt-8 max-w-[420px]">
+        <VideoEmbed id="jBy-qUsU1sw" title="Databricks in 3 minutes"
+          sub="New to Databricks? The whole platform, quickly." short eyebrow="New here? Watch this" />
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { VideoEmbed } from "./VideoEmbed";
 
 /* A "this is working, hang tight" panel for the long generation waits (blueprint
    ~1-2 min, build ~1 min). The earlier static label read as a crash to impatient
@@ -10,9 +11,10 @@ interface Props {
   steps: string[];        // status lines to cycle through, in order
   note?: string;          // one honest line about how long / why it's worth it
   intervalMs?: number;    // cadence — pace it to the real wait so the last line isn't reached too early
+  video?: { id: string; title: string; sub?: string; short?: boolean };  // optional "watch while you wait"
 }
 
-export function GeneratingPanel({ steps, note, intervalMs = 6000 }: Props) {
+export function GeneratingPanel({ steps, note, intervalMs = 6000, video }: Props) {
   const [i, setI] = useState(0);
   useEffect(() => {
     // Advance the status line, holding on the last one (don't loop back to "starting"
@@ -51,6 +53,11 @@ export function GeneratingPanel({ steps, note, intervalMs = 6000 }: Props) {
         </div>
       </div>
       {note && <p className="mt-3 text-[13px] leading-relaxed text-navy-3">{note}</p>}
+      {video && (
+        <div className="mt-4">
+          <VideoEmbed id={video.id} title={video.title} sub={video.sub} short={video.short} />
+        </div>
+      )}
     </div>
   );
 }
