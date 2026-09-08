@@ -65,6 +65,12 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefin
 
       {blueprint && !generating && (
         <>
+          {blueprint.refine_note && (
+            <div className="mb-4 flex items-start gap-2.5 rounded-xl border-[1.5px] border-green bg-green-soft px-4 py-3">
+              <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-green" />
+              <div className="text-[14px] leading-snug text-navy"><b>Updated the architecture.</b> {blueprint.refine_note}</div>
+            </div>
+          )}
           {(blueprint.scope_in.length > 0 || blueprint.scope_later.length > 0) && (
             <ScopeCard scopeIn={blueprint.scope_in} scopeLater={blueprint.scope_later} />
           )}

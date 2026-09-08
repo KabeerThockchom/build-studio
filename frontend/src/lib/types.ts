@@ -17,6 +17,7 @@ export interface Blueprint {
   decisions: Decision[];
   scope_in: string[];      // what we'll get done today
   scope_later: string[];   // honest "save for later"
+  refine_note: string;     // if a refine changed the architecture: what changed + ripple
 }
 
 export interface GenerateRequest {

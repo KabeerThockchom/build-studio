@@ -144,7 +144,10 @@ export function reducer(s: StudioState, a: Action): StudioState {
       return { ...s, capabilities: s.capabilities.includes(a.v)
         ? s.capabilities.filter((x) => x !== a.v) : [...s.capabilities, a.v] };
     case "genStart": return { ...s, generating: true, error: null };
-    case "genOk": return { ...s, generating: false, blueprint: a.bp };
+    // Sync capabilities from the blueprint — a refine ("remove Lakebase") can change
+    // which capabilities are in play, and Assemble should reflect that if they go back.
+    case "genOk": return { ...s, generating: false, blueprint: a.bp,
+      capabilities: a.bp.capabilities?.length ? a.bp.capabilities : s.capabilities };
     case "genErr": return { ...s, generating: false, error: a.e };
     case "buildStart": return { ...s, buildLoading: true };
     case "buildOk": return { ...s, buildLoading: false, buildPlan: a.plan, buildStepIdx: 0 };

@@ -143,8 +143,55 @@ def _extract_json(text: str) -> dict:
     return json.loads(t)
 
 
+# What each capability provides — used so a refine can explain the ripple of removing one.
+_CAP_PROVIDES = {
+    "Genie": "asking your data questions in plain English",
+    "Knowledge Assistant": "answering from documents/notes",
+    "Supervisor agent": "an assistant that routes across the pieces",
+    "Lakebase": "recording decisions / app state that persists",
+    "Databricks Apps": "the app people open",
+}
+_REFINE_SYS = """You adjust the capability list of a Databricks build based on a user's refine note.
+You are given the current capabilities and the note. Decide if the note asks to add or remove
+capabilities. Return ONLY JSON: {"capabilities": [<the new full list>], "changed": true|false,
+"note": "<one plain sentence: what changed and any ripple, e.g. 'Removed Lakebase, so the app no
+longer records decisions between sessions.' If nothing changed, empty string.>"}
+Rules: capabilities MUST be a subset of this exact vocabulary (never invent): %s. If the note is
+NOT about which pieces to use (e.g. 'make it simpler', 'focus on the manager'), return the list
+unchanged with changed=false. Keep at least one capability."""
+
+
+def _refine_capabilities(note: str, capabilities: list[str]) -> tuple[list[str], str]:
+    """Interpret a refine note into a capability-list edit. Returns (new_caps, ripple_note).
+    Deterministic spec is recomputed from the result, so the diagram truly reflects the change."""
+    import json as _json
+    from .design_plan import CAPABILITIES as VOCAB
+    sys = _REFINE_SYS % VOCAB
+    user = f"Current capabilities: {capabilities}\nRefine note: \"{note.strip()}\"\nReturn the JSON."
+    try:
+        raw = llm.complete([{"role": "system", "content": sys}, {"role": "user", "content": user}], max_tokens=400)
+        parsed = _extract_json(raw)
+        new = [c for c in parsed.get("capabilities", []) if c in VOCAB]
+        if not new:
+            return capabilities, ""
+        if set(new) == set(capabilities):
+            return capabilities, ""
+        return new, (parsed.get("note") or "").strip()
+    except Exception as e:
+        print(f"refine capability interp failed ({e}); keeping capabilities")
+        return capabilities, ""
+
+
 def generate_blueprint(req: GenerateRequest) -> Blueprint:
-    spec = compute_spec(req.capabilities, req.design_answers.get("data_mode", "synthetic"))
+    # A refine note may change WHICH capabilities are in play (e.g. "remove Lakebase").
+    # Interpret it into a capability edit first, then the deterministic spec + PRD both
+    # reflect the real change — the diagram is dynamic to iteration, not just to Assemble.
+    capabilities = list(req.capabilities)
+    refine_note = ""
+    if req.adjust.strip() and capabilities:
+        capabilities, refine_note = _refine_capabilities(req.adjust, capabilities)
+        req.capabilities = capabilities  # so the PRD prompt sees the adjusted list too
+    spec = compute_spec(capabilities, req.design_answers.get("data_mode", "synthetic"))
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": _build_user_prompt(req)},
@@ -169,11 +216,12 @@ def generate_blueprint(req: GenerateRequest) -> Blueprint:
         archetype=req.design_answers.get("archetype", "agentic_app"),
         idea=req.idea,
         persona=req.persona,
-        capabilities=req.capabilities,
+        capabilities=capabilities,
         spec=spec,
         flow=[FlowStep(**f) for f in parsed.get("flow", [])],
         prd_markdown=parsed.get("prd_markdown", ""),
         decisions=[Decision(**d) for d in parsed.get("decisions", [])],
         scope_in=[s for s in parsed.get("scope_in", []) if isinstance(s, str)][:4],
         scope_later=[s for s in parsed.get("scope_later", []) if isinstance(s, str)][:3],
+        refine_note=refine_note,
     )

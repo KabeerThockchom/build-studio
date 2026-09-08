@@ -44,6 +44,7 @@ class Blueprint(BaseModel):
     decisions: list[Decision] = Field(default_factory=list)
     scope_in: list[str] = Field(default_factory=list)     # what we'll get done today
     scope_later: list[str] = Field(default_factory=list)  # honest "save for later"
+    refine_note: str = ""   # if a refine changed the architecture: what changed + ripple
 
 
 class GenerateRequest(BaseModel):
