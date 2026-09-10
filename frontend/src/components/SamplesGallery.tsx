@@ -9,7 +9,7 @@ import { GALLERY, interestsForComponents, type SampleApp } from "../lib/gallery"
    prompt. It seeds; it does not hijack — the user edits freely afterward. */
 
 interface Props {
-  onPick: (idea: string, industry: string, components: string[], interests: string[]) => void;
+  onPick: (idea: string, name: string, industry: string, components: string[], interests: string[]) => void;
 }
 
 // One representative card per vertical for the always-on teaser row.
@@ -40,7 +40,7 @@ export function SamplesGallery({ onPick }: Props) {
         <div className="grid grid-cols-3 gap-3">
           {FEATURED.map(({ app, industry }, i) => (
             <SampleCard key={app.id} app={app} tag={GALLERY[i].label}
-              onClick={() => onPick(app.starter, industry, app.components, interestsForComponents(app.components))} />
+              onClick={() => onPick(app.starter, app.label, industry, app.components, interestsForComponents(app.components))} />
           ))}
         </div>
       )}
@@ -63,13 +63,15 @@ export function SamplesGallery({ onPick }: Props) {
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-3 gap-3.5 items-start">
             {active.columns.map((col) => (
               <div key={col.outcome}>
                 <div className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.1em] text-green-ink">{col.outcome}</div>
                 <div className="flex flex-col gap-2">
                   {col.apps.map((app) => (
-                    <SampleCard key={app.id} app={app} onClick={() => onPick(app.starter, active.industry, app.components, interestsForComponents(app.components))} />
+                    // Collapse the expanded panel on pick so the page shrinks back and the
+                    // now-filled form is in view (the parent also scrolls + highlights it).
+                    <SampleCard key={app.id} app={app} detailed onClick={() => { setShowAll(false); onPick(app.starter, app.label, active.industry, app.components, interestsForComponents(app.components)); }} />
                   ))}
                 </div>
               </div>
@@ -77,7 +79,7 @@ export function SamplesGallery({ onPick }: Props) {
           </div>
 
           <p className="mt-4 text-[12px] text-navy-3">
-            Pick one to start from it. We'll drop it into the box above, yours to edit.
+            Each shows the same four things a good idea covers: problem, how, tool, objective. Pick one to start from it, yours to edit.
           </p>
         </div>
       )}
@@ -85,7 +87,7 @@ export function SamplesGallery({ onPick }: Props) {
   );
 }
 
-function SampleCard({ app, tag, onClick }: { app: SampleApp; tag?: string; onClick: () => void }) {
+function SampleCard({ app, tag, detailed, onClick }: { app: SampleApp; tag?: string; detailed?: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick}
       className="group flex h-full flex-col rounded-xl border border-line bg-white px-3.5 py-3 text-left transition-all hover:-translate-y-px hover:border-green hover:bg-green-soft hover:shadow-[0_6px_18px_rgba(0,168,112,0.1)]">
@@ -95,6 +97,16 @@ function SampleCard({ app, tag, onClick }: { app: SampleApp; tag?: string; onCli
         <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-line-2 group-hover:text-green" />
       </div>
       <p className="mt-1 text-[12px] leading-snug text-navy-3">{app.blurb}</p>
+      {detailed && app.facets && (
+        <div className="mt-2 flex flex-col gap-1 border-t border-line pt-2">
+          {([["Problem", app.facets.problem], ["How", app.facets.how], ["Tool", app.facets.tool], ["Objective", app.facets.objective]] as const).map(([label, v]) => (
+            <div key={label} className="text-[10.5px] leading-snug">
+              <span className="font-bold uppercase tracking-[0.04em] text-navy-3">{label}</span>{" "}
+              <span className="text-navy-2">{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </button>
   );
 }

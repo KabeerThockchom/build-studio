@@ -17,8 +17,16 @@ DEFAULT_CONFIG = {
     "industry": "",                                   # silent context into the SA prompt
     "company": "",                                    # target company (branding + context)
     "data_path": "any",                               # soft preference: any | synthetic | upload | existing
+    "catalog": "",                                    # Unity Catalog the build lands in (baked into build prompts)
     "admin_emails": [],                               # break-glass proctor allowlist
 }
+
+
+def build_catalog() -> str:
+    """The Unity Catalog participants build into, from workshop config. Empty when the
+    facilitator hasn't set one — build prompts then tell Genie Code to use the workshop's
+    default catalog / ask, rather than inventing a name."""
+    return (effective_config().get("catalog") or "").strip()
 
 
 def effective_config() -> dict:

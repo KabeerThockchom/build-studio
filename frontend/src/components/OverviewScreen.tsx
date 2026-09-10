@@ -6,9 +6,9 @@ import { Lightbulb, MessageSquare, Boxes, Map, Hammer, ArrowRight } from "lucide
 
 const PHASES = [
   { n: 1, icon: Lightbulb, name: "Shape", why: "Start with the problem in your own words. The clearer your intent, the better everything downstream." },
-  { n: 2, icon: MessageSquare, name: "Design", why: "Answer a few questions tailored to your idea. This is where your plan — the PRD — takes shape." },
+  { n: 2, icon: MessageSquare, name: "Design", why: "Answer a few questions tailored to your idea. This is where your plan, the PRD, takes shape." },
   { n: 3, icon: Boxes, name: "Assemble", why: "Pick the Databricks pieces that fit: ask your data, an app to open, a place to record decisions." },
-  { n: 4, icon: Map, name: "Blueprint", why: "See the whole build on one page — the plan and how the parts connect — before you build it." },
+  { n: 4, icon: Map, name: "Blueprint", why: "See the whole build on one page: the plan, and how the parts connect, before you build it." },
   { n: 5, icon: Hammer, name: "Build", why: "Build it for real in Genie Code, one bite-sized move at a time. Not a wall of prompts." },
 ];
 
@@ -23,6 +23,10 @@ export function OverviewScreen({ onStart }: { onStart: () => void }) {
         You'll go from a plain idea to a working app you built yourself, in five steps. Here's the
         whole path first — then we'll take it one step at a time, so you always know where you are
         and why each part matters.
+      </p>
+      <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-navy-3">
+        These five steps aren't just for today — they're a repeatable framework. The same path works
+        for any idea you bring back to your team.
       </p>
 
       <div className="mt-9 flex flex-col gap-3">

@@ -12,7 +12,7 @@ Split of responsibility:
 """
 from . import llm
 from .jsonx import loads_tolerant
-from .scope import WORKSHOP_SCOPE, VOICE
+from .scope import WORKSHOP_SCOPE, VOICE, strip_em_dashes, clamp_idea
 from .models import Blueprint, DiagramSpec, Node, FlowStep, Decision, GenerateRequest
 
 # --- capability -> diagram node (the spine mapping) ---
@@ -86,8 +86,25 @@ PRD discipline (borrowed from the real Databricks workshop, follow it strictly):
   a chat box, "ask a question" step, or Q&A flow in the flow or PRD, even if Genie is a chosen
   capability. Genie can power the numbers behind a dashboard without any chat UI. Only include a
   question box when the user actually wants to ask questions.
+- The "interaction_model" design answer sets the app's SHAPE, so honor it: browse_act -> open on a
+  ranked shortlist of what needs attention, click in to act; monitor -> open on a dashboard/overview;
+  ask -> open on a plain-English question box; explore -> open on a flexible view they drill through;
+  agent_actions -> open on the list of actions an AGENT has already worked through and PROPOSES (each
+  item showing what it read, its judgement, and the action it drafted, most consequential first); the
+  person reviews and APPROVES or OVERRIDES each, and every decision is recorded as an audit trail. For
+  agent_actions the app is a supervise-the-agent console, NOT a passive briefing: the Primary action is
+  "approve or override the agent's proposed action", and the agent does the deciding, not the person.
+  The "First screen" and "Primary action" sections below MUST match the chosen interaction model.
+- WRITE-BOUNDARY HONESTY: the build's pieces (Genie, an agent, Lakebase, the app) can read data and
+  RECORD decisions/actions in Lakebase, but they cannot perform side effects in EXTERNAL systems (send an
+  email, push to a ticketing/case system, change a source of record). If the idea implies an external
+  action, say plainly in the PRD that the app records the decided action and its audit trail, and put
+  "wire it to <the real system>" in Scope (save for later). Never imply the app performs an external
+  side effect it cannot.
 - Keep it simple. High-value workflows only, happy path only. Do not over-engineer.
 - 1-2 personas maximum. Ground everything in THEIR idea and words. No generic filler, no hype.
+- Design like a briefing, not a dashboard: the app should open on ONE clear finding or action, then
+  let the person go to evidence, then detail. Never a blank canvas or a bare query box with nothing on it.
 
 You also decide, like an experienced SA would, what is realistically IN scope for the workshop
 day versus what to honestly flag as a follow-up ("save for later") — so the person knows what
@@ -98,8 +115,11 @@ apply to their idea.
 Return ONLY a single JSON object (no markdown fence, no prose around it) with this exact shape:
 {{
   "prd_markdown": "<a concise PRD in markdown: ## Summary, ## Who it's for (1-2 personas),
-                    ## What it does, ## Scope (in / out), ## How someone uses it (happy path),
-                    ## Data (which of sample/uploaded/existing, in plain terms). No code, no schemas.>",
+                    ## What it does, ## First screen (what the user sees on open and the ONE dominant
+                    element, matching their interaction model), ## Primary action (the single thing they
+                    do most, which the first screen should make obvious), ## Scope (in / out),
+                    ## How someone uses it (happy path), ## Data (which of sample/uploaded/existing, in
+                    plain terms). No code, no schemas.>",
   "flow": [ {{"n": 1, "title": "<verb>", "sub": "<short>"}}, ... 3 to 4 steps of how a person uses it ],
   "decisions": [ {{"tag": "<capability name>", "text": "<why it's in the build, one line>",
                   "tradeoff": "<the cost/con, one line>"}}, ... one per chosen capability ],
@@ -195,10 +215,18 @@ def _refine_capabilities(note: str, capabilities: list[str]) -> tuple[list[str],
 
 
 def generate_blueprint(req: GenerateRequest) -> Blueprint:
+    req.idea = clamp_idea(req.idea)   # a rambling pasted idea shouldn't bloat/truncate the PRD
     # A refine note may change WHICH capabilities are in play (e.g. "remove Lakebase").
     # Interpret it into a capability edit first, then the deterministic spec + PRD both
     # reflect the real change — the diagram is dynamic to iteration, not just to Assemble.
     capabilities = list(req.capabilities)
+    # Drop anything outside the known palette. The UI can only submit valid capabilities,
+    # but a direct API caller can send junk ("NotARealCapability") — don't let a nonsense
+    # piece flow into the PRD/diagram/build. (compute_spec already ignores unknowns for the
+    # diagram; this keeps them out of the prompt and the returned capability list too.)
+    from .design_plan import CAPABILITIES as _VOCAB
+    capabilities = [c for c in capabilities if c in _VOCAB]
+    req.capabilities = capabilities
     cap_ripple = ""
     if req.adjust.strip() and capabilities:
         capabilities, cap_ripple = _refine_capabilities(req.adjust, capabilities)
@@ -216,8 +244,11 @@ def generate_blueprint(req: GenerateRequest) -> Blueprint:
     # transient — a later attempt succeeds), correcting more firmly each round.
     parsed = None
     last_err = None
+    # Escalate the token budget each retry so a long idea can't truncate the PRD JSON and
+    # then re-truncate at the same budget on every retry (the build-plan failure mode).
+    budgets = [2200, 4000, 6000, 8000]
     for attempt in range(4):
-        raw = llm.complete(messages, max_tokens=2200)
+        raw = llm.complete(messages, max_tokens=budgets[attempt])
         try:
             parsed = _extract_json(raw)
             break
@@ -239,16 +270,21 @@ def generate_blueprint(req: GenerateRequest) -> Blueprint:
     if req.adjust.strip():
         refine_note = cap_ripple or (parsed.get("change_note") or "").strip()
 
+    # Sanitize every user-facing string: the VOICE rule forbids em-dashes but the model
+    # still slips them in, and the participant wants zero anywhere they read.
     return Blueprint(
         archetype=req.design_answers.get("archetype", "agentic_app"),
         idea=req.idea,
         persona=req.persona,
         capabilities=capabilities,
         spec=spec,
-        flow=[FlowStep(**f) for f in parsed.get("flow", [])],
-        prd_markdown=parsed.get("prd_markdown", ""),
-        decisions=[Decision(**d) for d in parsed.get("decisions", [])],
-        scope_in=[s for s in parsed.get("scope_in", []) if isinstance(s, str)][:4],
-        scope_later=[s for s in parsed.get("scope_later", []) if isinstance(s, str)][:3],
-        refine_note=refine_note,
+        flow=[FlowStep(n=f.get("n", i + 1), title=strip_em_dashes(f.get("title", "")), sub=strip_em_dashes(f.get("sub", "")))
+              for i, f in enumerate(parsed.get("flow", [])) if isinstance(f, dict)],
+        prd_markdown=strip_em_dashes(parsed.get("prd_markdown", "")),
+        decisions=[Decision(tag=strip_em_dashes(d.get("tag", "")), text=strip_em_dashes(d.get("text", "")),
+                            tradeoff=strip_em_dashes(d.get("tradeoff", "")))
+                   for d in parsed.get("decisions", []) if isinstance(d, dict)],
+        scope_in=[strip_em_dashes(s) for s in parsed.get("scope_in", []) if isinstance(s, str)][:4],
+        scope_later=[strip_em_dashes(s) for s in parsed.get("scope_later", []) if isinstance(s, str)][:3],
+        refine_note=strip_em_dashes(refine_note),
     )

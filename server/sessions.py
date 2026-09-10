@@ -31,7 +31,7 @@ def _get_pool():
     from databricks.sdk import WorkspaceClient
 
     ws = WorkspaceClient() if os.environ.get("DATABRICKS_APP_NAME") else \
-        WorkspaceClient(profile=os.environ.get("DATABRICKS_PROFILE", "coke-canada-workshop-dev"))
+        WorkspaceClient(profile=os.environ.get("DATABRICKS_CONFIG_PROFILE") or os.environ.get("DATABRICKS_PROFILE", "build-studio"))
 
     class OAuthConnection(psycopg.Connection):
         @classmethod
@@ -107,6 +107,30 @@ def load(session_id: str) -> dict | None:
     if not row:
         return None
     return row[0] if isinstance(row[0], dict) else json.loads(row[0])
+
+
+def latest_for_user(app_user: str) -> dict | None:
+    """The participant's most recently-updated session, for 'welcome back / resume' when
+    they return to the base URL without the ?s= id. Returns {session_id, state, updated_at}
+    or None. Safe no-op when Lakebase isn't configured or the user has no sessions."""
+    if not _ENABLED or not app_user:
+        return None
+    try:
+        with _get_pool().connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT session_id, state, updated_at FROM build_studio_sessions
+                       WHERE app_user = %s ORDER BY updated_at DESC LIMIT 1""", (app_user,))
+                row = cur.fetchone()
+        if not row:
+            return None
+        sid, state, updated = row
+        st = state if isinstance(state, dict) else json.loads(state)
+        return {"session_id": sid, "state": st,
+                "updated_at": updated.isoformat() if updated else None}
+    except Exception as e:
+        print(f"latest_for_user failed: {e}")
+        return None
 
 
 def list_sessions(limit: int = 200) -> list[dict]:

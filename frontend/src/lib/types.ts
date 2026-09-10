@@ -33,9 +33,13 @@ export interface GenerateRequest {
 // --- Design plan (SA-authored) ---
 export interface DesignOption { key: string; letter: string; label: string; sub: string; preview: string[]; }
 export interface DesignQuestion {
-  id: string; eyebrow: string; title: string; lead: string;
+  id: string; eyebrow: string; concept: string; title: string; lead: string;
   options: DesignOption[]; other_placeholder: string; other_preview: string[];
 }
+
+// --- Idea stress-test (advisory) ---
+export interface IdeaCriterion { key: string; label: string; met: boolean; hint: string; }
+export interface IdeaCheck { strong: boolean; summary: string; criteria: IdeaCriterion[]; }
 export interface CapabilityPick { name: string; selected: boolean; fits: string; }
 export interface DesignPlan {
   read_back: string;

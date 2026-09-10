@@ -33,6 +33,25 @@ VOICE = """WRITING STYLE — write for someone brand new to this:
   Say what a thing does in everyday words instead.
 - Do NOT use em-dashes (—). Use a period, comma, or "like" instead. Keep sentences short."""
 
+def clamp_idea(text: str, limit: int = 2000) -> str:
+    """Guard generation against a pathologically long pasted idea/PRD. The idea is a
+    'seed' of a sentence or two; anything past a sane limit only bloats the prompt and
+    pushes the JSON output toward truncation. Keep the head, where the real intent lives."""
+    if not text or len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + " ..."
+
+
+def strip_em_dashes(s: str) -> str:
+    """Belt-and-suspenders enforcement of the no-em-dash rule on GENERATED text. The model
+    is told not to use them (VOICE) but still slips them in, and the participant wants zero
+    em/en dashes anywhere the user reads. Replace them with plain punctuation."""
+    if not s:
+        return s
+    return (s.replace(" — ", ", ").replace(" – ", ", ")
+             .replace("—", ", ").replace("–", "-"))
+
+
 # Things that routinely feel in-reach to a newcomer but do NOT fit a workshop day.
 # Used to guide the "save for later" list the SA surfaces on the blueprint.
 COMMON_LATER = [

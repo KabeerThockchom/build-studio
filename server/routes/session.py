@@ -33,6 +33,22 @@ def save(body: SaveRequest, request: Request):
                 "error": str(e), "detail": traceback.format_exc()[-600:]}
 
 
+@router.get("/session/latest")
+def latest(request: Request):
+    """The current user's most recent session, so returning to the base URL (no ?s=) can
+    offer 'pick up where you left off'. Only surfaces real progress (past shape)."""
+    row = sessions.latest_for_user(_user(request))
+    if not row:
+        return {"found": False}
+    st = row.get("state") or {}
+    phase = st.get("phase", "overview")
+    if phase in ("overview", "shape"):   # nothing worth resuming yet
+        return {"found": False}
+    return {"found": True, "session_id": row["session_id"], "phase": phase,
+            "idea": (st.get("idea") or "")[:140], "project_name": st.get("projectName") or "",
+            "updated_at": row.get("updated_at")}
+
+
 @router.get("/session/{session_id}")
 def load(session_id: str):
     try:
