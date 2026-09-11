@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Check, Copy, Sparkles, Lightbulb, ExternalLink, PartyPopper, ArrowRight, FolderCheck, HelpCircle, Compass } from "lucide-react";
 import type { BuildPlan, BuildStep } from "../lib/types";
 import { GeneratingPanel } from "./GeneratingPanel";
+import { VideoEmbed } from "./VideoEmbed";
 
 interface Props {
   plan: BuildPlan | null;
@@ -103,6 +104,14 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
             </button>
           </>
         )}
+
+        {/* Meet Genie Code — sits below the status and stays MOUNTED across both the
+            planning and ready states, so it keeps playing until the user starts step 1. */}
+        <div className="mt-8 max-w-[640px] border-t border-line pt-6">
+          <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-navy-3">Meet Genie Code</div>
+          <VideoEmbed id="heouBA5U1bE" title="Intro to Genie Code"
+            sub="The AI coding agent you'll build with. You describe what you want in plain words; it writes and runs the work in your workspace." />
+        </div>
       </div>
     );
   }

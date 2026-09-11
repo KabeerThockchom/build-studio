@@ -22,11 +22,9 @@ export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
   const caps = ORDER.filter((c) => capabilities.includes(c) && CONCEPTS[c]);
   const [beat, setBeat] = useState(0);
   const [maxSeen, setMaxSeen] = useState(0);
-  // modules -> an optional "watch Genie Code" video beat -> the quiz
-  const videoIdx = caps.length;
-  const total = caps.length + 2;
-  const onVideo = beat === videoIdx;
-  const onQuiz = beat === videoIdx + 1;
+  // modules -> the quiz (the Genie Code intro video now lives on the Build overview screen)
+  const total = caps.length + 1;
+  const onQuiz = beat === caps.length;
   const goTo = (i: number) => setBeat(() => {
     const n = Math.max(0, Math.min(total - 1, i));
     setMaxSeen((m) => Math.max(m, n));
@@ -42,14 +40,14 @@ export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
           Learn the pieces your build uses
         </div>
         <span className="text-[12px] font-medium text-navy-3">
-          {onQuiz ? "Quick check" : onVideo ? "Watch (optional)" : `Piece ${beat + 1} of ${caps.length}`} · {beat + 1} of {total}
+          {onQuiz ? "Quick check" : `Piece ${beat + 1} of ${caps.length}`} · {beat + 1} of {total}
         </span>
       </div>
 
       {/* current beat */}
       <div className="flex flex-1 items-start py-8">
         <div key={beat} className="rise w-full">
-          {onQuiz ? <QuizBeat caps={caps} /> : onVideo ? <VideoBeat /> : <ModuleBeat cap={caps[beat]} idx={beat} count={caps.length} />}
+          {onQuiz ? <QuizBeat caps={caps} /> : <ModuleBeat cap={caps[beat]} idx={beat} count={caps.length} />}
         </div>
       </div>
 
@@ -82,24 +80,6 @@ export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
             Next <ChevronRight className="h-4 w-4" />
           </button>
         )}
-      </div>
-    </div>
-  );
-}
-
-// Optional "meet the tool" video, between the piece modules and the quiz. Skippable —
-// the footer Next goes straight to the check. Moved here from the Build overview screen.
-function VideoBeat() {
-  return (
-    <div>
-      <div className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Optional · watch</div>
-      <h1 className="text-[32px] font-extrabold leading-[1.08] tracking-[-0.025em] text-navy">Meet Genie Code.</h1>
-      <p className="mt-3 max-w-[56ch] text-[15.5px] leading-relaxed text-navy-2">
-        The AI coding agent you'll build with in a moment. Optional, watch it now or skip straight to the quick check.
-      </p>
-      <div className="mt-5 max-w-[640px]">
-        <VideoEmbed id="heouBA5U1bE" title="Intro to Genie Code"
-          sub="You describe what you want in plain words; it writes and runs the work in your workspace." />
       </div>
     </div>
   );
