@@ -320,8 +320,10 @@ if __name__ == "__main__":
         wd = f"{OUT_ROOT}/{s['short']}"
         os.makedirs(wd, exist_ok=True)
         j = compose_journey(s)
-        open(f"{wd}/PROJECT.md", "w").write(j["project_md"])
-        json.dump({k: v for k, v in j.items() if k != "project_md"}, open(f"{wd}/journey.json", "w"), indent=2)
+        with open(f"{wd}/PROJECT.md", "w") as f:
+            f.write(j["project_md"])
+        with open(f"{wd}/journey.json", "w") as f:
+            json.dump({k: v for k, v in j.items() if k != "project_md"}, f, indent=2)
         print(f"composed {a.sample}: {len(j['project_md'])} chars, {len(j['steps'])} steps -> {wd}/PROJECT.md")
     else:
         run_sample(a.sample, timeout=a.timeout)

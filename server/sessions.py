@@ -144,7 +144,11 @@ def list_sessions(limit: int = 200) -> list[dict]:
                 """SELECT session_id, app_user, state, created_at, updated_at
                    FROM build_studio_sessions ORDER BY updated_at DESC LIMIT %s""", (limit,))
             for sid, user, state, created, updated in cur.fetchall():
-                st = state if isinstance(state, dict) else json.loads(state)
+                # A single corrupted state row must not 500 the whole proctor roster.
+                try:
+                    st = state if isinstance(state, dict) else json.loads(state)
+                except (json.JSONDecodeError, TypeError):
+                    st = {}
                 rows.append({"session_id": sid, "app_user": user, "state": st,
                              "created_at": created.isoformat() if created else None,
                              "updated_at": updated.isoformat() if updated else None})

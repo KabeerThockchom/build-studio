@@ -119,6 +119,7 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
   if (!plan) return null;  // safety: entered is only reachable with a plan present
   const steps = plan.steps;
   const step = steps[stepIdx];
+  if (!step) return null;  // defensive: guards against a transient stepIdx/plan desync
   const allDone = done.length >= steps.length;
 
   // Everything built — a real finish, not an inline emoji.

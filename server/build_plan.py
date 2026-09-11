@@ -86,7 +86,10 @@ GUARDRAILS = {
         "Lakebase is managed Postgres for the app's writes/state (e.g. recording a decision). Keep it to a "
         "few small operational tables for what the app records at runtime — it is not a place to copy the "
         "analytical tables. Create the table you need; the app authenticates with a short-lived token "
-        "minted per connection (no password). "),
+        "minted per connection (no password). Autoscaling Lakebase sleeps when idle, so the FIRST request "
+        "after a quiet period (like the morning of a demo) waits while it wakes: open the connection with a "
+        "generous timeout and retry the first attempt (e.g. a psycopg pool opened with wait=True and "
+        "timeout~30s, or a small retry loop), so a cold start shows briefly instead of erroring."),
     "Supervisor agent": (
         "The supervisor agent is a small tool-calling loop (not a framework): it calls the Foundation "
         "Model API and routes to the tools you built (for example Genie for data questions and Lakebase to "
@@ -235,6 +238,9 @@ COMMON FIRST-PASS BUGS TO AVOID (hard-won from real builds — fold the fix into
 - Serve the built SPA robustly: the backend must resolve dist/index.html relative to the app file (not the
   process working directory, which varies), and only error on a genuinely missing file.
 - Parse responses defensively: an error response may not be JSON; guard `response.json()`.
+- Wrap every backend call to a Databricks service (Genie, the SQL warehouse, Lakebase, the model) in
+  try/except: on failure, log it and return a clean JSON error the UI can show (e.g. {{"error": "..."}}),
+  never let it bubble up as a raw 500. One transient blip should degrade a panel, not crash the app.
 
 VERIFY THE CORE ACTION BEFORE 'DONE' (the single most important check):
 - TWO things must BOTH pass after deploy, not just one. (a) The ROOT page must render: open the deployed

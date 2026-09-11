@@ -135,6 +135,9 @@ def _project_md(*, idea: str, prd_markdown: str, decisions: list[Decision], step
                 "calls it as cleanup → 'TypeError: n is not a function'; use a block body). With strict TS, use "
                 "`import type` and remove unused imports. Serve `dist/index.html` by a path relative to the app "
                 "file, not the working directory. Guard `response.json()` (error responses may not be JSON).",
+                "- **Wrap backend service calls**: every call to Genie, the SQL warehouse, Lakebase, or the model "
+                "goes in a try/except that logs the error and returns a clean JSON error ({\"error\": \"...\"}) the "
+                "UI can show. A transient failure should degrade one panel, never surface as a raw 500.",
                 "- **Verify BOTH the root page and the core action before done**: after deploy, (a) open the base "
                 "URL and confirm it returns 200 with a full `<!DOCTYPE html>` page (a 500 here means dist/index.html "
                 "did not ship — check the sync.include allowlist), and (b) actually perform the app's ONE primary "
