@@ -12,7 +12,8 @@ function buildSteps(s: StudioState): { group: string; steps: RailStep[] }[] {
   return [
     { group: "Shape", steps: [{ label: "Your idea", phase: "shape" }] },
     { group: "Design", steps: design },
-    { group: "Assemble", steps: [{ label: "Pick capabilities", phase: "assemble" }] },
+    { group: "Assemble", steps: [{ label: "The pieces", phase: "assemble" }] },
+    { group: "Learn", steps: [{ label: "Meet the pieces", phase: "learn" }] },
     { group: "Blueprint", steps: [{ label: "Architecture & plan", phase: "blueprint" }] },
     { group: "Build", steps: [{ label: "First step", phase: "build" }] },
   ];
@@ -20,7 +21,7 @@ function buildSteps(s: StudioState): { group: string; steps: RailStep[] }[] {
 
 // "overview" is the pre-start roadmap (not a numbered rail step); "teach" shares the
 // Design group's rank — it's the lead-in to the questions.
-const ORDER: Phase[] = ["overview", "shape", "teach", "design", "assemble", "blueprint", "build"];
+const ORDER: Phase[] = ["overview", "shape", "teach", "design", "assemble", "learn", "blueprint", "build"];
 
 export function LeftRail({ state, go }: { state: StudioState; go: (p: Phase, i?: number) => void }) {
   const groups = buildSteps(state);

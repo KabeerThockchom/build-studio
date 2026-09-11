@@ -1,20 +1,24 @@
 import { useReducer } from "react";
-import type { Blueprint, DesignPlan, DesignQuestion, CapabilityPick, BuildPlan } from "./types";
+import type { Blueprint, DesignPlan, DesignQuestion, CapabilityPick, BuildPlan, IdeaCheck } from "./types";
 
 // Phases. "teach" is the interactive scrollytelling loader that plays while the
 // SA authors ALL design questions in the background — every design question is
 // tailored, so there's no instant hard-coded Q1 anymore. Design is variable-length,
 // so we track a design index rather than a fixed screen number.
-export type Phase = "overview" | "shape" | "teach" | "design" | "assemble" | "blueprint" | "build";
+export type Phase = "overview" | "shape" | "teach" | "design" | "assemble" | "learn" | "blueprint" | "build";
 
 export interface StudioState {
   phase: Phase;
   designIdx: number;                       // which design question we're on
   idea: string;
+  projectName: string;                     // user's name for the project → workspace folder name
   industry: string;                        // implied from a gallery sample; silent
   sampleStarter: string;                   // exact starter text of the picked sample (for edit detection)
   expertise: string;
   interests: string[];
+  ideaChecking: boolean;                   // stress-test running (during early teaching beats)
+  ideaCheck: IdeaCheck | null;             // advisory read of the idea; null until checked
+  planRequested: boolean;                  // design-question generation kicked off (after criteria)
   plan: DesignPlan | null;                 // SA-authored questions + cap preselection
   planning: boolean;
   planError: string | null;
@@ -29,38 +33,52 @@ export interface StudioState {
   buildLoading: boolean;
   buildStepIdx: number;
   buildDone: number[];               // completed step numbers
+  publishedDir: string | null;       // workspace folder the project doc was written to
+  publishedHost: string | null;      // workspace host
+  publishedDeepLink: string | null;  // clickable URL straight to PROJECT.md in the workspace
 }
 
 // The full ordered question list — every question is SA-authored (tailored to the idea).
 export function mergedQuestions(s: StudioState): DesignQuestion[] {
   return s.plan?.questions ?? [];
 }
-// Capabilities to show in Assemble: SA picks once loaded, else a sensible default set.
+// The architecture is prescribed (Akil, 2026-09-09): every app uses the SAME pieces.
+// Assemble is "meet your stack," not a selector — nothing toggles off.
+// Knowledge Assistant was moved OUT of the locked set (2026-09-09): three eval passes
+// couldn't cleanly verify its answer path in a workshop-realistic flow (opaque endpoints,
+// async indexing, no build-time check), so it's too fragile to be mandatory. It stays a
+// defined capability (concept + guardrails) so it can be re-enabled as an optional add-on.
+export const LOCKED_CAPABILITIES = ["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"];
 const DEFAULT_PICKS: CapabilityPick[] = [
   { name: "Genie", selected: true, fits: "ask your data in plain English" },
-  { name: "Knowledge Assistant", selected: true, fits: "understand notes & docs" },
   { name: "Supervisor agent", selected: true, fits: "tie the pieces together" },
   { name: "Lakebase", selected: true, fits: "record decisions" },
   { name: "Databricks Apps", selected: true, fits: "the front door" },
 ];
+// Always the full locked set; fold in the SA's per-idea "fits" rationale when it's loaded.
 export function shownPicks(s: StudioState): CapabilityPick[] {
-  return s.plan?.capabilities ?? DEFAULT_PICKS;
+  const saFits = new Map((s.plan?.capabilities ?? []).map((c) => [c.name, c.fits] as const));
+  return DEFAULT_PICKS.map((p) => ({ ...p, selected: true, fits: saFits.get(p.name) || p.fits }));
 }
 
 export const initialState: StudioState = {
   phase: "overview",
   designIdx: 0,
   idea: "",
+  projectName: "",
   industry: "",
   sampleStarter: "",
   expertise: "New to it",
   interests: [],   // no default — a pre-checked interest fabricated capability picks the user never chose
+  ideaChecking: false,
+  ideaCheck: null,
+  planRequested: false,
   plan: null,
   planning: false,
   planError: null,
   answers: {},
   answersOther: {},
-  capabilities: [],
+  capabilities: [...LOCKED_CAPABILITIES],   // fully prescribed; never toggled
   capsPinned: false,
   blueprint: null,
   generating: false,
@@ -69,15 +87,22 @@ export const initialState: StudioState = {
   buildLoading: false,
   buildStepIdx: 0,
   buildDone: [],
+  publishedDir: null,
+  publishedHost: null,
+  publishedDeepLink: null,
 };
 
 type Action =
   | { t: "phase"; phase: Phase }
   | { t: "designIdx"; i: number }
   | { t: "idea"; v: string }
-  | { t: "pickSample"; idea: string; industry: string; components: string[]; interests: string[] }
+  | { t: "projectName"; v: string }
+  | { t: "pickSample"; idea: string; name: string; industry: string; components: string[]; interests: string[] }
   | { t: "expertise"; v: string }
   | { t: "toggleInterest"; v: string }
+  | { t: "checkStart" }
+  | { t: "checkOk"; check: IdeaCheck }
+  | { t: "checkErr" }
   | { t: "planStart" }
   | { t: "planOk"; plan: DesignPlan }
   | { t: "planErr"; e: string }
@@ -92,16 +117,18 @@ type Action =
   | { t: "buildErr" }
   | { t: "buildStep"; i: number }
   | { t: "buildComplete"; n: number }
+  | { t: "publishOk"; dir: string; host: string; deepLink: string }
   | { t: "hydrate"; s: Partial<StudioState> };
 
 // The slice of state worth persisting (not transient flags like generating).
 export function persistable(s: StudioState) {
   return {
-    phase: s.phase, designIdx: s.designIdx, idea: s.idea, industry: s.industry,
+    phase: s.phase, designIdx: s.designIdx, idea: s.idea, projectName: s.projectName, industry: s.industry,
     sampleStarter: s.sampleStarter, expertise: s.expertise,
     interests: s.interests, plan: s.plan, answers: s.answers, answersOther: s.answersOther,
     capabilities: s.capabilities, capsPinned: s.capsPinned, blueprint: s.blueprint,
     buildPlan: s.buildPlan, buildStepIdx: s.buildStepIdx, buildDone: s.buildDone,
+    publishedDir: s.publishedDir, publishedHost: s.publishedHost, publishedDeepLink: s.publishedDeepLink,
   };
 }
 
@@ -122,20 +149,24 @@ export function reducer(s: StudioState, a: Action): StudioState {
     // overwrite them), and lights up the matching interest chips. All still tweakable;
     // editing the idea text afterward turns it back into a plain custom prompt (see "idea").
     case "pickSample":
+      // Architecture is locked, so a sample no longer sets components — it only seeds the
+      // idea, project name, vertical, and interest chips. capabilities stays the full set.
       return { ...s, idea: a.idea, sampleStarter: a.idea, industry: a.industry,
-        capabilities: a.components, capsPinned: a.components.length > 0,
+        projectName: s.projectName.trim() ? s.projectName : a.name,  // seed the name from the sample
         interests: a.interests.length ? a.interests : s.interests };
+    case "projectName": return { ...s, projectName: a.v };
     case "expertise": return { ...s, expertise: a.v };
     case "toggleInterest":
       return { ...s, interests: s.interests.includes(a.v)
         ? s.interests.filter((x) => x !== a.v) : [...s.interests, a.v] };
-    case "planStart": return { ...s, planning: true, planError: null };
+    case "checkStart": return { ...s, ideaChecking: true };
+    case "checkOk": return { ...s, ideaChecking: false, ideaCheck: a.check };
+    case "checkErr": return { ...s, ideaChecking: false };
+    case "planStart": return { ...s, planning: true, planError: null, planRequested: true };
     case "planOk":
-      // Keep the SA's questions, but only adopt its capability picks if a sample
-      // hasn't already pinned the components (the user's template choice wins).
-      return { ...s, planning: false, plan: a.plan,
-        capabilities: s.capsPinned ? s.capabilities
-          : a.plan.capabilities.filter((c) => c.selected).map((c) => c.name) };
+      // Keep the SA's questions and its per-idea "fits" rationale, but NOT its capability
+      // selection — the architecture is locked, so capabilities never change here.
+      return { ...s, planning: false, plan: a.plan };
     case "planErr": return { ...s, planning: false, planError: a.e };
     case "answer": return { ...s, answers: { ...s.answers, [a.q]: a.key } };
     case "answerOther":
@@ -144,13 +175,11 @@ export function reducer(s: StudioState, a: Action): StudioState {
       return { ...s, capabilities: s.capabilities.includes(a.v)
         ? s.capabilities.filter((x) => x !== a.v) : [...s.capabilities, a.v] };
     case "genStart": return { ...s, generating: true, error: null };
-    // Sync capabilities from the blueprint — a refine ("remove Lakebase") can change
-    // which capabilities are in play, and Assemble should reflect that if they go back.
-    // Also invalidate any build plan: a refined blueprint (esp. a pivot) makes the old
-    // steps stale, so they must regenerate from the new plan on the next visit to Build.
+    // Capabilities are locked, so we do NOT adopt bp.capabilities — the full prescribed
+    // set always stands. A refined blueprint still invalidates the build plan + the
+    // persisted workspace guide: clear both so they regenerate + re-publish from the new plan.
     case "genOk": return { ...s, generating: false, blueprint: a.bp,
-      capabilities: a.bp.capabilities?.length ? a.bp.capabilities : s.capabilities,
-      buildPlan: null, buildStepIdx: 0, buildDone: [] };
+      buildPlan: null, buildStepIdx: 0, buildDone: [], publishedDir: null, publishedHost: null, publishedDeepLink: null };
     case "genErr": return { ...s, generating: false, error: a.e };
     case "buildStart": return { ...s, buildLoading: true };
     case "buildOk": return { ...s, buildLoading: false, buildPlan: a.plan, buildStepIdx: 0 };
@@ -158,7 +187,8 @@ export function reducer(s: StudioState, a: Action): StudioState {
     case "buildStep": return { ...s, buildStepIdx: a.i };
     case "buildComplete":
       return { ...s, buildDone: s.buildDone.includes(a.n) ? s.buildDone : [...s.buildDone, a.n] };
-    case "hydrate": return { ...s, ...a.s, generating: false, planning: false, buildLoading: false, error: null, planError: null };
+    case "publishOk": return { ...s, publishedDir: a.dir, publishedHost: a.host, publishedDeepLink: a.deepLink };
+    case "hydrate": return { ...s, ...a.s, capabilities: [...LOCKED_CAPABILITIES], generating: false, planning: false, ideaChecking: false, buildLoading: false, error: null, planError: null };
     default: return s;
   }
 }

@@ -11,7 +11,7 @@ IS_DATABRICKS_APP = bool(os.environ.get("DATABRICKS_APP_NAME"))
 def get_workspace_client() -> WorkspaceClient:
     if IS_DATABRICKS_APP:
         return WorkspaceClient()
-    profile = os.environ.get("DATABRICKS_PROFILE", "coke-canada-workshop-dev")
+    profile = os.environ.get("DATABRICKS_CONFIG_PROFILE") or os.environ.get("DATABRICKS_PROFILE", "build-studio")
     return WorkspaceClient(profile=profile)
 
 

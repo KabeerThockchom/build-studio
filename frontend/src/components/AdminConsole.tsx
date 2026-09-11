@@ -176,6 +176,11 @@ function ConfigEditor() {
         <input value={cfg.industry} onChange={(e) => up({ industry: e.target.value })}
           className="w-full rounded-lg border border-line px-3 py-2 text-[14px] text-navy outline-none focus:border-green" placeholder="e.g. retail / QSR" />
       </Field>
+      <Field label="Build catalog (Unity Catalog participants build into)">
+        <input value={cfg.catalog} onChange={(e) => up({ catalog: e.target.value })}
+          className="w-full rounded-lg border border-line px-3 py-2 text-[14px] text-navy outline-none focus:border-green" placeholder="e.g. workshop_catalog" />
+        <p className="mt-1 text-[12px] text-navy-3">Baked into every build prompt. Each participant gets their own schema inside it. Leave blank to let Genie Code use the workspace default.</p>
+      </Field>
 
       <Field label="Capabilities on the table">
         <div className="flex flex-wrap gap-2">

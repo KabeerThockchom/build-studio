@@ -31,6 +31,21 @@ DATA_MODE_GUIDANCE = """One of your questions MUST be about where the data comes
 - "existing": they point at a table that already exists in the workspace (may be read-only)
 Do NOT offer "connect a live source / ingest a new pipeline" — that is out of scope for one day."""
 
+# The interaction model shapes most of the app's layout and its primary action, so it is a
+# REQUIRED question. Fixed option keys the rest of the app keys off, like data_mode.
+INTERACTION_MODEL_GUIDANCE = """One of your questions MUST be about how the person interacts with the
+build. Give it id "interaction_model". Offer the 2-3 of these fixed option keys that genuinely fit THEIR
+idea (never invent new keys; phrase the labels/subs/previews for their subject matter):
+- "browse_act": opens on a ranked shortlist of what needs attention; THE PERSON scans it, clicks into one, and decides/acts (a triage/briefing)
+- "monitor": opens on a dashboard/overview so they see the whole picture and spot what's off
+- "ask": opens on a question box; they type a question in plain English and get an answer back
+- "explore": opens on a flexible view they drill through in their own direction
+- "agent_actions": AN AGENT does the work first (reads the data + notes, judges each item, drafts/proposes an action), and the person opens on the agent's proposed actions to review its reasoning and APPROVE or OVERRIDE each one; every decision is recorded as an audit trail (a supervise-the-agent console)
+Choose "agent_actions" when the idea is about DELEGATING a repeatable judge-and-then-act task to an agent
+and staying in control by approving its work, rather than the person doing the scanning/deciding themselves
+(tells like "an agent that works through X for me", "reads and decides and drafts", "I approve or override").
+This sets the app's entry screen and primary action, so ground the options in their real subject matter."""
+
 SYSTEM_PROMPT = f"""You are a senior Databricks Solutions Architect guiding a workshop
 participant. They have just described, in their own words, something they want to build.
 Your job is to plan the short design conversation: ask the 2-4 questions that most shape
@@ -65,9 +80,10 @@ Generate ALL of the design questions, every one tailored to THIS specific idea. 
 generic templated questions — a question a smart SA wouldn't bother asking for this idea should
 not appear. Ground the wording (and the options) in the user's actual subject matter.
 
-Good dimensions to consider (pick the ones that genuinely matter for this idea, phrase them in
-plain language, not jargon):
-- who uses it and how they want it (act fast on what matters / oversee the whole picture / explore freely)
+Good dimensions to consider for the 0-2 tailored questions (pick only ones that genuinely matter for
+this idea; how-they-interact is already covered by the required interaction_model question, so don't
+duplicate it):
+- audience specifics unique to this idea (a role, a moment, a constraint)
 - whether the value is mostly numbers, mostly documents/text, or both
 - how the result is delivered (an app they open, a dashboard, just answers)
 - the scope/shape specific to their idea
@@ -76,16 +92,21 @@ Do NOT ask about things outside Databricks' scope. Do NOT ask about data freshne
 
 {DATA_MODE_GUIDANCE}
 
-The FIRST question should usually establish who it's for / how they want it — but phrased for
-THIS idea, not generically. Include the required "data_mode" question too. Ask 2-3 questions for a
-clear, specific idea; up to 4 for a vague or broad one. Fewer is better — never pad.
+{INTERACTION_MODEL_GUIDANCE}
+
+The FIRST question should be the required "interaction_model" question (phrased for THIS idea). Also
+include the required "data_mode" question. Beyond those two, add 0-2 tailored questions only if they
+genuinely matter for this idea (audience specifics, scope). Total 2-4 questions, fewer is better — never pad.
 
 Return ONLY one JSON object (no markdown fence, no prose) with this exact shape:
 {{
   "read_back": "<one warm sentence reflecting their idea back, showing you understood>",
   "questions": [
     {{
-      "id": "<slug>", "title": "<the question, plain language>",
+      "id": "<slug>",
+      "concept": "<the design dimension this question is, in 1-2 plain words the participant can
+                   anchor on: e.g. 'Audience', 'Interaction model', 'Data & tools', 'Scope'>",
+      "title": "<the question, plain language>",
       "lead": "<one sentence on why this matters for their build>",
       "options": [
         {{ "key": "<slug>", "label": "<short choice>", "sub": "<one clarifying line>",
@@ -143,6 +164,7 @@ def _coerce_plan(parsed: dict) -> DesignPlan:
             continue
         questions.append(DesignQuestion(
             id=q.get("id") or f"q{i}", eyebrow=f"Design · {i + 1} of {n}",
+            concept=(q.get("concept") or "").strip(),
             title=q.get("title", ""), lead=q.get("lead", ""), options=opts,
             other_preview=["We'll read your description and adapt to it.",
                            "The rest of the design flexes to match.",
@@ -187,8 +209,12 @@ def plan_design(req: PlanRequest) -> DesignPlan:
         {"role": "user", "content": user},
     ]
     last = None
-    for _ in range(2):
-        raw = llm.complete(messages, max_tokens=2600)
+    # Escalate the token budget each retry: a rich or agentic idea produces more questions/
+    # options and can truncate the JSON at a fixed budget, then re-truncate identically on retry
+    # (the same failure mode fixed in generate.py and build_plan.py).
+    budgets = [3200, 6000, 9000]
+    for attempt in range(3):
+        raw = llm.complete(messages, max_tokens=budgets[attempt])
         try:
             plan = _coerce_plan(_extract_json(raw))
             # Constrain the palette to the workshop's allowed capabilities.
@@ -217,30 +243,40 @@ def fallback_plan(idea: str = "") -> DesignPlan:
         read_back=read_back,
         questions=[
             DesignQuestion(
-                id="audience", eyebrow="Design · 1 of 2",
-                title="Who is this for, and how do they want it?",
-                lead="This shapes how the experience leads.",
+                id="interaction_model", eyebrow="Design · 1 of 2", concept="Interaction model",
+                title="How will people use this most?",
+                lead="This sets what the app opens on and the one thing they do most.",
                 options=[
-                    DesignOption(key="act", letter="A", label="People who need to act quickly",
+                    DesignOption(key="browse_act", letter="A", label="Scan a shortlist and act",
                                  sub="Busy; want to be told what matters and what to do next.",
                                  preview=["It opens on a ranked shortlist of what needs attention.",
-                                          "Detail sits one layer in, when they want more.",
+                                          "Click into one to see detail and act.",
                                           "More upfront ranking logic, far less asked of the user."]),
-                    DesignOption(key="oversee", letter="B", label="People overseeing a lot at once",
+                    DesignOption(key="monitor", letter="B", label="Watch a dashboard for what's off",
                                  sub="Want the big picture and where to focus.",
-                                 preview=["It opens on a grouped overview so patterns jump out.",
-                                          "Drill into any group to dig deeper.",
+                                 preview=["It opens on an overview so patterns jump out.",
+                                          "Drill into any area to dig deeper.",
                                           "Great for oversight; less immediate for a single next action."]),
-                    DesignOption(key="explore", letter="C", label="People who want to explore",
-                                 sub="Prefer to ask their own questions.",
-                                 preview=["It opens on an open question box, exploration first.",
+                    DesignOption(key="ask", letter="C", label="Ask questions in plain English",
+                                 sub="Prefer to type a question and get an answer.",
+                                 preview=["It opens on a question box, answers first.",
                                           "No ranking imposed; the person drives.",
                                           "Most flexible, but assumes they know what to ask."]),
+                    DesignOption(key="explore", letter="D", label="Explore freely across views",
+                                 sub="Want to drill in their own direction.",
+                                 preview=["It opens on a flexible view to explore.",
+                                          "Many paths, few guardrails.",
+                                          "Powerful, but the least guided."]),
+                    DesignOption(key="agent_actions", letter="E", label="Delegate to an agent, then approve",
+                                 sub="An agent works through items and proposes actions; you approve or override.",
+                                 preview=["The agent reads, decides, and drafts an action per item.",
+                                          "You review its reasoning and approve or override each one.",
+                                          "Every decision is recorded as an audit trail."]),
                 ],
-                other_preview=["We'll adapt to the audience you describe.",
+                other_preview=["We'll adapt to how you describe using it.",
                                "The rest of the design flexes to match.", "Most tailored."]),
             DesignQuestion(
-                id="data_mode", eyebrow="Design · 2 of 2",
+                id="data_mode", eyebrow="Design · 2 of 2", concept="Data & tools",
                 title="Where does the data come from?",
                 lead="This sets your very first build step — and we keep it to what fits a workshop day.",
                 options=[

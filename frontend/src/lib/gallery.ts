@@ -16,6 +16,7 @@ export interface SampleApp {
   blurb: string;     // ONE plain sentence: what it does + who it helps. No hype, no adjectives like "powerful"/"seamless".
   starter: string;   // an editable first-person idea sentence the user could have typed themselves
   components: string[]; // default app pieces this sample pre-selects in Assemble; user can still tweak
+  facets?: { problem: string; how: string; tool: string; objective: string }; // 4-bullet breakdown for workshop participants: the problem / how we solve it / what tool / what objective
 }
 
 export interface OutcomeColumn {
@@ -56,6 +57,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Watches daily sales against targets and alerts managers when a location is underperforming.",
             starter: "Our store managers only find out a location is underperforming after the monthly report. Each morning, I want to check our daily sales against targets and see which stores are trending down so we can catch problems early. The tool reads our transaction data and sales targets for each store, and flags stores that are underperforming relative to their goals.",
             components: ["Genie", "Databricks Apps"],
+            facets: {
+              problem: "Managers find out about underperformance too late, after the monthly report",
+              how: "Daily check of sales against targets, highlights which stores are trending down",
+              tool: "Genie to ask the data and a Databricks App as the interface",
+              objective: "Catch problems early before they compound",
+            },
           },
           {
             id: "inventory-rebalancer",
@@ -63,6 +70,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Suggests which stores are overstocked and which need replenishment based on current stock levels.",
             starter: "We have the inventory counts, but rebalancing between stores is manual and slow. Once a week, our supply chain team needs to redistribute stock across locations to avoid markdowns and stockouts. The tool reads current inventory counts by store and SKU, and suggests which locations have excess and which need replenishment, so the team can make faster transfer decisions.",
             components: ["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Rebalancing stock between stores is manual and slow, causing markdowns or stockouts",
+              how: "Suggests which stores are overstocked and which need replenishment based on current counts",
+              tool: "Genie to ask the data, an agent to tie the pieces together, Lakebase to save decisions, and a Databricks App as the interface",
+              objective: "Speed up transfers and avoid markdowns or stockouts",
+            },
           },
           {
             id: "auto-tag-products",
@@ -70,6 +83,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Reads product details and suggests category tags and metadata for merchandisers to approve.",
             starter: "When we add new products, our merchandisers manually tag and categorize them, which slows down time-to-shelf. Each day when new SKUs arrive, the tool reads the product description, supplier category, and attributes, and suggests tags and metadata so the merchandisers can approve or edit in minutes instead of manually building them from scratch.",
             components: ["Knowledge Assistant", "Supervisor agent", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Merchandisers manually tag new products, slowing time-to-shelf",
+              how: "Reads product details and suggests category tags and metadata for approval",
+              tool: "Knowledge Assistant to read product details, an agent to tie the pieces together, Lakebase to save tags, and a Databricks App as the interface",
+              objective: "Speed up time-to-shelf with automated tag suggestions",
+            },
           },
         ],
       },
@@ -82,6 +101,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Analyzes purchase history to identify product combinations that sell together and suggests promotional bundles.",
             starter: "We know which products sell together, but we're running the same bundle promotions everywhere. Every quarter when we plan promotions, the tool reads our transaction history and identifies which products are frequently bought together, so we can create relevant bundles tailored to actual customer behavior instead of guessing.",
             components: ["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Running same bundle promotions everywhere instead of tailored to actual customer behavior",
+              how: "Analyzes purchase history to identify which products sell together",
+              tool: "Genie to ask the data, an agent to tie the pieces together, Lakebase to save bundles, and a Databricks App as the interface",
+              objective: "Create bundles based on actual customer behavior",
+            },
           },
           {
             id: "shopper-segment-finder",
@@ -89,6 +114,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Groups customers by behavior and purchase patterns to help marketing tailor campaigns to each segment.",
             starter: "Our marketing team manually segments our shopper base before each campaign, which delays launches and feels outdated fast. The tool reads our transaction history and loyalty account data, identifies natural customer clusters by purchase frequency, spend, and category preferences, so marketing can send targeted campaigns to each group instead of one-size-fits-all blasts.",
             components: ["Genie", "Databricks Apps"],
+            facets: {
+              problem: "Marketing team manually segments shoppers before each campaign, delays launches",
+              how: "Groups customers by behavior and purchase patterns into natural clusters",
+              tool: "Genie to ask the data and a Databricks App as the interface",
+              objective: "Enable targeted campaigns instead of one-size-fits-all",
+            },
           },
           {
             id: "price-optimization-spotter",
@@ -96,6 +127,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Identifies products that are priced too low or too high relative to demand and historical patterns.",
             starter: "We have historical price and sales data, but our pricing stays static even when demand shifts. Monthly, the tool reads our price history, sales volume, and competitor pricing, and flags items that are underpriced relative to demand or overpriced relative to sales, so we know where pricing room exists to improve margin.",
             components: ["Genie", "Databricks Apps"],
+            facets: {
+              problem: "Pricing stays static even when demand shifts",
+              how: "Identifies products priced too low or too high relative to demand",
+              tool: "Genie to ask the data and a Databricks App as the interface",
+              objective: "Identify pricing room to improve margin",
+            },
           },
         ],
       },
@@ -108,6 +145,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Tracks on-time delivery, quality, and lead times for each supplier to identify reliable vs. problematic partners.",
             starter: "We get shipments from many suppliers but I'm only looking at invoices to know how they're doing. Each week, the tool reads our purchase orders, receipt records, and invoice dates to track on-time delivery, quality issues, and lead times by supplier, so we can identify which partners are reliable and which need improvement or replacement.",
             components: ["Genie", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Only looking at invoices to assess supplier performance",
+              how: "Tracks on-time delivery, quality, and lead times for each supplier",
+              tool: "Genie to ask the data, Lakebase to save scorecards, and a Databricks App as the interface",
+              objective: "Identify reliable vs problematic partners",
+            },
           },
           {
             id: "demand-forecast-helper",
@@ -115,6 +158,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Analyzes historical sales to spot seasonal patterns and predict future demand for better inventory planning.",
             starter: "Every quarter we manually guess how much inventory to order, often ending up with too much or too little. The tool reads our historical sales data by product and season, identifies patterns and trends, and predicts demand for the next quarter so we can order the right quantities and reduce carrying costs and stockouts.",
             components: ["Genie", "Databricks Apps"],
+            facets: {
+              problem: "Manually guessing inventory orders each quarter, often ordering too much or too little",
+              how: "Analyzes historical sales to spot seasonal patterns and predict future demand",
+              tool: "Genie to ask the data and a Databricks App as the interface",
+              objective: "Order right quantities to reduce carrying costs and stockouts",
+            },
           },
           {
             id: "return-reason-analyzer",
@@ -122,6 +171,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Groups returned items by reason to surface product or process issues affecting customer satisfaction.",
             starter: "We track returns but nobody connects them to root causes. Daily, the tool reads our return notes and invoice data, groups returns by reason (size, quality, color mismatch, etc.), and surfaces the top problems so we can prioritize what to fix to reduce returns and improve customer satisfaction.",
             components: ["Knowledge Assistant", "Genie", "Databricks Apps"],
+            facets: {
+              problem: "Track returns but don't connect them to root causes",
+              how: "Groups returned items by reason to surface product or process issues",
+              tool: "Knowledge Assistant to read return notes, Genie to ask the data, and a Databricks App as the interface",
+              objective: "Reduce returns and improve customer satisfaction",
+            },
           },
         ],
       },
@@ -141,6 +196,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Reads booking issues in guest emails and routes them to the right team or auto-resolves common problems.",
             starter: "Our reservation team gets flooded with guest emails about booking problems throughout the day. The tool reads incoming emails and our reservation database to identify the issue, auto-respond to common questions (date changes, room type clarifications), and route complex problems to the right person, so the team spends time on real issues instead of repetitive triage.",
             components: ["Knowledge Assistant", "Supervisor agent", "Databricks Apps"],
+            facets: {
+              problem: "Reservation team flooded with guest emails about booking problems",
+              how: "Reads booking issues and auto-resolves common problems or routes to the right person",
+              tool: "Knowledge Assistant to read emails, an agent to tie the pieces together, and a Databricks App as the interface",
+              objective: "Spend time on real issues instead of repetitive triage",
+            },
           },
           {
             id: "revenue-manager-assistant",
@@ -148,6 +209,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Suggests rate adjustments based on occupancy, demand signals, and historical trends to optimize nightly revenue.",
             starter: "Our revenue manager adjusts room rates manually each day based on occupancy and intuition. Each morning, the tool reads current occupancy, historical rates, forward bookings, and competitor pricing, and shows rate recommendations for each room type so the manager can maximize nightly revenue with data-driven adjustments.",
             components: ["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Revenue manager adjusts rates manually each day based on intuition",
+              how: "Suggests rate adjustments based on occupancy, demand signals, and historical trends",
+              tool: "Genie to ask the data, an agent to tie the pieces together, Lakebase to save recommendations, and a Databricks App as the interface",
+              objective: "Maximize nightly revenue with data-driven adjustments",
+            },
           },
           {
             id: "housekeeping-prioritizer",
@@ -155,6 +222,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Ranks rooms by priority based on checkout status, VIP guests, and recent complaints to guide daily cleaning order.",
             starter: "Housekeeping gets a list of rooms to clean but no priority, so they guess which to tackle first. Each morning, the tool reads checkout times, guest history, room type, complaints and special requests, and ranks rooms so VIP guests and high-complaint rooms get attention first, and rooms checking in soon are ready on time.",
             components: ["Genie", "Supervisor agent", "Databricks Apps"],
+            facets: {
+              problem: "Housekeeping gets a list of rooms with no priority guidance",
+              how: "Ranks rooms by priority based on checkout status, VIP guests, and complaints",
+              tool: "Genie to ask the data, an agent to tie the pieces together, and a Databricks App as the interface",
+              objective: "Ensure VIP rooms and high-complaint rooms get attention first",
+            },
           },
         ],
       },
@@ -167,6 +240,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Suggests relevant add-on services like spa, dining packages, or activities based on each guest's profile.",
             starter: "We're leaving money on the table. When a guest books a room or arrives at check-in, we don't suggest relevant extras. The tool reads the reservation, guest history, prior stays, and current events, and recommends spa packages, dining experiences, or activities that match the guest profile, so we can increase ancillary revenue without feeling pushy.",
             components: ["Genie", "Supervisor agent", "Databricks Apps"],
+            facets: {
+              problem: "Not suggesting relevant extras at booking or check-in",
+              how: "Suggests add-on services based on each guest's profile and history",
+              tool: "Genie to ask the data, an agent to tie the pieces together, and a Databricks App as the interface",
+              objective: "Increase ancillary revenue per guest",
+            },
           },
           {
             id: "event-space-optimizer",
@@ -174,6 +253,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Identifies underutilized event spaces and time slots to suggest targeted promotions and fill gaps.",
             starter: "Our event planner knows which spaces are booked, but doesn't see the gaps. Weekly, the tool reads our event bookings and availability calendar and identifies low-booked time slots and spaces, so the planner can run targeted promotions to fill ballrooms on slow weekends or meeting spaces mid-week.",
             components: ["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Event planner knows which spaces are booked but doesn't see gaps",
+              how: "Identifies underutilized spaces and time slots",
+              tool: "Genie to ask the data, an agent to tie the pieces together, Lakebase to save promotions, and a Databricks App as the interface",
+              objective: "Fill gaps with targeted promotions",
+            },
           },
           {
             id: "loyalty-tier-analyzer",
@@ -181,6 +266,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Flags guests close to their next loyalty tier and suggests targeted incentive offers to drive upgrades.",
             starter: "We know which guests are close to upgrading their loyalty tier, but we're not reaching out proactively. Monthly, the tool reads our loyalty database and guest history, flags members within a few stays of the next tier, and suggests the best incentive (free night, room upgrade, dining credit) to nudge them to book again and qualify.",
             components: ["Genie", "Supervisor agent", "Databricks Apps"],
+            facets: {
+              problem: "Guests close to next loyalty tier but not reaching out proactively",
+              how: "Flags guests close to upgrading and suggests targeted incentive offers",
+              tool: "Genie to ask the data, an agent to tie the pieces together, and a Databricks App as the interface",
+              objective: "Drive tier upgrades and repeat visits",
+            },
           },
         ],
       },
@@ -193,6 +284,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Reads reviews and comments, groups them by theme (cleanliness, staff, amenities) to surface improvement areas.",
             starter: "We get hundreds of guest reviews but they're all in a pile. Weekly, the tool reads our review database, survey responses, and comment cards, groups feedback by theme (room quality, staff, food, amenities, etc.), and surfaces the top complaints so we know exactly what to prioritize fixing.",
             components: ["Knowledge Assistant", "Genie", "Databricks Apps"],
+            facets: {
+              problem: "Hundreds of guest reviews in a pile, no theme organization",
+              how: "Reads reviews and groups them by theme to surface improvement areas",
+              tool: "Knowledge Assistant to read reviews, Genie to ask the data, and a Databricks App as the interface",
+              objective: "Know exactly what to prioritize fixing",
+            },
           },
           {
             id: "personalized-experience-generator",
@@ -200,6 +297,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Reads past stays and guest history to flag preferences and anticipate needs for a personalized stay.",
             starter: "Our staff doesn't know that Mr. Johnson always orders coffee black at 7am or that the Rodriguez family has kids. At check-in, the tool reads the guest's stay history, preferences, dietary notes, and past room choices, and flags key details so staff can greet them warmly and anticipate needs without being asked.",
             components: ["Knowledge Assistant", "Supervisor agent", "Databricks Apps"],
+            facets: {
+              problem: "Staff doesn't know guest preferences and past requests",
+              how: "Reads past stays and guest history to flag preferences",
+              tool: "Knowledge Assistant to read guest history, an agent to tie the pieces together, and a Databricks App as the interface",
+              objective: "Anticipate needs and personalize check-in",
+            },
           },
           {
             id: "complaint-early-responder",
@@ -207,6 +310,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Monitors real-time guest feedback during their stay to flag issues early before they become negative reviews.",
             starter: "By the time we see a negative review, it's too late. During each guest's stay, the tool checks maintenance requests, service calls, and in-app comments and surfaces problems (broken AC, late checkout denied, rude staff comment) so a manager can reach out and fix it before checkout, turning a bad stay into a recovery win.",
             components: ["Knowledge Assistant", "Supervisor agent", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Only see negative reviews after checkout, too late to fix",
+              how: "Monitors real-time guest feedback during stay to flag issues early",
+              tool: "Knowledge Assistant to read feedback, an agent to tie the pieces together, Lakebase to save responses, and a Databricks App as the interface",
+              objective: "Turn bad stays into recovery wins before checkout",
+            },
           },
         ],
       },
@@ -226,6 +335,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Suggests staffing levels based on predicted traffic and historical traffic patterns to balance coverage and costs.",
             starter: "We manually schedule crew based on guesses about how busy we'll be, often over-staffing slow shifts or under-staffing peaks. Weekly, the tool reads our historical transaction and labor data and predicts traffic by time of day and day of week, so we can suggest optimal crew counts for each shift and reduce labor costs without hurting service.",
             components: ["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Manually scheduling crew based on guesses, often over/under-staffing",
+              how: "Suggests staffing levels based on predicted traffic and historical patterns",
+              tool: "Genie to ask the data, an agent to tie the pieces together, Lakebase to save schedules, and a Databricks App as the interface",
+              objective: "Balance coverage and labor costs",
+            },
           },
           {
             id: "inventory-depletion-alerter",
@@ -233,6 +348,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Flags items running low in real-time so managers can reorder before stockouts disrupt service.",
             starter: "We run out of popular items because we don't notice until too late. Each shift, the tool reads our point-of-sale data and inventory counts, predicts which items will run out based on usage, and alerts the manager so they can reorder before stockouts hurt sales and customer satisfaction.",
             components: ["Genie", "Supervisor agent", "Databricks Apps"],
+            facets: {
+              problem: "Run out of popular items because we don't notice until too late",
+              how: "Flags items running low in real-time based on predicted usage",
+              tool: "Genie to ask the data, an agent to tie the pieces together, and a Databricks App as the interface",
+              objective: "Prevent stockouts that hurt sales",
+            },
           },
           {
             id: "equipment-maintenance-scheduler",
@@ -240,6 +361,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Predicts when equipment needs service based on usage patterns to prevent unexpected breakdowns.",
             starter: "Our fryer or ice cream machine breaks unexpectedly during peak hours and loses us time and sales. Daily, the tool reads our equipment usage logs and maintenance history to predict when each piece needs service, so we can schedule maintenance during downtime and avoid breakdowns that kill revenue.",
             components: ["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Equipment breaks unexpectedly during peak hours, loses time and sales",
+              how: "Predicts when equipment needs service based on usage patterns",
+              tool: "Genie to ask the data, an agent to tie the pieces together, Lakebase to save schedules, and a Databricks App as the interface",
+              objective: "Prevent breakdowns that kill revenue",
+            },
           },
         ],
       },
@@ -252,6 +379,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Suggests relevant menu items or promotions for each customer segment to increase order values and repeat visits.",
             starter: "We send the same promotions to everyone. When a customer orders or opens the app, the tool reads their purchase history and segment profile, and suggests personalized menu items or offers (combo deals, new items they'd like, loyalty rewards) so we increase order value and bring them back more often.",
             components: ["Genie", "Supervisor agent", "Databricks Apps"],
+            facets: {
+              problem: "Sending same promotions to everyone",
+              how: "Suggests relevant menu items or promotions for each customer segment",
+              tool: "Genie to ask the data, an agent to tie the pieces together, and a Databricks App as the interface",
+              objective: "Increase order values and repeat visits",
+            },
           },
           {
             id: "feedback-loop-closer",
@@ -259,6 +392,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Reads guest complaints and groups them by theme to identify what operational changes would improve satisfaction.",
             starter: "A guest leaves a comment saying the burger was cold. We read it but don't know how many times this happens or what to fix. Daily, the tool reads our receipt comments, app reviews, and complaint cards and groups them by theme (cold food, long wait, order wrong), so we identify the top issues and can actually fix operations instead of just reading complaints.",
             components: ["Knowledge Assistant", "Genie", "Databricks Apps"],
+            facets: {
+              problem: "Read complaints but don't know how many times each happens or what to fix",
+              how: "Groups complaints by theme to identify operational improvement areas",
+              tool: "Knowledge Assistant to read complaints, Genie to ask the data, and a Databricks App as the interface",
+              objective: "Identify top issues to actually fix operations",
+            },
           },
           {
             id: "loyalty-points-suggestor",
@@ -266,6 +405,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Analyzes repeat-customer spending to recommend rewards and bonus-points offers that drive return visits.",
             starter: "We want to encourage loyalty but we're guessing at what rewards matter. Monthly, the tool reads our loyalty transaction data and identifies repeat customers, then suggests bonus-point offers or rewards (free burger after 5 visits, double points on Friday) tailored to each segment's spending pattern so we drive more repeat visits.",
             components: ["Genie", "Supervisor agent", "Databricks Apps"],
+            facets: {
+              problem: "Guessing at what rewards matter to drive loyalty",
+              how: "Analyzes repeat-customer spending to recommend tailored rewards",
+              tool: "Genie to ask the data, an agent to tie the pieces together, and a Databricks App as the interface",
+              objective: "Drive repeat visits with tailored rewards",
+            },
           },
         ],
       },
@@ -278,6 +423,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Analyzes waste logs to spot which items are thrown away most and suggests prep or portion changes.",
             starter: "We throw away a lot of food but it's all tracked as a single waste number. Daily, the tool reads our waste logs and inventory data to identify which menu items are discarded most (oversized portions, expired prep, slow-selling items), and suggests portion or prep changes so we can reduce waste and food cost.",
             components: ["Genie", "Supervisor agent", "Databricks Apps"],
+            facets: {
+              problem: "Throw away a lot of food tracked only as a single total waste number",
+              how: "Analyzes waste logs to spot which items are thrown away most",
+              tool: "Genie to ask the data, an agent to tie the pieces together, and a Databricks App as the interface",
+              objective: "Reduce waste and food cost",
+            },
           },
           {
             id: "labor-efficiency-analyzer",
@@ -285,6 +436,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Compares labor hours against orders per shift to highlight periods where efficiency is low and costs are high.",
             starter: "Some shifts are packed but we're not tracking labor cost per order. Daily, the tool reads labor hours, order counts, and revenue per shift, and highlights shifts with low efficiency (high labor cost per order) so managers can see where to improve throughput or staffing without cutting service quality.",
             components: ["Genie", "Databricks Apps"],
+            facets: {
+              problem: "Not tracking labor cost per order, inefficient shifts go unnoticed",
+              how: "Compares labor hours against orders per shift to highlight low efficiency",
+              tool: "Genie to ask the data and a Databricks App as the interface",
+              objective: "Improve throughput without cutting service quality",
+            },
           },
           {
             id: "menu-cost-profit-analyzer",
@@ -292,6 +449,12 @@ export const GALLERY: GalleryVertical[] = [
             blurb: "Shows profit margin by menu item to identify which items to promote and which drain margins.",
             starter: "We know food cost for each item, but we're not sure which menu items we should push and which cost too much. Weekly, the tool reads our menu costs, sales volumes, and pricing and calculates profit margin by item, so we know which high-margin items to promote and which low-margin items to discontinue or reprice.",
             components: ["Genie", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Know food cost but unsure which items to promote and which drain margins",
+              how: "Shows profit margin by menu item based on costs, volumes, and pricing",
+              tool: "Genie to ask the data, Lakebase to save analyses, and a Databricks App as the interface",
+              objective: "Know which items to promote and which to discontinue",
+            },
           },
         ],
       },

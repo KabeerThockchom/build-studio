@@ -55,7 +55,7 @@ def test_previews_padded_to_three():
 
 
 def test_retries_then_raises():
-    with patch.object(llm, "complete", side_effect=["garbage", "still garbage"]):
+    with patch.object(llm, "complete", side_effect=["garbage", "still garbage", "garbage again"]):
         try:
             design_plan.plan_design(PlanRequest(idea="x"))
             assert False

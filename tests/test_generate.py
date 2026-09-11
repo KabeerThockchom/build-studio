@@ -79,6 +79,16 @@ def test_generate_retries_on_bad_json_then_succeeds():
     assert bp.prd_markdown
 
 
+def test_generate_filters_unknown_capabilities():
+    # A direct API caller can send a junk capability the UI could never produce — it must
+    # not survive into the blueprint's capability list, diagram, or prompt.
+    req = GenerateRequest(idea="x", capabilities=["Genie", "NotARealCapability", "Databricks Apps"])
+    with patch.object(llm, "complete", return_value=GOOD):
+        bp = generate.generate_blueprint(req)
+    assert "NotARealCapability" not in bp.capabilities
+    assert set(bp.capabilities) == {"Genie", "Databricks Apps"}
+
+
 def test_generate_raises_after_all_attempts_bad():
     # generate_blueprint retries several times (no fallback exists downstream), so it
     # only raises once every attempt has produced unparseable JSON.

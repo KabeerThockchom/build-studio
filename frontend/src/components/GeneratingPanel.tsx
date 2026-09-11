@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Check, X, Sparkles } from "lucide-react";
 import { VideoEmbed } from "./VideoEmbed";
 
 /* A "this is working, hang tight" panel for the long generation waits (blueprint
@@ -7,14 +8,17 @@ import { VideoEmbed } from "./VideoEmbed";
    text changes, and sets an honest time expectation. Not a real progress bar — it's
    an indeterminate wait — but it never looks frozen. */
 
+export interface WaitQuiz { q: string; options: string[]; answer: number; why: string; }
+
 interface Props {
   steps: string[];        // status lines to cycle through, in order
   note?: string;          // one honest line about how long / why it's worth it
   intervalMs?: number;    // cadence — pace it to the real wait so the last line isn't reached too early
   video?: { id: string; title: string; sub?: string; short?: boolean };  // optional "watch while you wait"
+  quiz?: WaitQuiz;        // optional quick check to fill the wait (Akil's ask)
 }
 
-export function GeneratingPanel({ steps, note, intervalMs = 6000, video }: Props) {
+export function GeneratingPanel({ steps, note, intervalMs = 6000, video, quiz }: Props) {
   const [i, setI] = useState(0);
   useEffect(() => {
     // Advance the status line, holding on the last one (don't loop back to "starting"
@@ -53,9 +57,45 @@ export function GeneratingPanel({ steps, note, intervalMs = 6000, video }: Props
         </div>
       </div>
       {note && <p className="mt-3 text-[13px] leading-relaxed text-navy-3">{note}</p>}
+      {quiz && <WaitQuizCard quiz={quiz} />}
       {video && (
         <div className="mt-4">
           <VideoEmbed id={video.id} title={video.title} sub={video.sub} short={video.short} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A single quick-check to make the wait productive rather than dead air.
+function WaitQuizCard({ quiz }: { quiz: WaitQuiz }) {
+  const [picked, setPicked] = useState<number | null>(null);
+  const answered = picked !== null;
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-white px-5 py-4">
+      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-green-ink">
+        <Sparkles className="h-3.5 w-3.5" /> Quick check while you wait
+      </div>
+      <div className="mb-2.5 text-[14px] font-semibold text-navy">{quiz.q}</div>
+      <div className="flex flex-col gap-2">
+        {quiz.options.map((opt, i) => {
+          const isCorrect = i === quiz.answer;
+          const show = answered && (picked === i || isCorrect);
+          return (
+            <button key={i} disabled={answered} onClick={() => setPicked(i)}
+              className={`flex items-center gap-2 rounded-lg border-[1.5px] px-3 py-2 text-left text-[13px] transition-colors
+                ${!answered ? "border-line bg-white hover:border-green text-navy"
+                  : show && isCorrect ? "border-green bg-green-soft text-navy"
+                  : picked === i ? "border-lava/40 bg-[#fdecef] text-navy" : "border-line bg-white text-navy-3 opacity-60"}`}>
+              {answered && show && (isCorrect ? <Check className="h-3.5 w-3.5 shrink-0 text-green" /> : <X className="h-3.5 w-3.5 shrink-0 text-lava" />)}
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+      {answered && (
+        <div className="mt-2.5 flex items-start gap-2 text-[12.5px] leading-snug text-navy-2">
+          <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green" />{quiz.why}
         </div>
       )}
     </div>

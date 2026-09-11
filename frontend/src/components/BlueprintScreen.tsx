@@ -61,8 +61,11 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefin
           steps={["Reading your idea and design choices",
                   "Laying out how the pieces connect",
                   "Writing your plan and the tradeoffs",
-                  "Still working — putting it on one page"]}
+                  "Still working, putting it on one page"]}
           note="This takes up to a minute or two. It's writing a real plan tailored to what you described, not a template."
+          quiz={{ q: "Your plan is about to appear. What should you do with it?",
+                  options: ["Read it and fix anything that's off before you build", "Start building right away and skip reading it", "Treat it as final and never change it"],
+                  answer: 0, why: "The first draft is a starting point. Read it and steer anything that's wrong now, before it becomes the build." }}
           video={{ id: "_nMgCvsCcns", title: "Vibe-coding an AI app",
                    sub: "The idea behind what you're doing right now.", short: true }} />
       )}
@@ -104,7 +107,7 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefin
             <ArchitectureDiagram spec={blueprint.spec} />
           </div>
 
-          <SectionH>The plan — your PRD</SectionH>
+          <SectionH>The plan: your PRD</SectionH>
           <p className="-mt-1 mb-3 max-w-[70ch] text-[13.5px] leading-relaxed text-navy-3">
             This is your PRD (product requirements doc): the first milestone of any build, and
             what you'll hand the agent to build from. Read it, and edit anything that's off below —

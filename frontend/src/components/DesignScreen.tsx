@@ -2,7 +2,7 @@ import type { DesignQuestion } from "../lib/types";
 
 interface Props {
   q: DesignQuestion;
-  readBack?: string;                 // shown on the first question only
+  idea: string;                      // the user's idea, kept in view so it doesn't get lost
   selected: string | undefined;      // option key or "other"
   otherText: string;
   onSelect: (key: string) => void;
@@ -28,20 +28,26 @@ function Preview({ lines }: { lines: string[] }) {
   );
 }
 
-export function DesignScreen({ q, readBack, selected, otherText, onSelect, onOther, onBack, onNext, nextLabel }: Props) {
+export function DesignScreen({ q, idea, selected, otherText, onSelect, onOther, onBack, onNext, nextLabel }: Props) {
   const sel = q.options.find((o) => o.key === selected);
   const previewLines = selected === "other" ? q.other_preview : (sel?.preview ?? q.options[0].preview);
+  const ideaShort = idea.trim().length > 200 ? idea.trim().slice(0, 197).trimEnd() + "…" : idea.trim();
 
   return (
     <div className="rise max-w-[1080px]">
-      <div className="mb-4 flex items-center gap-3">
-        <span className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">{q.eyebrow}</span>
-      </div>
-      {readBack && (
-        <div className="mb-5 rounded-xl border border-green-soft bg-green-soft/60 px-4 py-3 text-[14px] leading-relaxed text-green-ink">
-          {readBack}
+      {/* One prominent "Your idea" block, on every question (was duplicated on Q1 with a
+          separate paraphrase — consolidated here). Kept in view so the idea never gets lost. */}
+      {ideaShort && (
+        <div className="mb-5 rounded-2xl border-[1.5px] border-green-soft bg-green-soft/60 px-5 py-4">
+          <div className="mb-1.5 text-[13px] font-extrabold uppercase tracking-[0.13em] text-green-ink">Your idea</div>
+          <p className="text-[15.5px] leading-relaxed text-navy">{ideaShort}</p>
         </div>
       )}
+      <div className="mb-4 flex items-center gap-3">
+        <span className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">
+          {q.eyebrow}{q.concept ? ` · ${q.concept}` : ""}
+        </span>
+      </div>
       <h2 className="mb-3 text-[28px] font-extrabold leading-[1.12] tracking-[-0.022em] text-navy">{q.title}</h2>
       {q.lead && <p className="mb-7 max-w-[56ch] text-[16px] leading-relaxed text-navy-2">{q.lead}</p>}
 

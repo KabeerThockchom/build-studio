@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Target, ShieldCheck, RefreshCw, Check, X, Sparkles, ChevronRight, ChevronLeft } from "lucide-react";
+import { Target, ShieldCheck, RefreshCw, ClipboardList, Check, X, Sparkles, ChevronRight, ChevronLeft, AlertTriangle, RotateCw } from "lucide-react";
 import { VideoEmbed } from "./VideoEmbed";
+import type { IdeaCheck } from "../lib/types";
 
 /* The teaching sequence that plays while the SA authors the design questions in
    the background. Instead of a long scroll, it's a focused deck: ONE beat at a
@@ -12,18 +13,15 @@ import { VideoEmbed } from "./VideoEmbed";
 
 interface Props {
   idea: string;
+  expertise: string;          // "New to it" | "Familiar" | "Advanced" — tunes the primer depth
   planning: boolean;          // SA still authoring the tailored questions
   ready: boolean;             // questions have landed
+  ideaChecking: boolean;      // the stress-test is running
+  ideaCheck: IdeaCheck | null;// advisory read of the idea (null until it lands)
+  onReviseIdea: (v: string) => void;  // save an edited idea from the criteria beat
+  onRecheck: (v: string) => void;     // re-run the stress-test on the edited idea
+  onProceed: () => void;      // leaving the criteria beat: kick off design-question generation
   onEnter: () => void;        // go to the design questions
-}
-
-// The Genie "sparkle in a window" mark, lifted from the companion-app tour.
-function GenieMark({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" className={className} aria-hidden>
-      <path fill="currentColor" fillRule="evenodd" d="M0 2.75A.75.75 0 0 1 .75 2H8v1.5H1.5v9h13V10H16v3.25a.75.75 0 0 1-.75.75H.75a.75.75 0 0 1-.75-.75zm12.987-.14a.75.75 0 0 0-1.474 0l-.137.728a1.93 1.93 0 0 1-1.538 1.538l-.727.137a.75.75 0 0 0 0 1.474l.727.137c.78.147 1.39.758 1.538 1.538l.137.727a.75.75 0 0 0 1.474 0l.137-.727c.147-.78.758-1.39 1.538-1.538l.727-.137a.75.75 0 0 0 0-1.474l-.727-.137a1.93 1.93 0 0 1-1.538-1.538z" clipRule="evenodd" />
-    </svg>
-  );
 }
 
 const ROADMAP = [
@@ -47,6 +45,10 @@ const TIPS = [
     title: "The first pass is a draft.",
     body: "Nobody nails it in one prompt. Say what's off, like \"group by region, not store,\" and go again. Small corrections compound into what you pictured.",
     aside: "Steer in small nudges, not one giant prompt." },
+  { icon: ClipboardList, tag: "Plan before you build",
+    title: "Write the plan first.",
+    body: "Before it builds, get the agent to lay out what it's going to do, a short plan you can read. That's exactly what the PRD is later, and it's the difference between a build that lands and one that wanders.",
+    aside: '"Plan it out first, then build" › jumping straight to code' },
 ];
 
 // ── The beats (one idea per view) ──────────────────────────────────────────
@@ -118,7 +120,7 @@ function BeatHabits() {
   return (
     <div>
       <div className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">How to work with it</div>
-      <h1 className="text-[34px] font-extrabold leading-[1.1] tracking-[-0.025em] text-navy">Three habits that make the difference.</h1>
+      <h1 className="text-[34px] font-extrabold leading-[1.1] tracking-[-0.025em] text-navy">Four habits that make the difference.</h1>
       <div className="mt-6 flex flex-col gap-3">
         {TIPS.map((t) => {
           const Icon = t.icon;
@@ -144,40 +146,70 @@ function BeatHabits() {
   );
 }
 
-// Two foundational beats, one per piece, so a newcomer meets each on its own.
-function BeatGenie() {
+// The stress-test beat: an advisory read of the idea against what a good build
+// description needs. The check ran in the background during the earlier beats, so it's
+// usually ready by the time you land here. Weak ideas get a visible nudge + an inline
+// place to tighten them — but you can always continue (Next). Passing this beat is what
+// kicks off design-question generation, which the quiz beat then covers.
+function BeatCriteria({ idea, checking, check, onReviseIdea, onRecheck }:
+  { idea: string; checking: boolean; check: IdeaCheck | null;
+    onReviseIdea: (v: string) => void; onRecheck: (v: string) => void }) {
+  const [draft, setDraft] = useState(idea);
+  const weak = !!check && !check.strong;
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">
-        The first piece · for everyone
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="grid h-11 w-11 place-items-center rounded-xl bg-green-soft text-green-ink"><GenieMark className="h-5 w-5" /></span>
-        <h1 className="text-[34px] font-extrabold leading-[1.05] tracking-[-0.025em] text-navy">Meet Genie.</h1>
-      </div>
-      <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-navy-2">
-        Genie lets anyone <span className="font-semibold text-navy">ask questions of your data in plain English</span> and
-        get a real answer back. You type a question the way you'd say it out loud. Genie figures out
-        the query, runs it against your tables, and replies in a sentence. No SQL, no waiting on an analyst.
+      <div className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Sharpen your idea</div>
+      <h1 className="text-[34px] font-extrabold leading-[1.08] tracking-[-0.025em] text-navy">Let's pressure-test your idea.</h1>
+      <p className="mt-4 max-w-[54ch] text-[16.5px] leading-relaxed text-navy-2">
+        A clear idea builds better. Here's a quick read on yours. Tighten anything thin, or continue as it is.
       </p>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-white">
-        <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-          <span className="grid h-6 w-6 place-items-center rounded-lg bg-green-soft text-green-ink"><GenieMark className="h-3.5 w-3.5" /></span>
-          <b className="text-[13px] font-bold text-navy">Genie</b>
+      {checking && !check ? (
+        <div className="mt-6 flex items-center gap-3 rounded-2xl border border-line bg-white px-5 py-5 text-[14.5px] text-navy-2">
+          <span className="flex gap-0.5">{[0, 1, 2].map((i) => <span key={i} className="h-1.5 w-1.5 rounded-full bg-green" style={{ animation: `dots 1.4s ${i * 0.16}s infinite ease-in-out` }} />)}</span>
+          Reading your idea…
         </div>
-        <div className="px-4 py-4">
-          <div className="rounded-lg border border-line bg-oat px-3.5 py-2.5 text-[14px] text-navy">
-            Which regions are down this quarter?<span className="tl-caret font-semibold text-green">|</span>
+      ) : check ? (
+        <>
+          <div className={`mt-6 rounded-2xl border-[1.5px] px-5 py-4 ${weak ? "border-amber/50 bg-[#fffdf7]" : "border-green bg-green-soft"}`}>
+            <div className="flex items-center gap-2 text-[14px] font-bold text-navy">
+              {weak ? <AlertTriangle className="h-4 w-4 shrink-0 text-amber" /> : <Check className="h-4 w-4 shrink-0 text-green" />}
+              {check.summary || (weak ? "A bit more detail will help this build land." : "Looks like a solid, buildable idea.")}
+            </div>
+            <ul className="mt-3 flex flex-col gap-2">
+              {check.criteria.map((c) => (
+                <li key={c.key} className="flex items-start gap-2.5 text-[13.5px] leading-snug">
+                  {c.met
+                    ? <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-green text-white text-[9px]">✓</span>
+                    : <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-amber/20 text-amber"><AlertTriangle className="h-2.5 w-2.5" /></span>}
+                  <span className={c.met ? "text-navy-2" : "text-navy"}>
+                    <b className="font-semibold">{c.label}</b>
+                    {!c.met && c.hint && <span className="text-navy-3">: {c.hint}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <div className="mt-3 rounded-lg bg-green-soft px-3.5 py-2.5 text-[13.5px] leading-relaxed text-navy">
-            The Northeast and Midwest are both down from last quarter, about 8% and 5%. The rest held steady.
+
+          <div className="mt-4 rounded-2xl border border-line bg-white px-5 py-4">
+            <div className="mb-2 text-[12.5px] font-bold text-navy">{weak ? "Tighten it up" : "Tweak it (optional)"}</div>
+            <textarea rows={4} value={draft} onChange={(e) => setDraft(e.target.value)}
+              className="w-full resize-none rounded-xl border-[1.5px] border-line px-4 py-3 text-[14.5px] leading-relaxed text-navy outline-none focus:border-green focus:ring-[3px] focus:ring-green-soft" />
+            <div className="mt-3 flex items-center gap-3">
+              <button onClick={() => { onReviseIdea(draft); onRecheck(draft); }}
+                disabled={checking || draft.trim().length < 12 || draft.trim() === idea.trim()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-navy px-5 py-2.5 text-[14px] font-bold text-white hover:bg-navy-2 disabled:opacity-40">
+                <RotateCw className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} /> Save &amp; re-check
+              </button>
+              <span className="text-[12.5px] text-navy-3">{weak ? "Or continue anyway with Next →" : "Happy with it? Continue with Next →"}</span>
+            </div>
           </div>
+        </>
+      ) : (
+        <div className="mt-6 rounded-2xl border border-line bg-white px-5 py-5 text-[14px] text-navy-3">
+          We'll read your idea in a moment. Continue whenever you're ready.
         </div>
-      </div>
-      <p className="mt-4 text-[14px] leading-relaxed text-navy-3">
-        Who it's for: the business users and analysts on your team who need answers, not a data project.
-      </p>
+      )}
     </div>
   );
 }
@@ -186,34 +218,28 @@ function BeatGenieCode() {
   return (
     <div>
       <div className="mb-2 flex items-center gap-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">
-        The second piece · what you'll use today
+        What you'll build with today
       </div>
       <div className="flex items-center gap-3">
         <span className="grid h-11 w-11 place-items-center rounded-xl text-white" style={{ background: "linear-gradient(135deg,#00A870,#2BC48A)" }}>◆</span>
         <h1 className="text-[34px] font-extrabold leading-[1.05] tracking-[-0.025em] text-navy">Meet Genie Code.</h1>
       </div>
       <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-navy-2">
-        Where Genie <span className="font-semibold text-navy">answers</span> questions, Genie Code <span className="font-semibold text-navy">builds</span> things.
-        You describe what you want in plain words, and it writes and runs the work for you, right in your
-        workspace. Tables, an app, a dashboard. It's what you'll use to build your idea today.
+        Genie Code is the AI coding agent built into your Databricks workspace. You describe what you
+        want in plain words, and it writes and runs the work for you, right where your data lives. A
+        table, a dashboard, an app. It's what you'll use to build your idea today.
       </p>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-line" style={{ background: "#132029" }}>
-        <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-          <span className="grid h-6 w-6 place-items-center rounded-lg text-white" style={{ background: "linear-gradient(135deg,#00A870,#2BC48A)" }}>◆</span>
-          <b className="text-[13px] font-bold text-white">Genie Code</b>
-          <span className="ml-auto text-[10.5px] font-medium text-[#6f8b93]">in your workspace</span>
-        </div>
-        <div className="flex flex-col gap-2.5 px-4 py-4">
-          <div className="self-end rounded-xl rounded-tr-sm bg-green/15 px-3.5 py-2.5 text-[13px] leading-relaxed text-[#eafaf3]">
-            Build a table of daily sales by store, then an app that flags the ones falling behind.
-          </div>
-          <div className="rounded-xl rounded-tl-sm border border-white/10 bg-white/5 px-3.5 py-2.5 text-[13px] leading-relaxed text-[#c4d4d8]">
-            <span className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-green-l"><Check className="h-3 w-3" /> Made the table · built the app</span>
-            Here's your app. Want me to add a weekly summary next?
-          </div>
-        </div>
-      </div>
+      {/* Real screen recording: how to open Genie Code from the workspace UI. Behaves like a
+          gif (autoplay, muted, looped) so it plays inline without controls getting in the way. */}
+      <figure className="mt-6 overflow-hidden rounded-2xl border border-line bg-white">
+        <video src="/genie-code.mp4" autoPlay loop muted playsInline
+          className="block w-full" aria-label="Opening Genie Code from the Databricks workspace" />
+        <figcaption className="border-t border-line px-4 py-2.5 text-[12.5px] text-navy-3">
+          Opening Genie Code from your workspace. It lives right where your data and tables are.
+        </figcaption>
+      </figure>
+
       <p className="mt-4 text-[14px] leading-relaxed text-navy-3">
         Who it's for: anyone building something. You steer in plain language; it does the typing.
       </p>
@@ -223,16 +249,27 @@ function BeatGenieCode() {
 
 // A quick check-your-understanding on what the previous beats taught. Not graded —
 // just makes the learner wrestle with the material (Akil's ask) and reinforces the ideas.
+// This quiz sits at the end of the primer and reinforces what the beats taught: one easy
+// warm-up from the Databricks intro, then the working ideas (your role, specificity, verify,
+// plan first). Genie is taught in Assemble now, so there's no Genie question here. Answers
+// are mixed across positions on purpose, and a couple of the distractors are plausible so
+// the questions actually make you think.
 const QUIZ = [
-  { q: "In this workshop, what's mainly YOUR job?",
-    options: ["Write all the code by hand", "Decide what's worth building and steer the agent", "Memorize the Databricks UI"],
-    answer: 1, why: "You're the architect, not the bricklayer — the agent handles the code; you decide what to build." },
-  { q: "You want to BUILD something (a table, an app). Which do you reach for?",
-    options: ["Genie", "Genie Code"],
-    answer: 1, why: "Genie answers questions about your data; Genie Code builds things for you." },
-  { q: "What's a PRD, and why do it first?",
-    options: ["A finished app, so you can skip planning", "A short plan of what to build — it's what you hand the agent so the build comes out right", "A billing report"],
-    answer: 1, why: "The PRD is the first milestone: a clear plan of what to build, which the agent builds from." },
+  { q: "In the Databricks intro, what does the platform do first for a company?",
+    options: ["Brings data from many separate systems into one governed place", "Replaces the company's email system", "Designs the company's website"],
+    answer: 0, why: "Companies start with data spread across many systems. Databricks brings it into one governed place, and everything else builds on that." },
+  { q: "You're building with a coding agent. Where does most of your value come from?",
+    options: ["Writing the code faster than the agent can", "Memorizing the Databricks interface", "Deciding what's worth building and checking each result is right"],
+    answer: 2, why: "The agent writes the code. Your job is choosing what to build and judging whether each result is actually right." },
+  { q: "Which prompt gives the agent the best shot at building the right thing on the first try?",
+    options: ["Build me a great analytics dashboard for the business", "Show weekly sales against target per store, and flag any store more than 15% under target", "Use all our data to find something useful"],
+    answer: 1, why: "The first one sounds concrete but leaves what and who open. The second names the metric, the comparison, and the rule, so there's little left to guess." },
+  { q: "Genie Code says it finished a step. What should you do before building on top of it?",
+    options: ["Nothing. If it ran without an error, it's correct", "Re-run the same prompt to be safe", "Look at what it produced and check the result makes sense"],
+    answer: 2, why: "It runs real code on real data and is usually right, but you're the one who ships it. Read the result before you build on it." },
+  { q: "Why write a short plan (a PRD) before you start building?",
+    options: ["So the agent builds the right thing instead of guessing, and you both agree on it first", "Because Databricks won't let you create tables without one", "So the work can be billed to the right team"],
+    answer: 0, why: "A PRD is a short plan you write first. It's what you hand the agent, and it's the difference between a build that lands and one that wanders." },
 ];
 
 function BeatQuiz() {
@@ -241,7 +278,7 @@ function BeatQuiz() {
     <div>
       <div className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Quick check</div>
       <h1 className="text-[32px] font-extrabold leading-[1.1] tracking-[-0.025em] text-navy">A few quick ones before we design.</h1>
-      <p className="mt-3 max-w-[52ch] text-[15px] leading-relaxed text-navy-2">No grade — just to make the ideas stick.</p>
+      <p className="mt-3 max-w-[52ch] text-[15px] leading-relaxed text-navy-2">No grade. Just to make the ideas stick.</p>
       <div className="mt-6 flex flex-col gap-5">
         {QUIZ.map((item, qi) => {
           const chosen = picked[qi];
@@ -309,36 +346,76 @@ function BeatReady({ idea, ready, onEnter }: { idea: string; ready: boolean; onE
           ${ready ? "tl-glow bg-green text-white hover:-translate-y-px hover:bg-green-l" : "cursor-default bg-oat-2 text-navy-3"}`}>
         {ready ? <>Design my build <ChevronRight className="h-5 w-5" /></> : "Preparing your questions…"}
       </button>
-      {!ready && <p className="mt-4 text-[12.5px] text-navy-3">This lights up the moment they land, usually a few more seconds.</p>}
+      {!ready && <p className="mt-4 text-[12.5px] text-navy-3">Still tailoring the questions to your idea. This can take up to a minute, and it lights up the moment they're ready.</p>}
     </div>
   );
 }
 
-export function TeachingLoader({ idea, planning, ready, onEnter }: Props) {
+export function TeachingLoader({ idea, expertise, planning, ready, ideaChecking, ideaCheck, onReviseIdea, onRecheck, onProceed, onEnter }: Props) {
+  // Expertise-aware primer (persona finding: the full primer read as gatekeeping for
+  // people who'd told us they already know Databricks, and we were ignoring that answer).
+  // "New to it" gets the full, dwell-gated, non-skippable primer. Anyone else gets a lean
+  // path — the tool + the idea check + ready — with no per-beat dwell and a visible skip.
+  // Both still pass through the criteria beat (starts question generation) and the ready
+  // beat (gates entry), so nobody outruns the generation.
+  const lean = expertise !== "New to it";
   const [beat, setBeat] = useState(0);
-  // Non-skippable: you step through the beats in order (dots only go back to ones
-  // you've seen), and a short dwell on each stops anyone from sprinting past the
-  // teaching into dead air while the questions are still generating.
+  // Newcomers step through in order (dots only go back to seen beats) with a short dwell
+  // so nobody sprints past the teaching into dead air. Experienced users skip the dwell.
   const [maxSeen, setMaxSeen] = useState(0);
-  const [dwelling, setDwelling] = useState(true);
+  const [dwelling, setDwelling] = useState(!lean);
+  // Soft gate on the criteria beat: if the idea didn't pass the rubric, the first Next click
+  // warns instead of advancing. Reset when the beat changes.
+  const [weakAck, setWeakAck] = useState(false);
   useEffect(() => {
+    setWeakAck(false);
+    if (lean) { setDwelling(false); return; }
     setDwelling(true);
     const t = setTimeout(() => setDwelling(false), 1200);
     return () => clearTimeout(t);
-  }, [beat]);
+  }, [beat, lean]);
   const goTo = (i: number) => setBeat((b) => { const n = Math.max(0, Math.min(beats.length - 1, i)); setMaxSeen((m) => Math.max(m, n)); return n; });
 
-  const beats = [
-    <BeatOrient key="orient" idea={idea} />,
-    <BeatMindset key="mindset" />,
-    <BeatHabits key="habits" />,
-    <BeatGenie key="genie" />,
-    <BeatGenieCode key="genie-code" />,
-    <BeatQuiz key="quiz" />,
-    <BeatReady key="ready" idea={idea} ready={ready} onEnter={onEnter} />,
-  ];
+  // Full order (Akil's sequencing) for newcomers: idea → Databricks overview → mindset →
+  // habits → Genie Code intro → stress-test the idea → quiz → ready. Genie's own intro
+  // moved to Assemble (learn-as-you-pick). Experienced users get the lean set: the tool
+  // they'll use + the idea check + ready. Both keep the criteria beat (starts question
+  // generation) and the ready beat (gates entry).
+  const criteria = (
+    <BeatCriteria key="criteria" idea={idea} checking={ideaChecking} check={ideaCheck}
+      onReviseIdea={onReviseIdea} onRecheck={onRecheck} />
+  );
+  const ready_ = <BeatReady key="ready" idea={idea} ready={ready} onEnter={onEnter} />;
+  const beats = lean
+    ? [<BeatOrient key="orient" idea={idea} />, <BeatGenieCode key="genie-code" />, criteria, ready_]
+    : [
+        <BeatOrient key="orient" idea={idea} />,
+        <BeatMindset key="mindset" />,
+        <BeatHabits key="habits" />,
+        <BeatGenieCode key="genie-code" />,
+        criteria,
+        <BeatQuiz key="quiz" />,
+        ready_,
+      ];
+  const CRITERIA_BEAT = beats.findIndex((b) => b.key === "criteria");
   const last = beats.length - 1;
   const onLast = beat === last;
+  // The idea didn't clear the rubric: soft-gate leaving the criteria beat. Not a hard block
+  // (our rubric can be wrong) — just a smaller button and a one-time warning so they slow down.
+  const weakGate = beat === CRITERIA_BEAT && !!ideaCheck && !ideaCheck.strong && !ideaChecking;
+  // Advancing past the criteria beat is what kicks off design-question generation
+  // (idempotent in the parent). Don't allow it while the stress-test is still running.
+  const next = () => {
+    if (weakGate && !weakAck) { setWeakAck(true); return; }  // first click warns, doesn't advance
+    if (beat === CRITERIA_BEAT) onProceed();
+    goTo(beat + 1);
+  };
+  const nextBlocked = dwelling || (beat === CRITERIA_BEAT && ideaChecking);
+  // Lean-path skip: jump straight to the ready screen. Question generation already started
+  // at "Start designing", and onProceed is idempotent, so this fires it (harmless if already
+  // running) and lands them on ready, which gates on the questions actually being done.
+  const canSkip = lean && beat < last;
+  const skipAhead = () => { onProceed(); goTo(last); };
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-96px)] max-w-[760px] flex-col">
@@ -351,16 +428,30 @@ export function TeachingLoader({ idea, planning, ready, onEnter }: Props) {
           ) : (
             <><span className="flex gap-0.5">
               {[0, 1, 2].map((i) => <span key={i} className="h-1 w-1 rounded-full bg-green" style={{ animation: `dots 1.4s ${i * 0.16}s infinite ease-in-out` }} />)}
-            </span> Tailoring your design questions…</>
+            </span> {planning ? "Tailoring your design questions…" : "A quick primer while we get set…"}</>
           )}
         </div>
-        <div className="text-[12px] font-medium text-navy-3">A quick primer while we work · {beat + 1} of {beats.length}</div>
+        <div className="flex items-center gap-3">
+          {canSkip && (
+            <button onClick={skipAhead}
+              className="text-[12px] font-bold text-green-ink hover:text-green">Skip to the questions →</button>
+          )}
+          <span className="text-[12px] font-medium text-navy-3">{lean ? "Quick primer" : "A quick primer while we work"} · {beat + 1} of {beats.length}</span>
+        </div>
       </div>
 
       {/* the current beat, centered, re-animated on change */}
       <div className="flex flex-1 items-center py-8">
         <div key={beat} className="rise w-full">{beats[beat]}</div>
       </div>
+
+      {/* soft-gate warning when they try to leave the criteria beat with a thin idea */}
+      {weakGate && weakAck && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber/50 bg-[#fffdf7] px-4 py-2.5 text-[13px] leading-snug text-navy-2">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber" />
+          <span>Your idea is still a bit thin. A clearer idea builds a better app, so it's worth tightening it above. You can continue anyway if you'd like.</span>
+        </div>
+      )}
 
       {/* footer nav: Back · progress dots · Next */}
       <div className="flex items-center justify-between border-t border-line pt-4">
@@ -374,18 +465,26 @@ export function TeachingLoader({ idea, planning, ready, onEnter }: Props) {
             const seen = i <= maxSeen;
             return (
               <button key={i} onClick={() => seen && goTo(i)} disabled={!seen}
-                aria-label={seen ? `Go to beat ${i + 1}` : `Beat ${i + 1} — unlocks as you go`}
-                title={seen ? `Beat ${i + 1}` : "Unlocks as you go — hit Next"}
+                aria-label={seen ? `Go to beat ${i + 1}` : `Beat ${i + 1}, unlocks as you go`}
+                title={seen ? `Beat ${i + 1}` : "Unlocks as you go. Hit Next"}
                 className={`h-2 rounded-full transition-all ${i === beat ? "w-6 bg-green" : seen ? "w-2 bg-line-2 hover:bg-navy-3" : "w-2 bg-line cursor-default"}`} />
             );
           })}
         </div>
 
         {!onLast ? (
-          <button onClick={() => goTo(beat + 1)} disabled={dwelling}
-            className="flex items-center gap-1.5 rounded-xl bg-navy px-5 py-2.5 text-[14.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-navy-2 disabled:opacity-40 disabled:hover:translate-y-0">
-            Next <ChevronRight className="h-4 w-4" />
-          </button>
+          weakGate ? (
+            // De-emphasized escape hatch: smaller, secondary, and it warns before it advances.
+            <button onClick={next} disabled={nextBlocked}
+              className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-4 py-2 text-[13px] font-semibold text-navy-3 transition-colors hover:border-navy-3 hover:text-navy disabled:opacity-40">
+              {weakAck ? "Continue anyway" : "Continue without tightening"} <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          ) : (
+            <button onClick={next} disabled={nextBlocked}
+              className="flex items-center gap-1.5 rounded-xl bg-navy px-5 py-2.5 text-[14.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-navy-2 disabled:opacity-40 disabled:hover:translate-y-0">
+              {beat === CRITERIA_BEAT && ideaChecking ? "Reading your idea…" : "Next"} <ChevronRight className="h-4 w-4" />
+            </button>
+          )
         ) : (
           <span className="w-[72px]" /> // keep the dots centered; the beat holds the primary CTA
         )}

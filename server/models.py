@@ -69,6 +69,7 @@ class DesignOption(BaseModel):
 class DesignQuestion(BaseModel):
     id: str             # slug used as the answer key
     eyebrow: str        # e.g. "Design · 1 of 3"
+    concept: str = ""   # the design dimension this question is (e.g. "Audience", "Interaction model", "Data & tools")
     title: str
     lead: str
     options: list[DesignOption] = Field(default_factory=list)
@@ -95,6 +96,24 @@ class PlanRequest(BaseModel):
     industry: str = ""            # silently implied when the idea came from a gallery sample
 
 
+# --- Idea stress-test (M3): advisory LLM read of the idea before design ---
+class IdeaCriterion(BaseModel):
+    key: str            # problem | users | objective | data
+    label: str
+    met: bool
+    hint: str = ""      # short nudge when thin/missing
+
+
+class IdeaCheck(BaseModel):
+    strong: bool
+    summary: str = ""
+    criteria: list[IdeaCriterion] = Field(default_factory=list)
+
+
+class IdeaCheckRequest(BaseModel):
+    idea: str
+
+
 # --- Build phase: bite-sized guided Genie Code moves (M3) ---
 class BuildStep(BaseModel):
     n: int
@@ -119,3 +138,16 @@ class BuildRequest(BaseModel):
     # description of what they're building — build steps must follow it, not the raw idea.
     prd_markdown: str = ""       # the (possibly refined) blueprint PRD — authoritative
     adjust: str = ""             # the last refine note, if any (for extra signal)
+    project_name: str = ""       # the user's project name; used to isolate their schema/tables
+
+
+# --- Publish: persist the settled plan into the participant's workspace (M1) ---
+class PublishRequest(BaseModel):
+    idea: str
+    prd_markdown: str = ""
+    capabilities: list[str] = Field(default_factory=list)
+    design_answers: dict[str, str] = Field(default_factory=dict)
+    decisions: list[Decision] = Field(default_factory=list)
+    steps: list[BuildStep] = Field(default_factory=list)  # present once the build plan exists
+    usable_assets: str = ""      # existing tables / Genie room the user wants used (M2)
+    project_name: str = ""       # the user's name for the project — becomes the workspace folder
