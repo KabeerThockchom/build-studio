@@ -61,14 +61,21 @@ GUARDRAILS = {
         "Data comes first. Notebook cells need the '# Databricks notebook source' header and "
         "'# COMMAND ----------' separators or cells silently merge."),
     "Genie": (
-        "A Genie space is the semantic layer over the tables. Creating the asset is NOT enough. Point "
-        "it at a few query-ready tables (not many raw ones); give each important column a short "
-        "description with its units and allowed values (the single biggest driver of answer accuracy); "
-        "define the idea's key numbers as reusable metric expressions; and write the space instructions "
-        "in the idea's real terms — what the numbers mean, how to format them — rather than generic "
-        "text. Then confirm it works by asking two or three of the actual questions this app is for and "
-        "checking the answers use the right tables and return sensible numbers. An empty/unconfigured "
-        "space looks created but is useless."),
+        "A Genie space is the natural-language layer over the tables, and creating the asset is NOT "
+        "enough — its accuracy comes from how you ground it. Point it at a few query-ready tables (not "
+        "many raw ones). Give each important column a short description with its units and allowed values "
+        "— this is the single biggest driver of answer accuracy. Write the space instructions in the "
+        "idea's real terms: what the key numbers mean, the business synonyms people use for them, how to "
+        "format them, and any grain or caveats — not generic text. Then make it genuinely GOOD, not just "
+        "present: write a handful (about 5 to 8) of benchmark questions phrased the way this app's real "
+        "users would ask, each with the answer you expect; ask them in the space, and wherever Genie is "
+        "wrong or picks the wrong table, tighten the column descriptions and instructions (often just "
+        "adding a synonym) and re-ask until it answers them correctly and repeatably. Push a little past "
+        "the obvious too — try a follow-up question and a differently-worded version of the same ask — "
+        "since that is how people actually use it. Keep this lightweight: a short benchmark set you can "
+        "eyeball, not a formal eval harness. Optional, only once it is answering well: you can export a "
+        "good answer's query from Genie as a Metric View to lock that definition in — do that AFTER Genie "
+        "is good, never as a prerequisite. An empty or unconfigured space looks created but is useless."),
     "Knowledge Assistant": (
         "Knowledge Assistant lets the app answer from documents/notes with no embedding pipeline to build. "
         "Point it at the text source (a table column or docs) and kick off indexing. If the idea has no "
