@@ -112,6 +112,9 @@ def _project_md(*, idea: str, prd_markdown: str, decisions: list[Decision], step
                 "Tailwind at BUILD time (Vite + the tailwindcss plugin, emitting a CSS file into dist/); do NOT "
                 "load Tailwind from a browser/play CDN (@tailwindcss/browser, cdn.tailwindcss.com) — it ships an "
                 "in-browser compiler that is slow, flashes unstyled content, and can be CSP-blocked.",
+                f"- **Foundation Model endpoint**: for any in-app LLM or agent call (the supervisor agent), use the "
+                f"model serving endpoint `{config.get_serving_endpoint()}`. Do not hardcode a different model; omit "
+                f"the temperature param (some models reject it).",
                 "- **Complete HTML shell + verify it renders**: the built `index.html` must be a full HTML5 "
                 "document (`<!DOCTYPE html>`, a `<head>` with charset and viewport meta, a `<body>` wrapping "
                 "the root div) or the page renders in quirks mode with a broken layout. After deploy, open the "

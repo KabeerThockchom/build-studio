@@ -18,6 +18,7 @@ DEFAULT_CONFIG = {
     "company": "",                                    # target company (branding + context)
     "data_path": "any",                               # soft preference: any | synthetic | upload | existing
     "catalog": "",                                    # Unity Catalog the build lands in (baked into build prompts)
+    "serving_endpoint": "",                           # FM model for generation + participant apps; "" = use the deploy default
     "admin_emails": [],                               # break-glass proctor allowlist
 }
 

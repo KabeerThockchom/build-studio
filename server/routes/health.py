@@ -17,7 +17,7 @@ def fmapi_ping():
     try:
         reply = llm.complete(
             [{"role": "user", "content": "Reply with exactly: pong"}], max_tokens=16)
-        return {"ok": True, "model": config.SERVING_ENDPOINT, "reply": reply.strip()}
+        return {"ok": True, "model": config.get_serving_endpoint(), "reply": reply.strip()}
     except Exception as e:
         return JSONResponse(status_code=500, content={
             "ok": False, "error": str(e), "detail": traceback.format_exc()[-1200:]})

@@ -34,6 +34,22 @@ def get_workspace_host() -> str:
     return get_workspace_client().config.host
 
 
-# --- Model / resource config (override via env in app.yaml) ---
-# Sonnet 5 rejects the `temperature` param — callers must omit it.
+# --- Model / resource config ---
+# Some models (e.g. Sonnet) reject the `temperature` param — callers must omit it.
+# SERVING_ENDPOINT is the per-deploy default (env, set in app.yaml); a facilitator can
+# override it per workshop via config (e.g. a workspace where Claude isn't available).
 SERVING_ENDPOINT = os.environ.get("SERVING_ENDPOINT", "databricks-claude-sonnet-5")
+
+
+def get_serving_endpoint() -> str:
+    """The model endpoint to use. Workshop config wins over the deploy default, so a
+    facilitator can point at a workspace-appropriate model without a redeploy. Lazy import
+    + best-effort: a missing or unreachable config store falls back to the env default."""
+    try:
+        from . import workshop
+        m = (workshop.effective_config().get("serving_endpoint") or "").strip()
+        if m:
+            return m
+    except Exception:
+        pass
+    return SERVING_ENDPOINT

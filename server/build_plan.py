@@ -13,7 +13,7 @@ Design notes:
   the known-soft area to refine with real runs.
 """
 import re
-from . import llm
+from . import llm, config
 from .jsonx import loads_tolerant
 from .scope import WORKSHOP_SCOPE, VOICE, strip_em_dashes, clamp_idea
 from .models import BuildPlan, BuildStep, BuildRequest
@@ -103,7 +103,7 @@ GUARDRAILS = {
         "record something, plus any others in the plan). Keep it to a "
         "small number of tools (two or three) and give each a clear, distinct description so it routes by "
         "the intent of the question without guessing. Confirm it works by asking one question that should "
-        "go to each tool and checking it picked the right one. Omit the temperature param (Sonnet rejects it)."),
+        "go to each tool and checking it picked the right one. Omit the temperature param (some models reject it)."),
     "Databricks Apps": (
         "The app hosts the UI. Build it as a React + Tailwind CSS front end with a FastAPI (Python) backend — "
         "this exact stack, not Streamlit/Gradio/Dash. Hold a high design bar (see APP QUALITY below): it should "
@@ -323,6 +323,9 @@ def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
         f"person approves/overrides each, every decision recorded to Lakebase as an audit trail).\n"
         f"The plan names who it's for, the first screen, and the primary action — the app step must build "
         f"an app that opens on that primary action for that person, not a generic dashboard.\n"
+        f"Foundation Model API endpoint to use for the app's own LLM/agent calls (the supervisor agent, any "
+        f"in-app model call): '{config.get_serving_endpoint()}'. Use this exact endpoint; do not hardcode a "
+        f"different model, and omit the temperature param (some models reject it).\n"
         f"{catalog_line}"
         f"Dedicated schema for this participant (isolate ALL their work here; the data step creates it, "
         f"every later step references it): {schema}\n"
