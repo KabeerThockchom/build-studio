@@ -159,9 +159,12 @@ def _project_md(*, idea: str, prd_markdown: str, decisions: list[Decision], step
                 "(definitive language, no fabricated metrics, no ChatGPT-clone chrome).",
                 "- **Fast base + responsive detail**: render the main briefing from deterministic queries so it "
                 "loads instantly; reserve the Genie/agent call for drill-down follow-ups, not the cold entry.",
-                "- **Integrate the pieces**: the app should visibly use the whole architecture — an in-app "
-                "Genie ask box, the person's actions saved to Lakebase, and any other pieces in the plan — "
-                "not just a single table on a screen.",
+                "- **Integrate the pieces FOR REAL (not for show)**: the ask box MUST call the Genie "
+                "Conversation API against the space (not a hardcoded SQL string formatted into a sentence — an "
+                "instant canned answer is the tell); anything the app records MUST persist to the Lakebase "
+                "Postgres table via the attached database resource (NOT a Unity Catalog table via the "
+                "warehouse). Verify each: the ask makes a real Genie call, and a recorded action lands a real "
+                "row in Lakebase. A piece that only appears to be used was skipped.",
                 "- **Seed, not cage**: treat the idea as the seed. Build a complete, genuinely useful app "
                 "around it with sensible supporting views and a couple of relevant metrics; expand tastefully "
                 "beyond the literal one-liner. Hold the architecture fixed, but let features and polish breathe.",

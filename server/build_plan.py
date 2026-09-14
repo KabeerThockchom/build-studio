@@ -227,9 +227,15 @@ APP QUALITY & STACK (the finished app must impress, not look like a prototype):
     chrome, no emoji-as-icons, no clip-art.
 - Fast base + responsive detail: render the main briefing from deterministic queries so it loads instantly;
   reserve the Genie/agent call for drill-down follow-ups, not the cold entry point.
-- Integrate the pieces visibly: the app should surface what was built — an in-app Genie ask box, the actions
-  the person takes persisted to Lakebase, and whatever else the plan includes — so the finished app clearly
-  uses the whole architecture, not just one table.
+- Integrate the pieces FOR REAL, not for show — this is the most common shortcut to avoid:
+  * The in-app ask box MUST call the Genie Conversation API (start a Genie conversation against the space and
+    return its answer). Do NOT fake it by running a hardcoded SQL string and formatting a sentence — a canned
+    query that answers instantly is the tell. Using the Genie space is the whole point of building one.
+  * Anything the app records (a decision, a flag, a note, an approval) MUST persist to the Lakebase Postgres
+    table via the attached database resource. Do NOT write it to a Unity Catalog table via the warehouse
+    instead — that is not what Lakebase is for, and it means the piece was skipped.
+  * The finished app must visibly use the whole architecture the plan lists, not just the one deterministic
+    table behind the briefing.
 - Use the idea as the SEED, not a cage. Build a complete, genuinely useful app around it: sensible supporting
   views, a couple of relevant metrics, thoughtful detail. Expand tastefully beyond the literal one-liner
   rather than shipping the thinnest possible interpretation. Hold the ARCHITECTURE fixed (the pieces above are
@@ -256,6 +262,10 @@ VERIFY THE CORE ACTION BEFORE 'DONE' (the single most important check):
   primary action (ask a question, flag a store, record a decision) must be exercised end-to-end and return a
   real 200 with real data. An app whose API works but whose root page 500s is NOT done, and neither is one
   that renders but whose main action fails. Make BOTH the app step's verify condition.
+- Also verify the pieces are wired FOR REAL, not faked: if there is an ask box, confirm it actually calls
+  Genie (a real conversation with real latency, not an instant hardcoded string); if the plan records
+  anything, confirm a real row lands in the Lakebase Postgres table (not a Unity Catalog table). A piece that
+  only appears to be used does not count as done.
 
 Honor the provided guardrails for each capability — they are hard-won and must be reflected in the
 move or verify. Keep the whole thing readable by a beginner. No ceremony, no code.
