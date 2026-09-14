@@ -159,12 +159,15 @@ def _project_md(*, idea: str, prd_markdown: str, decisions: list[Decision], step
                 "(definitive language, no fabricated metrics, no ChatGPT-clone chrome).",
                 "- **Fast base + responsive detail**: render the main briefing from deterministic queries so it "
                 "loads instantly; reserve the Genie/agent call for drill-down follow-ups, not the cold entry.",
-                "- **Integrate the pieces FOR REAL (not for show)**: the ask box MUST call the Genie "
-                "Conversation API against the space (not a hardcoded SQL string formatted into a sentence — an "
-                "instant canned answer is the tell); anything the app records MUST persist to the Lakebase "
-                "Postgres table via the attached database resource (NOT a Unity Catalog table via the "
-                "warehouse). Verify each: the ask makes a real Genie call, and a recorded action lands a real "
-                "row in Lakebase. A piece that only appears to be used was skipped.",
+                "- **Integrate the pieces FOR REAL (not for show)**: every build runs a Genie flow (fixed "
+                "architecture). The app MUST include a genuine free-text ask box wired to the Genie Conversation "
+                "API — the person types any question and it calls Genie against the space. It must actually call "
+                "Genie: not a hardcoded SQL string formatted into a sentence, and not one canned/templated "
+                "question (a fixed question is what gets hardcoded; an instant answer is the tell). A single "
+                "fixed insight belongs in the deterministic briefing, not the ask box. Anything the app records "
+                "MUST persist to the Lakebase Postgres table via the attached database resource (NOT a Unity "
+                "Catalog table via the warehouse). Verify each: the ask makes a real Genie call, and a recorded "
+                "action lands a real row in Lakebase.",
                 "- **Seed, not cage**: treat the idea as the seed. Build a complete, genuinely useful app "
                 "around it with sensible supporting views and a couple of relevant metrics; expand tastefully "
                 "beyond the literal one-liner. Hold the architecture fixed, but let features and polish breathe.",

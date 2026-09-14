@@ -75,7 +75,9 @@ GUARDRAILS = {
         "since that is how people actually use it. Keep this lightweight: a short benchmark set you can "
         "eyeball, not a formal eval harness. Optional, only once it is answering well: you can export a "
         "good answer's query from Genie as a Metric View to lock that definition in — do that AFTER Genie "
-        "is good, never as a prerequisite. An empty or unconfigured space looks created but is useless."),
+        "is good, never as a prerequisite. An empty or unconfigured space looks created but is useless. "
+        "The app surfaces this space as a live FREE-TEXT ask box that calls the Genie Conversation API for "
+        "arbitrary questions — it must actually call Genie, never re-implement the answer as a fixed SQL query."),
     "Knowledge Assistant": (
         "Knowledge Assistant lets the app answer from documents/notes with no embedding pipeline to build. "
         "Point it at the text source (a table column or docs) and kick off indexing. If the idea has no "
@@ -228,9 +230,13 @@ APP QUALITY & STACK (the finished app must impress, not look like a prototype):
 - Fast base + responsive detail: render the main briefing from deterministic queries so it loads instantly;
   reserve the Genie/agent call for drill-down follow-ups, not the cold entry point.
 - Integrate the pieces FOR REAL, not for show — this is the most common shortcut to avoid:
-  * The in-app ask box MUST call the Genie Conversation API (start a Genie conversation against the space and
-    return its answer). Do NOT fake it by running a hardcoded SQL string and formatting a sentence — a canned
-    query that answers instantly is the tell. Using the Genie space is the whole point of building one.
+  * Every build runs a Genie flow — this is fixed architecture, not optional. The app MUST include a genuine
+    FREE-TEXT ask box (the person types ANY question in their own words) wired to the Genie Conversation API:
+    start a conversation against the space and return its answer. It MUST call Genie. Do NOT fake it with a
+    hardcoded SQL string formatted into a sentence, and do NOT reduce it to one canned/templated question — a
+    fixed question is exactly what gets hardcoded, and an instant answer is the tell that Genie was never
+    called. If the app has only one fixed insight, that belongs in the deterministic briefing; the ask box is
+    for the open-ended questions Genie exists to answer.
   * Anything the app records (a decision, a flag, a note, an approval) MUST persist to the Lakebase Postgres
     table via the attached database resource. Do NOT write it to a Unity Catalog table via the warehouse
     instead — that is not what Lakebase is for, and it means the piece was skipped.
