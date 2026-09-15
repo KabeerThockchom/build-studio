@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Check, X, Sparkles, ChevronRight, ChevronLeft, ChevronDown, GraduationCap, ExternalLink, BookOpen } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, X, Sparkles, ChevronRight, ChevronLeft, ChevronDown, GraduationCap, ExternalLink, BookOpen, User, ShieldCheck, Database } from "lucide-react";
 import { CONCEPTS, FINAL_QUIZ } from "../lib/learn";
 import { VideoEmbed } from "./VideoEmbed";
 
@@ -22,14 +22,17 @@ export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
   const caps = ORDER.filter((c) => capabilities.includes(c) && CONCEPTS[c]);
   const [beat, setBeat] = useState(0);
   const [maxSeen, setMaxSeen] = useState(0);
-  // modules -> the quiz (the Genie Code intro video now lives on the Build overview screen)
-  const total = caps.length + 1;
-  const onQuiz = beat === caps.length;
+  // beats: the architecture overview (0) -> one per piece -> the quick check
+  const total = caps.length + 2;
+  const onArch = beat === 0;
+  const onQuiz = beat === caps.length + 1;
   const goTo = (i: number) => setBeat(() => {
     const n = Math.max(0, Math.min(total - 1, i));
     setMaxSeen((m) => Math.max(m, n));
     return n;
   });
+  // the architecture diagram is also the navigation — tapping a piece opens its module
+  const openPiece = (cap: string) => { const i = caps.indexOf(cap); if (i >= 0) goTo(i + 1); };
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-96px)] max-w-[820px] flex-col">
@@ -40,14 +43,16 @@ export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
           Learn the pieces your build uses
         </div>
         <span className="text-[12px] font-medium text-navy-3">
-          {onQuiz ? "Quick check" : `Piece ${beat + 1} of ${caps.length}`} · {beat + 1} of {total}
+          {onArch ? "The architecture" : onQuiz ? "Quick check" : `Piece ${beat} of ${caps.length}`} · {beat + 1} of {total}
         </span>
       </div>
 
       {/* current beat */}
       <div className="flex flex-1 items-start py-8">
         <div key={beat} className="rise w-full">
-          {onQuiz ? <QuizBeat caps={caps} /> : <ModuleBeat cap={caps[beat]} idx={beat} count={caps.length} />}
+          {onArch ? <ArchitectureBeat caps={caps} onOpen={openPiece} />
+            : onQuiz ? <QuizBeat caps={caps} />
+            : <ModuleBeat cap={caps[beat - 1]} idx={beat - 1} count={caps.length} />}
         </div>
       </div>
 
@@ -81,6 +86,118 @@ export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── The opening beat: one static portrait of the architecture everyone builds. ──
+// It reads top-down as a story (you -> app -> agent -> tools -> data) and doubles as
+// navigation: each named piece is a door into its own module. No two builds differ here,
+// so the diagram is fixed, not generated.
+function ArchitectureBeat({ caps, onOpen }: { caps: string[]; onOpen: (cap: string) => void }) {
+  const [lit, setLit] = useState(false);
+  useEffect(() => { const r = requestAnimationFrame(() => setLit(true)); return () => cancelAnimationFrame(r); }, []);
+  // staggered top-to-bottom entrance; transform+opacity only, honors reduced motion
+  const enter = (i: number) => ({ transitionDelay: `${i * 80}ms`, opacity: lit ? 1 : 0, transform: lit ? "none" : "translateY(12px)" });
+  const anim = "transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:transform-none";
+  const has = (cap: string) => caps.includes(cap);
+
+  // a clickable piece — a door into its module (falls back to a plain node if not in this build)
+  const Door = ({ cap, name, role }: { cap: string; name: string; role: string }) =>
+    has(cap) ? (
+      <button onClick={() => onOpen(cap)}
+        className="group w-full rounded-xl border-[1.5px] border-line bg-white px-4 py-3 text-left outline-none transition
+          hover:-translate-y-px hover:border-green focus-visible:ring-[3px] focus-visible:ring-green-soft">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-green-ink">{name}</span>
+          <span className="text-[11px] font-semibold text-navy-3 opacity-0 transition-opacity group-hover:opacity-100">Learn &rarr;</span>
+        </div>
+        <div className="mt-1 text-[13px] leading-snug text-navy">{role}</div>
+      </button>
+    ) : (
+      <div className="w-full rounded-xl border-[1.5px] border-line bg-white px-4 py-3">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-green-ink">{name}</span>
+        <div className="mt-1 text-[13px] leading-snug text-navy">{role}</div>
+      </div>
+    );
+
+  // a labeled connector between layers
+  const Link = ({ label }: { label: string }) => (
+    <div className="flex flex-col items-center py-0.5 text-navy-3">
+      <span className="h-3 w-px bg-line-2" />
+      <span className="my-0.5 text-[10.5px] font-medium">{label}</span>
+      <ChevronDown className="h-3.5 w-3.5 text-line-2" />
+    </div>
+  );
+
+  return (
+    <div>
+      <div className="mb-2 font-mono text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">The architecture &middot; everyone builds this</div>
+      <h1 className="text-[32px] font-extrabold leading-[1.08] tracking-[-0.025em] text-navy">Here's the whole thing you'll build.</h1>
+      <p className="mt-3 max-w-[60ch] text-[15.5px] leading-relaxed text-navy-2">
+        Same shape for everyone. You open an app; behind it, an agent sends each question to the right piece &mdash; all inside your governed Databricks workspace. Tap any piece to jump into it.
+      </p>
+
+      <div className="mt-6 flex flex-col items-center">
+        {/* you — outside the workspace, the person using it */}
+        <div style={enter(0)} className={anim}>
+          <div className="flex items-center gap-2 rounded-full border border-line-2 bg-white px-3.5 py-1.5">
+            <User className="h-4 w-4 text-navy-2" />
+            <span className="text-[13px] font-bold text-navy">You</span>
+            <span className="rounded-full bg-green-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-green-ink">you're here</span>
+          </div>
+        </div>
+        <div style={enter(1)} className={anim}><Link label="open it in your browser" /></div>
+
+        {/* the governed workspace boundary — what's contained, and that nothing leaves */}
+        <div style={enter(2)} className={`${anim} w-full max-w-[520px] rounded-2xl border border-dashed border-line-2 bg-oat/40 p-4`}>
+          <div className="mb-3 flex items-center justify-between">
+            <span className="flex items-center gap-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.1em] text-navy-3">
+              <ShieldCheck className="h-3.5 w-3.5 text-green" /> Your Databricks workspace
+            </span>
+            <span className="text-[10.5px] font-medium text-navy-3">governed &middot; nothing leaves</span>
+          </div>
+
+          {/* the app — where you interact — and the agent that runs inside it */}
+          <div className="rounded-xl border-[1.5px] border-green bg-white p-3">
+            <div className="mb-2.5 flex items-start justify-between gap-2">
+              <button onClick={() => onOpen("Databricks Apps")}
+                className="group rounded text-left outline-none focus-visible:ring-[3px] focus-visible:ring-green-soft">
+                <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-green-ink">Databricks App</span>
+                <div className="mt-0.5 text-[13px] leading-snug text-navy">
+                  the front door &middot; React + FastAPI <span className="font-semibold text-navy-3 group-hover:text-green-ink">Learn &rarr;</span>
+                </div>
+              </button>
+              <span className="shrink-0 rounded-full bg-green-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-green-ink">where you interact</span>
+            </div>
+            <div className="rounded-lg bg-oat/60 p-2">
+              <div className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-[0.08em] text-navy-3">runs inside the app</div>
+              <Door cap="Supervisor agent" name="Supervisor agent" role="reads your question, picks the right piece" />
+            </div>
+          </div>
+
+          <Link label="the agent calls" />
+
+          {/* the pieces the agent calls */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Door cap="Genie" name="Genie" role="asks your data in plain English" />
+            <Door cap="Lakebase" name="Lakebase" role="saves what people do" />
+          </div>
+
+          <Link label="Genie reads" />
+
+          {/* the governed data everything sits on (context, not a learning module) */}
+          <div className="flex items-center gap-2.5 rounded-xl bg-oat-2 px-4 py-3">
+            <Database className="h-4 w-4 shrink-0 text-navy-3" />
+            <div>
+              <div className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-navy-3">Your data</div>
+              <div className="text-[13px] leading-snug text-navy">governed tables in Unity Catalog</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-5 text-center text-[12.5px] text-navy-3">Tap a piece above, or step through them one at a time &rarr;</p>
     </div>
   );
 }
