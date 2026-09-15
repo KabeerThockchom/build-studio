@@ -212,8 +212,8 @@ function ModuleBeat({ cap, idx, count, onHome }: { cap: string; idx: number; cou
   return (
     <div>
       <button onClick={onHome}
-        className="mb-3 inline-flex items-center gap-1 rounded text-[12px] font-semibold text-navy-3 outline-none hover:text-green-ink focus-visible:ring-[3px] focus-visible:ring-green-soft">
-        <ChevronLeft className="h-3.5 w-3.5" /> The architecture
+        className="mb-4 inline-flex items-center gap-1.5 rounded-xl border-[1.5px] border-line bg-white px-4 py-2 text-[13.5px] font-bold text-navy-2 outline-none transition hover:-translate-y-px hover:border-green hover:bg-green-soft hover:text-green-ink focus-visible:ring-[3px] focus-visible:ring-green-soft">
+        <ChevronLeft className="h-4 w-4" /> Back to the architecture
       </button>
       <div className="mb-2 flex items-center gap-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">
         <span className="font-mono">{cap}</span>

@@ -6,7 +6,9 @@
  * and carries the vertical's `industry` field silently into the SA prompt
  * to ground the generated code in real vertical-specific context.
  *
- * Structure: 3 verticals × 3 outcome columns × 3 sample apps = 27 total apps.
+ * Structure: 4 verticals × 3 outcome columns × 3 sample apps = 36 total apps.
+ * (Retail, Travel & Hospitality, QSR, and Beverage Distribution — the last
+ * grounded in a Coca-Cola bottler's world for the CONA / Costa workshop.)
  * All `id` values are unique kebab-case slugs.
  */
 
@@ -454,6 +456,145 @@ export const GALLERY: GalleryVertical[] = [
               how: "Shows profit margin by menu item based on costs, volumes, and pricing",
               tool: "Genie to ask the data, Lakebase to save analyses, and a Databricks App as the interface",
               objective: "Know which items to promote and which to discontinue",
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "beverage",
+    label: "Beverage Distribution",
+    industry: "beverage bottling and distribution (a bottler: retail outlets, coolers and vending machines, direct-store-delivery, and back-office finance)",
+    columns: [
+      {
+        outcome: "Cut manual reporting and back-office load",
+        apps: [
+          {
+            id: "ops-finance-report-autopilot",
+            label: "Ops & Finance Report Autopilot",
+            blurb: "Turns the recurring operations and finance reports analysts rebuild by hand into one accurate briefing they can trust.",
+            starter: "Every week our operations and finance analysts rebuild the same reports by hand in spreadsheets, and small errors slip in that we only catch later. I want one place that reads our sales, delivery, and finance tables and produces the recurring operations and finance briefing automatically, with the key numbers reconciled so people stop second-guessing whether the figures are right. Each morning it should show the current numbers against last period and flag anything that looks off.",
+            components: ["Genie", "Databricks Apps"],
+            facets: {
+              problem: "Analysts rebuild the same ops and finance reports by hand, and errors slip in",
+              how: "Reads the source tables and produces the recurring briefing automatically, reconciled",
+              tool: "Genie to ask the data and a Databricks App as the interface",
+              objective: "Cut manual reporting and stop people questioning the numbers",
+            },
+          },
+          {
+            id: "ap-invoice-copilot",
+            label: "AP Invoice Copilot",
+            blurb: "An agent that reads supplier invoices, matches them to purchase orders, and drafts the coding for accounts payable to approve.",
+            starter: "Our accounts payable team keys in supplier invoices and manually matches them to purchase orders, which is slow and backs up at month end. I want an agent that reads each incoming invoice, matches it to the right PO and receipt, checks the amounts line up, and drafts the coding plus an approve-or-hold recommendation, so the AP clerk just reviews and approves instead of doing it all by hand. Every decision it makes should be recorded so we keep an audit trail.",
+            components: ["Supervisor agent", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "AP keys in invoices and matches POs by hand, backing up at month end",
+              how: "Agent matches invoice to PO and receipt, checks amounts, drafts coding and an approve-or-hold call",
+              tool: "An agent to do the work, Lakebase to record each decision, and a Databricks App as the interface",
+              objective: "Clear the AP backlog with the clerk reviewing, not rekeying",
+            },
+          },
+          {
+            id: "po-self-help-agent",
+            label: "Purchase Order Self-Help Agent",
+            blurb: "Answers 'where does my purchase order stand' in plain English so buyers stop chasing status by email.",
+            starter: "Buyers and requesters constantly ask our procurement team where a purchase order stands, and answering each one by email eats the day. I want a self-help agent people can ask in plain English about any PO, that reads our purchase order, receipt, and supplier tables and tells them the current status, what's outstanding, and expected delivery, and lets them flag one for follow-up. Routine status questions get answered instantly and the team only handles the real exceptions.",
+            components: ["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Procurement spends the day answering 'where is my PO' by email",
+              how: "A self-help agent answers PO status questions and lets users flag one for follow-up",
+              tool: "Genie to read the data, an agent to route, Lakebase to save follow-ups, and a Databricks App as the interface",
+              objective: "Answer routine status instantly; handle only the real exceptions",
+            },
+          },
+        ],
+      },
+      {
+        outcome: "Grow revenue and commercial performance",
+        apps: [
+          {
+            id: "store-tiering-engine",
+            label: "Store Tiering Engine",
+            blurb: "Groups outlets into performance tiers from sales, transactions, and local context so commercial teams focus where it pays.",
+            starter: "We treat outlets too much the same when their commercial performance and potential are very different. I want to score and tier our outlets using their sales, transaction counts, product mix, and local context, so the commercial team can see which tier each outlet sits in and where there's room to grow. It should show each outlet's tier, why it landed there, and which under-performing outlets are the best opportunities to work on.",
+            components: ["Genie", "Databricks Apps"],
+            facets: {
+              problem: "Outlets treated the same despite very different performance and potential",
+              how: "Scores and tiers outlets from sales, transactions, mix, and local context",
+              tool: "Genie to ask the data and a Databricks App as the interface",
+              objective: "Focus commercial effort where the upside is",
+            },
+          },
+          {
+            id: "product-elasticity-refresher",
+            label: "Product Elasticity Refresher",
+            blurb: "An autonomous agent that re-estimates price elasticity per product and proposes updated price points for review.",
+            starter: "Our product price elasticities are stale because refreshing them is a manual analytics project nobody has time for. I want an autonomous agent that re-estimates elasticity for each product from our historical price and sales data, proposes an updated recommended price (or flags that the current price is off), and explains its reasoning, so a pricing analyst just reviews and approves the refreshed numbers. Every proposed change should be recorded so we can see what changed and why.",
+            components: ["Supervisor agent", "Genie", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Price elasticities go stale because refreshing them is a manual project",
+              how: "An agent re-estimates elasticity per product and proposes updated prices with reasoning",
+              tool: "An agent to do the analysis, Genie for the data, Lakebase to record changes, and a Databricks App as the interface",
+              objective: "Keep pricing current with an analyst approving, not rebuilding",
+            },
+          },
+          {
+            id: "machine-tier-optimizer",
+            label: "Cooler & Machine Tier Optimizer",
+            blurb: "Ranks coolers and vending machines by revenue per placement and flags which to move, upgrade, or re-stock.",
+            starter: "We have coolers and vending machines placed across many locations but no clear read on which ones earn their spot. I want to rank each machine by revenue and throughput against comparable placements, and flag the under-performers that should be moved, upgraded, or re-stocked differently. Each morning the commercial team should see the machines most worth acting on and the recommended action for each.",
+            components: ["Genie", "Databricks Apps"],
+            facets: {
+              problem: "Coolers and machines placed widely with no clear read on which earn their spot",
+              how: "Ranks each machine by revenue and throughput vs comparable placements and flags actions",
+              tool: "Genie to ask the data and a Databricks App as the interface",
+              objective: "Move, upgrade, or re-stock the machines that aren't paying off",
+            },
+          },
+        ],
+      },
+      {
+        outcome: "People insight and AI value",
+        apps: [
+          {
+            id: "headcount-turnover-explorer",
+            label: "Headcount & Turnover Explorer",
+            blurb: "Answers people-data questions about headcount trends and turnover by department in plain English.",
+            starter: "Our leaders ask HR questions like how headcount has changed over the past year or which departments have the highest turnover, and answering each one is a manual pull. I want a place where they can ask people-data questions in plain English and get the answer back with a simple chart, reading our headcount and turnover tables. It should cover headcount trends over time and turnover by department without anyone building a one-off report.",
+            components: ["Genie", "Databricks Apps"],
+            facets: {
+              problem: "People-data questions each need a manual HR pull",
+              how: "Ask headcount and turnover questions in plain English, get an answer and a chart",
+              tool: "Genie to ask the data and a Databricks App as the interface",
+              objective: "Self-serve people insight without one-off reports",
+            },
+          },
+          {
+            id: "attrition-early-warning",
+            label: "Attrition Early-Warning",
+            blurb: "Flags departments and roles where turnover is trending up so HR can act before it worsens.",
+            starter: "By the time we see a turnover spike in a department, we've already lost the people. I want something that reads our headcount and turnover history and flags where attrition is trending up by department and role, with the recent pattern behind each flag, so HR and managers can look into the causes early. It should open on the departments most at risk this period, not a big table.",
+            components: ["Genie", "Supervisor agent", "Databricks Apps"],
+            facets: {
+              problem: "Turnover spikes are seen only after the people are gone",
+              how: "Flags departments and roles where attrition is trending up, with the pattern behind each",
+              tool: "Genie to ask the data, an agent to tie the pieces together, and a Databricks App as the interface",
+              objective: "Act on attrition risk early",
+            },
+          },
+          {
+            id: "ai-roi-tracker",
+            label: "AI ROI Tracker",
+            blurb: "Records the AI and automation solutions we ship and the productivity or cost benefit of each to show clear ROI.",
+            starter: "We're delivering AI and automation solutions but can't point to the productivity benefit or ROI in a clear way, which makes the value hard to defend. I want a place to record each solution we ship, the hours or cost it saves, and who it helps, and to see the total benefit rolled up over time. It should let a delivery lead log a solution and its measured benefit, and show leadership the running evidence of value.",
+            components: ["Genie", "Lakebase", "Databricks Apps"],
+            facets: {
+              problem: "Can't clearly point to the productivity benefit or ROI of the AI solutions we ship",
+              how: "Records each solution and its measured benefit, rolled up over time",
+              tool: "Genie to ask the data, Lakebase to save each logged solution, and a Databricks App as the interface",
+              objective: "Show leadership running evidence of AI value",
             },
           },
         ],

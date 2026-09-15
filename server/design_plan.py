@@ -22,14 +22,8 @@ CAP_BLURB = {
     "Databricks Apps": "hosts the interface people open",
 }
 
-# The three workshop-realistic data paths. The SA must ask ONE question whose id is
-# "data_mode" and whose option keys are exactly these — the rest of the app keys off them.
-DATA_MODE_GUIDANCE = """One of your questions MUST be about where the data comes from. Give it id
-"data_mode" and use EXACTLY these three option keys (phrase the labels/subs for their idea):
-- "synthetic": we generate realistic sample data that fits their idea (no data needed from them)
-- "upload": they have a spreadsheet / CSV / file we turn into a Unity Catalog table together
-- "existing": they point at a table that already exists in the workspace (may be read-only)
-Do NOT offer "connect a live source / ingest a new pipeline" — that is out of scope for one day."""
+# Data is always synthetic in a workshop (every participant builds on generated sample data),
+# so there is no "where does the data come from" question — see the SYSTEM_PROMPT note below.
 
 # The interaction model shapes most of the app's layout and its primary action, so it is a
 # REQUIRED question. Fixed option keys the rest of the app keys off, like data_mode.
@@ -88,15 +82,15 @@ duplicate it):
 - how the result is delivered (an app they open, a dashboard, just answers)
 - the scope/shape specific to their idea
 Do NOT ask about things outside Databricks' scope. Do NOT ask about data freshness / live-vs-batch
-— a workshop day works off static data, so that choice does not apply.
-
-{DATA_MODE_GUIDANCE}
+— a workshop day works off static data, so that choice does not apply. Do NOT ask where the data comes
+from: every workshop build runs on realistic SYNTHETIC sample data we generate to fit their idea, so
+treat that as settled and never make it a question.
 
 {INTERACTION_MODEL_GUIDANCE}
 
-The FIRST question should be the required "interaction_model" question (phrased for THIS idea). Also
-include the required "data_mode" question. Beyond those two, add 0-2 tailored questions only if they
-genuinely matter for this idea (audience specifics, scope). Total 2-4 questions, fewer is better — never pad.
+The FIRST question should be the required "interaction_model" question (phrased for THIS idea). Beyond
+that, add 0-2 tailored questions only if they genuinely matter for this idea (audience specifics, scope).
+Total 1-3 questions, fewer is better — never pad.
 
 Return ONLY one JSON object (no markdown fence, no prose) with this exact shape:
 {{
@@ -243,7 +237,7 @@ def fallback_plan(idea: str = "") -> DesignPlan:
         read_back=read_back,
         questions=[
             DesignQuestion(
-                id="interaction_model", eyebrow="Design · 1 of 2", concept="Interaction model",
+                id="interaction_model", eyebrow="Design · 1 of 1", concept="Interaction model",
                 title="How will people use this most?",
                 lead="This sets what the app opens on and the one thing they do most.",
                 options=[
@@ -275,29 +269,6 @@ def fallback_plan(idea: str = "") -> DesignPlan:
                 ],
                 other_preview=["We'll adapt to how you describe using it.",
                                "The rest of the design flexes to match.", "Most tailored."]),
-            DesignQuestion(
-                id="data_mode", eyebrow="Design · 2 of 2", concept="Data & tools",
-                title="Where does the data come from?",
-                lead="This sets your very first build step — and we keep it to what fits a workshop day.",
-                options=[
-                    DesignOption(key="synthetic", letter="A", label="Make realistic sample data",
-                                 sub="We generate tables that fit your idea — nothing needed from you.",
-                                 preview=["A synthetic dataset shaped to your idea, in Unity Catalog.",
-                                          "You skip data wrangling and get to the interesting parts.",
-                                          "No setup risk, but the data is made up. Swap in real tables later."]),
-                    DesignOption(key="upload", letter="B", label="I have a spreadsheet or file",
-                                 sub="A CSV/Excel we turn into a Unity Catalog table together.",
-                                 preview=["We walk you through loading your file into a table.",
-                                          "Your build runs on your own numbers from the start.",
-                                          "A little setup, and the file needs to be reasonably clean."]),
-                    DesignOption(key="existing", letter="C", label="Point at a table that already exists",
-                                 sub="Read from a Unity Catalog table you already have.",
-                                 preview=["Your build reads a real table you already have.",
-                                          "Nothing to generate; reflects your actual business.",
-                                          "Most realistic; read-only is fine — we won't need to change it."]),
-                ],
-                other_preview=["We'll adapt the first step to however your data arrives.",
-                               "Sample, a file you upload, or an existing table.", "We'll confirm specifics first."]),
         ],
         capabilities=[
             CapabilityPick(name="Genie", selected=True, fits="ask your data in plain English"),

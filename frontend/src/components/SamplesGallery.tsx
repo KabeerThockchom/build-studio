@@ -37,7 +37,7 @@ export function SamplesGallery({ onPick }: Props) {
 
       {/* always-visible teaser row: one card per vertical */}
       {!showAll && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {FEATURED.map(({ app, industry }, i) => (
             <SampleCard key={app.id} app={app} tag={GALLERY[i].label}
               onClick={() => onPick(app.starter, app.label, industry, app.components, interestsForComponents(app.components))} />

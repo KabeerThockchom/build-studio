@@ -65,5 +65,6 @@ def test_retries_then_raises():
 
 def test_fallback_is_valid():
     plan = design_plan.fallback_plan()
-    assert len(plan.questions) == 2
+    # Data is always synthetic now, so the only required question is interaction_model.
+    assert [q.id for q in plan.questions] == ["interaction_model"]
     assert [c.name for c in plan.capabilities] == design_plan.CAPABILITIES
