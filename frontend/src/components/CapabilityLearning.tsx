@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, X, Sparkles, ChevronRight, ChevronLeft, GraduationCap, ExternalLink, BookOpen } from "lucide-react";
+import { Check, X, Sparkles, ChevronRight, ChevronLeft, ChevronDown, GraduationCap, ExternalLink, BookOpen } from "lucide-react";
 import { CONCEPTS, FINAL_QUIZ } from "../lib/learn";
 import { VideoEmbed } from "./VideoEmbed";
 
@@ -100,6 +100,7 @@ function ModuleBeat({ cap, idx, count }: { cap: string; idx: number; count: numb
       <p className="mt-3 max-w-[62ch] text-[15.5px] leading-relaxed text-navy-2">{card.deeper}</p>
 
       {card.demo === "genie-chat" && <GenieChatMock />}
+      {card.demo === "agent-routing" && <AgentRoutingMock />}
 
       {card.video && (
         <div className="mt-5 max-w-[560px]">
@@ -181,6 +182,38 @@ function GenieChatMock() {
       <div className="flex flex-col gap-2 px-3.5 py-3.5">
         <div className="self-end rounded-lg rounded-tr-sm bg-oat px-3 py-1.5 text-[12.5px] text-navy">Which regions are down this quarter?</div>
         <div className="rounded-lg rounded-tl-sm bg-green-soft px-3 py-1.5 text-[12.5px] leading-snug text-navy">Northeast and Midwest are down about 8% and 5% from last quarter. The rest held steady.</div>
+      </div>
+    </div>
+  );
+}
+
+// The Supervisor agent module's visual: one plain question routed to the right pieces.
+// Shows WHY the agent exists (ask in one place) and HOW it's wired (Genie + Lakebase).
+function AgentRoutingMock() {
+  return (
+    <div className="mt-5 max-w-[440px] overflow-hidden rounded-xl border border-line bg-white">
+      <div className="border-b border-line px-3.5 py-2 text-[10.5px] font-bold uppercase tracking-[0.08em] text-green-ink">
+        Supervisor agent · routes one question
+      </div>
+      <div className="flex flex-col items-center gap-1.5 px-3.5 py-4">
+        <div className="w-full rounded-lg bg-oat px-3 py-2 text-[12.5px] leading-snug text-navy">
+          "Which stores are slipping, and mark store 4 as handled."
+        </div>
+        <ChevronDown className="h-4 w-4 text-line-2" />
+        <div className="rounded-lg bg-navy px-3.5 py-1.5 text-[12px] font-bold text-white">Supervisor agent</div>
+        <div className="text-[10.5px] text-navy-3">reads the question, picks the right piece for each part</div>
+        <ChevronDown className="h-4 w-4 text-line-2" />
+        <div className="grid w-full grid-cols-2 gap-2">
+          <div className="rounded-lg border border-green/40 bg-green-soft px-3 py-2">
+            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-green-ink">Genie</div>
+            <div className="mt-0.5 text-[11.5px] leading-snug text-navy">reads the sales numbers</div>
+          </div>
+          <div className="rounded-lg border border-green/40 bg-green-soft px-3 py-2">
+            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-green-ink">Lakebase</div>
+            <div className="mt-0.5 text-[11.5px] leading-snug text-navy">saves the "handled" note</div>
+          </div>
+        </div>
+        <div className="mt-1 text-[10.5px] text-navy-3">one question, no picking tools by hand</div>
       </div>
     </div>
   );

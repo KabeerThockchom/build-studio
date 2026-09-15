@@ -20,7 +20,7 @@ export interface ConceptCard {
   title: string;
   tagline: string;  // one plain line: what this piece IS, for the card face
   deeper: string;   // 2-3 sentence go-deeper, plain language
-  demo?: "genie-chat";  // an inline product-style mini-demo to render (visual grounding)
+  demo?: "genie-chat" | "agent-routing";  // an inline product-style mini-demo to render (visual grounding)
   // A short product walkthrough video. When set, the module renders it; when absent,
   // nothing renders in its place (concept + demo + quiz + links carry the learning) —
   // no placeholder is shown, since this is customer-facing.
@@ -123,8 +123,9 @@ export const CONCEPTS: Record<string, ConceptCard> = {
   },
   "Supervisor agent": {
     title: "What the agent actually does",
-    tagline: "Sends each question to the right piece.",
-    deeper: "The supervisor is the reasoning layer of your app: a language model that reads each question and decides which piece should handle it, then calls it and replies. Genie for the data, Lakebase to save something, and any other tool in the build. This is tool-calling, not a heavy framework. The skill is giving each tool a clear, distinct description so it routes by intent without guessing.",
+    tagline: "One place to ask; it routes to the right piece.",
+    demo: "agent-routing",
+    deeper: "The supervisor is the reasoning layer behind your app's ask box: a language model that reads a plain question, decides which piece can answer it, calls that piece, and replies. Why it's there: so the person asks in one place instead of having to pick the right tool themselves. In your app that means a single question like \"which stores are slipping, and mark store 4 as handled\" can pull the numbers from Genie and save the decision to Lakebase in one turn. It's tool-calling, not a heavy framework, and the skill is giving each tool a clear, distinct description so it routes by intent without guessing.",
     quiz: {
       q: "What is the supervisor agent's job?",
       options: ["Picking the right tool for each question and replying", "Replacing Genie and Lakebase entirely", "Storing the app's data"],

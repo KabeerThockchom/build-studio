@@ -176,15 +176,19 @@ already saved in their workspace, where Genie Code can read it.
   read the plan file first (refer to it with the EXACT literal token __PROJECT_MD__ — the app swaps in
   the real path; never write "PROJECT.md" yourself), so it has the whole picture and knows this is a
   step-by-step build it will check with the person as it goes; (b) create the dedicated schema in the
-  catalog named below; (c) generate the sample data into that schema. Include the key SHAPE of the data
-  inline (the tables, the important columns, the realistic patterns, valid relationships) so it is
-  buildable even if the file read is imperfect — do not rely on the file alone.
-- EVERY LATER step's move is the NEXT message in that SAME conversation. Write it as a natural
-  continuation ("Next, …" / "Now, using the tables in <catalog>.<schema> …"), referencing the plan and
-  the work already done rather than re-introducing the project.
-- BUT each step must ALSO stand on its own if pasted into a fresh chat: always name the catalog, the
-  schema, and the specific tables the step depends on, so Genie Code can find the work even with no
-  memory of earlier messages. Continuation phrasing for flow, explicit names for robustness — both.
+  catalog named below; (c) generate the sample data into that schema; (d) create the data-generation
+  notebook and any files it writes INSIDE the project folder that holds __PROJECT_MD__ (the same folder as
+  the plan) — NOT the workspace root or the user's home, so all the build's artifacts stay together.
+  Include the key SHAPE of the data inline (the tables, the important columns, the realistic patterns,
+  valid relationships) so it is buildable even if the file read is imperfect — do not rely on the file alone.
+- EVERY step's move must RE-ANCHOR to the plan, not just step 1: open by pointing Genie Code at the plan
+  with the exact token __PROJECT_MD__ (e.g. "Check your plan at __PROJECT_MD__ for this step, then …").
+  Do NOT assume Genie Code still has the plan in context — the person may be in a fresh chat, and it does
+  not carry the plan or the open file automatically. After re-anchoring, write the rest as a natural
+  continuation ("… then, using the tables in <catalog>.<schema> …").
+- Each step must ALSO stand on its own if pasted into a fresh chat: besides re-anchoring to __PROJECT_MD__,
+  always name the catalog, the schema, and the specific tables the step depends on, so Genie Code can find
+  the work even with no memory of earlier messages.
 
 MULTI-USER ISOLATION (required — many people build in the same catalog at once):
 - All of a participant's work lives in ONE dedicated schema so builds don't collide. Use the catalog and

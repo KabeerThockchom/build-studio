@@ -314,7 +314,7 @@ function StepWalker({ step, isData, isDone, publishedDir, onCompleteStep }:
                 {key === "prompt" && (
                   <>
                     <p className="text-[14px] leading-relaxed text-navy-2">
-                      In your Genie Code chat, ask it in your own words to <b className="text-navy">{goal}</b>. It has the whole plan, so a plain request works. You don't need the exact wording.
+                      In your Genie Code chat, ask it in your own words to <b className="text-navy">{goal}</b>. Point it at your plan each step, open <b className="text-navy">PROJECT.md</b> or say "follow my plan in PROJECT.md", so it has the details. Your exact wording doesn't matter; the plan carries the specifics. Don't assume it remembers the plan from earlier, refer back to it every step.
                     </p>
                     {!showHelp ? (
                       <button onClick={() => setShowHelp(true)} className="mt-2.5 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-green-ink hover:text-green">
