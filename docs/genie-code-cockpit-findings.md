@@ -40,10 +40,19 @@ The app UI builds reliably; **getting it to read data/Genie in the Costa account
 - **OBO path** (what GC fell back to): use the forwarded user token + declare `user_api_scopes` (e.g. `sql`, `dashboards`/genie) on the app. More self-service, but GC had to discover it and get the scopes right.
 - **Recommendation for tomorrow**: decide this up front — ideally **pre-provision app SP grants (admin)** OR standardize on **OBO + a known-good `user_api_scopes` set**, and bake the choice into the app guardrail/instructions. Otherwise every participant burns time here. This is the #1 thing to settle before the workshop.
 
+### Final data-path verdict (confirmed in-browser)
+Even via the real in-browser forwarded-user-token path, `/api/queue` returns **500 `"Request URL is missing an 'http://' or 'https://' protocol"`** — a **code bug**, not permissions: the backend builds the Databricks SQL Statement Execution / warehouse request URL from a hostname without the `https://` scheme. So the deployed app **renders perfectly but shows an empty queue.**
+
+Two compounding problems:
+1. **URL-scheme code bug** — a recurring GC mistake when hand-rolling the SQL Statement Execution call. Fix: build the full URL with scheme, or use the `databricks-sdk` `WorkspaceClient().statement_execution` (which handles the host) rather than raw httpx to a bare hostname.
+2. **GC verification gap (important)** — GC **reported the app "done/working" without actually confirming the queue loads.** It said the SSO login "prevents me from testing endpoints programmatically," so it *assumed* success. Our guardrail says "verify the primary action returns real data," but GC **cannot auth-test its own deployed app** → it ships broken data paths believing they work. **The human must open the app and verify the queue loads;** an empty queue is the signal to debug the data path.
+
 ### App-step guardrail improvements (proposed, from this run)
 - Tell GC to **build the app files and deploy via CLI/SDK in a fresh chat**, not the create-app+Apps-page handoff (which hung).
 - **Never put `node_modules` in the deploy source** — deploy only `dist/**` + backend (reinforce the allowlist for the SDK/CLI deploy path).
 - **Attach the SQL warehouse as an app resource** (don't rely on auto-discovery) and settle the SP-vs-OBO data-access approach explicitly.
+- **Build Databricks API/warehouse URLs with the `https://` scheme (or use the SDK client)** — the raw-hostname bug 500'd the queue.
+- **A deploy that returns 200 at root is NOT verified** — GC can't auth-test its endpoints, so a human must open the app and confirm the queue/primary action loads real data.
 
 ## Second data point — headless harness (sandbox, gpt-5.6-sol coder)
 Ran the same locked architecture through the Genie Code CLI headlessly: **4/5 moves PASS**.

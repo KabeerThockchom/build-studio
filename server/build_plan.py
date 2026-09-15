@@ -290,6 +290,15 @@ COMMON FIRST-PASS BUGS TO AVOID (hard-won from real builds — fold the fix into
 - Wrap every backend call to a Databricks service (Genie, the SQL warehouse, Lakebase, the model) in
   try/except: on failure, log it and return a clean JSON error the UI can show (e.g. {{"error": "..."}}),
   never let it bubble up as a raw 500. One transient blip should degrade a panel, not crash the app.
+- To query the warehouse from the backend, use the databricks-sdk WorkspaceClient's statement execution
+  (`w.statement_execution.execute_statement(warehouse_id=..., statement=...)`) — it resolves the host for
+  you. If you hand-build an HTTP request instead, the URL MUST include the `https://` scheme: a bare
+  hostname raises "Request URL is missing an 'http://' or 'https://' protocol" and 500s the endpoint.
+  Get the warehouse id from the attached app resource / env, not by auto-discovery (the SP may see none).
+- A root page that returns 200 is NOT a verified app: the deployed app is behind SSO, so its data
+  endpoints can only be exercised by a logged-in user in the browser. After deploy, the person must OPEN
+  the app and confirm the primary list/queue loads REAL rows — an empty list means the data path (auth,
+  warehouse, or URL) is broken even though the page renders.
 
 VERIFY THE CORE ACTION BEFORE 'DONE' (the single most important check):
 - TWO things must BOTH pass after deploy, not just one. (a) The ROOT page must render: open the deployed
