@@ -52,7 +52,7 @@ export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
         <div key={beat} className="rise w-full">
           {onArch ? <ArchitectureBeat caps={caps} onOpen={openPiece} />
             : onQuiz ? <QuizBeat caps={caps} />
-            : <ModuleBeat cap={caps[beat - 1]} idx={beat - 1} count={caps.length} />}
+            : <ModuleBeat cap={caps[beat - 1]} idx={beat - 1} count={caps.length} onHome={() => goTo(0)} />}
         </div>
       </div>
 
@@ -203,10 +203,14 @@ function ArchitectureBeat({ caps, onOpen }: { caps: string[]; onOpen: (cap: stri
 }
 
 // One piece: what it is, why it matters, a short video/demo, and a couple of links.
-function ModuleBeat({ cap, idx, count }: { cap: string; idx: number; count: number }) {
+function ModuleBeat({ cap, idx, count, onHome }: { cap: string; idx: number; count: number; onHome: () => void }) {
   const card = CONCEPTS[cap];
   return (
     <div>
+      <button onClick={onHome}
+        className="mb-3 inline-flex items-center gap-1 rounded text-[12px] font-semibold text-navy-3 outline-none hover:text-green-ink focus-visible:ring-[3px] focus-visible:ring-green-soft">
+        <ChevronLeft className="h-3.5 w-3.5" /> The architecture
+      </button>
       <div className="mb-2 flex items-center gap-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">
         <span className="font-mono">{cap}</span>
         <span className="text-line-2">·</span>
@@ -216,12 +220,13 @@ function ModuleBeat({ cap, idx, count }: { cap: string; idx: number; count: numb
       <p className="mt-3 max-w-[56ch] text-[17px] font-semibold leading-relaxed text-navy">{card.tagline}</p>
       <p className="mt-3 max-w-[62ch] text-[15.5px] leading-relaxed text-navy-2">{card.deeper}</p>
 
-      {card.demo === "genie-chat" && <GenieChatMock />}
-      {card.demo === "agent-routing" && <AgentRoutingMock />}
-
-      {card.video && (
-        <div className="mt-5 max-w-[560px]">
-          <VideoEmbed id={card.video.id} title={card.video.title} sub={card.video.sub} short={card.video.short} />
+      {(card.demo || card.video) && (
+        <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-6">
+          {card.demo === "genie-chat" && <GenieChatMock />}
+          {card.demo === "agent-routing" && <AgentRoutingMock />}
+          {card.video && (
+            <VideoEmbed id={card.video.id} title={card.video.title} sub={card.video.sub} short={card.video.short} />
+          )}
         </div>
       )}
 
@@ -294,7 +299,7 @@ function QuizBeat({ caps }: { caps: string[] }) {
 // A compact product-style demo for Genie's module — "ask in plain English, get a real answer."
 function GenieChatMock() {
   return (
-    <div className="mt-5 max-w-[440px] overflow-hidden rounded-xl border border-line bg-white">
+    <div className="max-w-[440px] overflow-hidden rounded-xl border border-line bg-white">
       <div className="border-b border-line px-3.5 py-2 text-[10.5px] font-bold uppercase tracking-[0.08em] text-green-ink">Genie</div>
       <div className="flex flex-col gap-2 px-3.5 py-3.5">
         <div className="self-end rounded-lg rounded-tr-sm bg-oat px-3 py-1.5 text-[12.5px] text-navy">Which regions are down this quarter?</div>
@@ -308,7 +313,7 @@ function GenieChatMock() {
 // Shows WHY the agent exists (ask in one place) and HOW it's wired (Genie + Lakebase).
 function AgentRoutingMock() {
   return (
-    <div className="mt-5 max-w-[440px] overflow-hidden rounded-xl border border-line bg-white">
+    <div className="max-w-[440px] overflow-hidden rounded-xl border border-line bg-white">
       <div className="border-b border-line px-3.5 py-2 text-[10.5px] font-bold uppercase tracking-[0.08em] text-green-ink">
         Supervisor agent · routes one question
       </div>
