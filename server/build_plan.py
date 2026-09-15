@@ -100,12 +100,23 @@ GUARDRAILS = {
         "generous timeout and retry the first attempt (e.g. a psycopg pool opened with wait=True and "
         "timeout~30s, or a small retry loop), so a cold start shows briefly instead of erroring."),
     "Supervisor agent": (
-        "The supervisor agent is a small tool-calling loop (not a framework): it calls the Foundation "
-        "Model API and routes to the tools you built (for example Genie for data questions and Lakebase to "
-        "record something, plus any others in the plan). Keep it to a "
-        "small number of tools (two or three) and give each a clear, distinct description so it routes by "
-        "the intent of the question without guessing. Confirm it works by asking one question that should "
-        "go to each tool and checking it picked the right one. Omit the temperature param (some models reject it)."),
+        "The supervisor agent is a small tool-calling loop (not a framework, and NOT the OpenAI Agents SDK): "
+        "it calls the Foundation Model API and routes to the tools you built (for example Genie for data "
+        "questions and Lakebase to record something, plus any others in the plan). Keep it to a small number "
+        "of tools (two or three); each tool is a plain Python function whose DOCSTRING is its description — "
+        "write a clear, distinct one-line docstring per tool, because that text is what the model routes on, "
+        "so it picks by the intent of the question without guessing. Instrument it with MLflow tracing so "
+        "every question is observable: call the model through the OpenAI-compatible Databricks client (the "
+        "`openai`/`databricks-openai` client pointed at the FM endpoint, still a plain loop) and turn on "
+        "`mlflow.openai.autolog()`, which captures the model and tool-calling calls automatically; also "
+        "decorate the loop's entry function and each tool with `@mlflow.trace` so the full span tree — the "
+        "question, the routing decision, which tool ran, its latency and result, the final answer — is "
+        "recorded. Tracing needs a Databricks MLflow experiment the app can write to: create one and grant "
+        "the app's service principal CAN_EDIT on it (same pattern as the data/warehouse grants; the app-level "
+        "env wiring is in the Databricks Apps step). Confirm it works by asking one question that should go to "
+        "each tool, checking it picked the right one, AND opening the experiment's traces to see each call as "
+        "a span (a faked tool shows up as a missing span — this is how you catch a piece that was skipped). "
+        "Omit the temperature param (some models reject it)."),
     "Databricks Apps": (
         "The app hosts the UI. Build it as a React + Tailwind CSS front end with a FastAPI (Python) backend — "
         "this exact stack, not Streamlit/Gradio/Dash. Hold a high design bar (see APP QUALITY below): it should "
@@ -137,7 +148,12 @@ GUARDRAILS = {
         "USE CATALOG + USE SCHEMA + SELECT on the data, and CAN USE on the SQL warehouse the Genie space runs "
         "on. Without them a Genie/SQL call fails at runtime (the app deploys fine, then /api calls 500/502 with "
         "a permissions/'FAILED' error). Grant the app's SP access to the data and warehouse, and verify a query "
-        "actually returns rows as the app, not just as you."),
+        "actually returns rows as the app, not just as you. "
+        "(6) If the app runs the supervisor agent, wire its MLflow tracing at the app level: add `mlflow` to "
+        "requirements.txt and set `MLFLOW_TRACKING_URI=databricks` and `MLFLOW_EXPERIMENT_ID=<experiment id>` as "
+        "env in app.yaml (an env value, not in the command args — never a ${VAR} in the command). Make trace "
+        "init resilient: a tracing or missing-experiment failure must degrade to untraced, never 500 a request. "
+        "The experiment itself and the SP grant on it are set up in the supervisor agent step."),
 }
 
 SYSTEM_PROMPT = f"""You are a senior Databricks Solutions Architect turning a designed blueprint into a
@@ -287,7 +303,8 @@ WHO READS WHAT (critical — this is where plans lose beginners):
   as something the user must understand.
 - The "concept", "verify", and "teach" are read by the PERSON, whose Databricks familiarity is
   stated in the request. If they are new to it: do NOT put raw jargon (uv.lock, "temperature",
-  /logz, "# COMMAND", Unity Catalog internals) in concept/verify/teach — say what it means in plain
+  /logz, "# COMMAND", MLflow tracing internals like @mlflow.trace / autolog / experiment id, Unity
+  Catalog internals) in concept/verify/teach — say what it means in plain
   words or leave it out. The person should never have to look up a term to follow a step.
 - The first step's concept should briefly reassure a newcomer how this works: they paste the move
   into Genie Code, it does the technical work, they check the result. Don't assume they've used it.
