@@ -136,7 +136,7 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefin
       )}
 
       <div className="mt-9 flex items-center justify-between">
-        <button onClick={onBack} className="text-[14px] font-semibold text-navy-3 hover:text-navy">← Change capabilities</button>
+        <button onClick={onBack} className="text-[14px] font-semibold text-navy-3 hover:text-navy">← Back to the pieces</button>
         <button onClick={onNext} disabled={!blueprint || generating}
           className="rounded-xl bg-green px-7 py-3.5 text-[15.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-green-l disabled:opacity-40">
           Start building →

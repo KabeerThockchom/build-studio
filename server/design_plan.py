@@ -25,8 +25,8 @@ CAP_BLURB = {
 # Data is always synthetic in a workshop (every participant builds on generated sample data),
 # so there is no "where does the data come from" question — see the SYSTEM_PROMPT note below.
 
-# The interaction model shapes most of the app's layout and its primary action, so it is a
-# REQUIRED question. Fixed option keys the rest of the app keys off, like data_mode.
+# The interaction model shapes most of the app's layout and its primary action, so it is THE
+# required question (the only one). Fixed option keys the rest of the app keys off.
 INTERACTION_MODEL_GUIDANCE = """One of your questions MUST be about how the person interacts with the
 build. Give it id "interaction_model". Offer the 2-3 of these fixed option keys that genuinely fit THEIR
 idea (never invent new keys; phrase the labels/subs/previews for their subject matter):
@@ -55,20 +55,22 @@ assume their build is an app, or an agent, or anything — you read THEIR idea a
 The ONLY capabilities you may pre-select from (never invent others):
 {chr(10).join(f'- {c}: {CAP_BLURB[c]}' for c in CAPABILITIES)}
 
-Pre-select CONSERVATIVELY — only mark selected:true for pieces the idea clearly needs. A workshop
-build shouldn't accumulate pieces the person never asked for. Guidance:
-- Genie and Databricks Apps are the usual core for an interactive build; select them when they fit.
-- Do NOT auto-select Lakebase unless the idea implies recording/saving something between sessions
-  (a decision log, saved state, a queue). "Just look at data" does not need it.
-- Do NOT auto-select a Supervisor agent unless the idea genuinely needs to route across MULTIPLE
-  tools. A single-purpose build (one dashboard, one Q&A) does not.
-- Do NOT auto-select Knowledge Assistant unless there are documents/notes/text to answer from.
-- If the idea reads like a dashboard/report rather than a chat, reflect that — don't assume a chat agent.
-  And when you DO select Genie for a dashboard/report build, write its "fits" as powering the numbers
-  and charts behind the scenes — NOT "ask follow-up questions" or "chat," which contradicts a person
-  who wants a dashboard. Match the "fits" language to how they said they want to interact.
-For anything you leave unselected, set a short "fits" saying when they'd add it. The person can always
-turn pieces on in the next step; start them with the honest minimum, not the maximum.
+The architecture is PRESCRIBED: every build uses Genie, a Supervisor agent, Lakebase, and Databricks
+Apps — always. So mark those four selected:true, and for each write a "fits" that is ONE positive line
+saying what THAT piece does for THIS idea, grounded in the real subject matter (e.g. for an invoice
+build: Lakebase records each approve/override decision as the audit trail; the Supervisor agent reads
+each invoice, matches it, and drafts a recommendation; Genie answers questions over the invoice data).
+NEVER write a "not needed", "optional", or "you'd add it later" rationale for these four — they are
+always in the build, and this text is shown to the participant as the piece's role in the architecture,
+so a "not needed" line directly contradicts what they then build.
+- If the idea reads like a dashboard/report rather than a chat, reflect that in the "fits" — don't
+  assume a chat agent. When it's a dashboard/report build, write Genie's "fits" as powering the numbers
+  and charts behind the scenes, NOT "ask follow-up questions" or "chat." For the Supervisor agent on a
+  single-purpose build, frame its "fits" as doing the one repeatable job (reading, matching, drafting,
+  ranking), not "routing across many tools." Match the "fits" language to how they said they'll interact.
+- Knowledge Assistant is the ONLY optional piece: mark it selected:true (with a positive "fits") only if
+  the idea has documents/notes/text to answer from; otherwise mark it selected:false with a short "fits"
+  saying when they'd add it.
 
 Generate ALL of the design questions, every one tailored to THIS specific idea. Do not use
 generic templated questions — a question a smart SA wouldn't bother asking for this idea should

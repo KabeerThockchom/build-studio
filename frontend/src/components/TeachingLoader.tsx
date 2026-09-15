@@ -27,7 +27,7 @@ interface Props {
 const ROADMAP = [
   { k: "Shape", t: "your idea", done: true },
   { k: "Design", t: "a few quick choices", done: false },
-  { k: "Assemble", t: "pick the pieces", done: false },
+  { k: "Meet the pieces", t: "your architecture", done: false },
   { k: "Blueprint", t: "your plan, one page", done: false },
   { k: "Build", t: "step by step", done: false },
 ];

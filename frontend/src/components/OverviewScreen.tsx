@@ -7,7 +7,7 @@ import { Lightbulb, MessageSquare, Boxes, Map, Hammer, ArrowRight } from "lucide
 const PHASES = [
   { n: 1, icon: Lightbulb, name: "Shape", why: "Start with the problem in your own words. The clearer your intent, the better everything downstream." },
   { n: 2, icon: MessageSquare, name: "Design", why: "Answer a few questions tailored to your idea. This is where your plan, the PRD, takes shape." },
-  { n: 3, icon: Boxes, name: "Assemble", why: "Pick the Databricks pieces that fit: ask your data, an app to open, a place to record decisions." },
+  { n: 3, icon: Boxes, name: "Meet the pieces", why: "See the architecture you'll build and learn each Databricks piece in it: ask your data, an app to open, a place to record decisions." },
   { n: 4, icon: Map, name: "Blueprint", why: "See the whole build on one page: the plan, and how the parts connect, before you build it." },
   { n: 5, icon: Hammer, name: "Build", why: "Build it for real in Genie Code, one bite-sized move at a time. Not a wall of prompts." },
 ];

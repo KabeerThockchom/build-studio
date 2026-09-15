@@ -56,8 +56,16 @@ const DEFAULT_PICKS: CapabilityPick[] = [
   { name: "Databricks Apps", selected: true, fits: "the front door" },
 ];
 // Always the full locked set; fold in the SA's per-idea "fits" rationale when it's loaded.
+// Only adopt the SA's fits for a piece it actually SELECTED: the architecture is locked (all
+// four are always built), so a piece the SA left unselected carries a "not needed / you'd add
+// it later" rationale — wrong to paint on the architecture node as that piece's role. Fall back
+// to the generic positive role there. (Belt-and-suspenders with the SA prompt, which now tells
+// it to always select the four and write positive fits.)
 export function shownPicks(s: StudioState): CapabilityPick[] {
-  const saFits = new Map((s.plan?.capabilities ?? []).map((c) => [c.name, c.fits] as const));
+  const saFits = new Map(
+    (s.plan?.capabilities ?? [])
+      .filter((c) => c.selected && (c.fits || "").trim())
+      .map((c) => [c.name, c.fits] as const));
   return DEFAULT_PICKS.map((p) => ({ ...p, selected: true, fits: saFits.get(p.name) || p.fits }));
 }
 
