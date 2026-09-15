@@ -119,7 +119,9 @@ GUARDRAILS = {
         "Omit the temperature param (some models reject it)."),
     "Databricks Apps": (
         "The app hosts the UI. Build it as a React + Tailwind CSS front end with a FastAPI (Python) backend — "
-        "this exact stack, not Streamlit/Gradio/Dash. Hold a high design bar (see APP QUALITY below): it should "
+        "this exact stack, not Streamlit/Gradio/Dash. Follow the brand brief in `design.md` in the project folder "
+        "(the Costa palette, the `costa.png` logo to package into dist/, and three reference design flavors — pick "
+        "one and adapt it to this app). Hold a high design bar (see APP QUALITY below): it should "
         "look like a product a team would use, and it should visibly use the pieces in the plan (an in-app "
         "Genie ask box, the person's actions saved to Lakebase, and any other pieces the plan includes). "
         "Hard-won truths: (1) a green/SUCCEEDED deploy is NOT a working app — "

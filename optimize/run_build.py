@@ -60,6 +60,13 @@ CASES = {
         expertise="New to it",
         capabilities=["Genie", "Knowledge Assistant", "Supervisor agent", "Lakebase", "Databricks Apps"],
         design_answers={"data_mode": "synthetic"}),
+    "agent_locked": dict(  # the REAL workshop architecture (4 locked caps, agentic console + tracing)
+        idea="Our AP team keys in supplier invoices and matches them to purchase orders by hand, which "
+             "backs up at month end. An agent should read each invoice, match it to its PO and receipt, "
+             "check the amounts, and draft an approve-or-hold call the clerk reviews. Record every decision.",
+        expertise="New to it",
+        capabilities=["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"],
+        design_answers={"interaction_model": "agent_actions", "data_mode": "synthetic"}),
 }
 
 

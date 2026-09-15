@@ -210,6 +210,82 @@ def _project_md(*, idea: str, prd_markdown: str, decisions: list[Decision], step
     return "\n".join(out).rstrip() + "\n"
 
 
+# ── Brand / design spec ─────────────────────────────────────────────────────
+# Costa brand foundation + three reference "flavors" (from design/mockups). Goal: every
+# participant's app looks on-brand but NOT identical. We hand Genie Code the palette + logo,
+# three worked directions, recommend the one that fits their app, and tell it to ADAPT (not
+# clone). Lives in its own design.md so PROJECT.md stays lean.
+LOGO_NAME = "costa.png"
+_FLAVORS = {
+    "A": ("Warm Editorial",
+          "Young Serif (display) + Hanken Grotesk (body), both Google Fonts. Conversational and human — reads "
+          "like a morning briefing that talks to you. Warm cream paper, maroon headings, terracotta accents. "
+          "Best for advisor/briefing apps that explain and recommend."),
+    "B": ("Crisp Operational",
+          "Schibsted Grotesk (display) + Public Sans (body), both Google Fonts. Clean, functional console "
+          "clarity — dense but calm. Whiter surfaces on cream, maroon + green, a tight grid. Best for review "
+          "queues, supervise-the-agent consoles, and monitoring/ops screens."),
+    "C": ("Bold Heritage",
+          "Zilla Slab (display) + Figtree (body), both Google Fonts. Confident and premium — deep maroon with "
+          "gold, richer contrast, more editorial weight. Best for exec/leadership views and brand-forward "
+          "storytelling."),
+}
+
+
+def _recommend_flavor(interaction_model: str) -> str:
+    """Pick a starting flavor from how people use the app, so different builds skew different."""
+    return {"agent_actions": "B", "browse_act": "B", "monitor": "B",
+            "ask": "A", "explore": "C"}.get((interaction_model or "").strip(), "B")
+
+
+def _design_md(*, idea: str, interaction_model: str) -> str:
+    rec = _recommend_flavor(interaction_model)
+    rec_name = _FLAVORS[rec][0]
+    out = [
+        "# Design & brand spec — Costa", "",
+        "This app is for Costa, so it must look like a Costa product. Below is the brand foundation to keep, "
+        "then three worked **flavors** as reference directions. **Pick ONE flavor as your starting point, then "
+        "adapt it to this app's real screens** — don't clone a mockup, and don't make every app identical; vary "
+        "tastefully within the brand. Deviate only if the app truly calls for it, and stay on-brand.", "",
+        "## Brand foundation (always)",
+        f"- **Logo**: `{LOGO_NAME}` is in this project folder (512×512 PNG). Package it INTO the app — copy it "
+        "into the frontend's static assets (e.g. Vite `public/`) so it ships inside `dist/`, and use it in the "
+        "header and as the favicon. Do NOT hotlink an external URL (the app's CSP will block it).",
+        "- **Primary brand color**: Costa maroon `#730723` (deep burgundy) — the anchor. Header, primary "
+        "actions, key emphasis. Use `#59071c` for hover/depth.",
+        "- **Page ground**: warm cream (`#faf4ea` / `#f6f3ee`), never pure `#ffffff` as the canvas. Cards sit "
+        "on the cream as white/lighter-cream surfaces.",
+        "- **Positive / approved**: green `#3f7d55`. **Secondary / heritage accent**: gold `#b57f36` (sparingly). "
+        "**Text/ink**: warm near-black `#211318`.",
+        "- Hold the product bar: at most three semantic colors, each ALWAYS paired with a label or icon (never "
+        "color alone); tabular numerals for every figure (`font-variant-numeric: tabular-nums`); generous "
+        "whitespace; light theme; no gradients, no 'AI blue', no neon.", "",
+        "## The three flavors (reference — pick one, then adapt)",
+    ]
+    for k in ("A", "B", "C"):
+        nm, desc = _FLAVORS[k]
+        star = "  **← recommended for this app**" if k == rec else ""
+        out.append(f"- **Flavor {k} — {nm}**{star}: {desc}")
+    out += [
+        "",
+        f"**Recommended starting point: Flavor {rec} ({rec_name})** — it fits how people will use this app. "
+        "Adapt its type and layout to your actual screens; keep the brand foundation above intact.", "",
+        "## Fonts",
+        "Every flavor's fonts are on Google Fonts — load the two for your chosen flavor with a `<link>` and give "
+        "each a real fallback stack (e.g. `\"Public Sans\", system-ui, sans-serif`). One display face for "
+        "headings/numbers, one body face for text. Compile CSS at build time (Vite + Tailwind), never a browser "
+        "CDN.", "",
+        "_This is the visual brief. The functional plan (what to build) is in PROJECT.md._", "",
+    ]
+    return "\n".join(out)
+
+
+def _logo_path() -> str:
+    """Absolute path to the bundled Costa logo (design/mockups/costa.png), repo-relative."""
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "design", "mockups", LOGO_NAME)
+
+
 def publish_assets(*, idea: str, prd_markdown: str, capabilities: list[str],
                    design_answers: dict, decisions: list[Decision] | None = None,
                    steps: list[BuildStep] | None = None, usable_assets: str = "",
@@ -235,5 +311,22 @@ def publish_assets(*, idea: str, prd_markdown: str, capabilities: list[str],
     w.workspace.upload(f"{target}/{DOC_NAME}", io.BytesIO(doc.encode("utf-8")),
                        format=ImportFormat.RAW, overwrite=True)
 
-    return {"ok": True, "dir": target, "doc": f"{target}/{DOC_NAME}", "files": [DOC_NAME],
+    # Brand/design spec + logo, in their own files so PROJECT.md stays lean. Best-effort:
+    # a failure here never blocks the build (the plan still stands).
+    files_written = [DOC_NAME]
+    try:
+        design = _design_md(idea=idea, interaction_model=(design_answers or {}).get("interaction_model", ""))
+        w.workspace.upload(f"{target}/design.md", io.BytesIO(design.encode("utf-8")),
+                           format=ImportFormat.RAW, overwrite=True)
+        files_written.append("design.md")
+        logo_src = _logo_path()
+        if os.path.exists(logo_src):
+            with open(logo_src, "rb") as fh:
+                w.workspace.upload(f"{target}/{LOGO_NAME}", io.BytesIO(fh.read()),
+                                   format=ImportFormat.RAW, overwrite=True)
+            files_written.append(LOGO_NAME)
+    except Exception as e:
+        print(f"design asset publish warning: {e}")
+
+    return {"ok": True, "dir": target, "doc": f"{target}/{DOC_NAME}", "files": files_written,
             "host": config.get_workspace_host(), "deep_link": _deep_link(target), "wrote_as": wrote_as}
