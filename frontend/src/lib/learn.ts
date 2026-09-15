@@ -21,9 +21,9 @@ export interface ConceptCard {
   tagline: string;  // one plain line: what this piece IS, for the card face
   deeper: string;   // 2-3 sentence go-deeper, plain language
   demo?: "genie-chat";  // an inline product-style mini-demo to render (visual grounding)
-  // A short product walkthrough video. IDs are TODO — see the morning notes for which
-  // product lines need capture. When set, the Learn panel renders it; when absent, nothing
-  // breaks (concept + demo + quiz carry the learning).
+  // A short product walkthrough video. When set, the module renders it; when absent,
+  // nothing renders in its place (concept + demo + quiz + links carry the learning) —
+  // no placeholder is shown, since this is customer-facing.
   video?: { id: string; title: string; sub?: string; short?: boolean };
   quiz: LearnQuiz;
   links: LearnLink[];
@@ -119,7 +119,7 @@ export const CONCEPTS: Record<string, ConceptCard> = {
       answer: 2,
       why: "Lakebase is fast Postgres for app state. What you record there sticks.",
     },
-    links: [],
+    links: [{ label: "Lakebase (Postgres projects)", url: "https://learn.microsoft.com/en-us/azure/databricks/oltp/projects/", kind: "docs" }],
   },
   "Supervisor agent": {
     title: "What the agent actually does",

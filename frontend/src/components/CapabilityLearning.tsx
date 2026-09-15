@@ -101,13 +101,9 @@ function ModuleBeat({ cap, idx, count }: { cap: string; idx: number; count: numb
 
       {card.demo === "genie-chat" && <GenieChatMock />}
 
-      {card.video ? (
+      {card.video && (
         <div className="mt-5 max-w-[560px]">
           <VideoEmbed id={card.video.id} title={card.video.title} sub={card.video.sub} short={card.video.short} />
-        </div>
-      ) : (
-        <div className="mt-5 flex items-center gap-2 rounded-xl border border-dashed border-line bg-oat/50 px-4 py-3 text-[12.5px] text-navy-3">
-          <Sparkles className="h-3.5 w-3.5 shrink-0 text-green" /> A short walkthrough video for this piece goes here.
         </div>
       )}
 
