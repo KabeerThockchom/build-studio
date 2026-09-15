@@ -6,7 +6,6 @@ import { OverviewScreen } from "./components/OverviewScreen";
 import { ShapeScreen } from "./components/ShapeScreen";
 import { TeachingLoader } from "./components/TeachingLoader";
 import { DesignScreen } from "./components/DesignScreen";
-import { AssembleScreen } from "./components/AssembleScreen";
 import { CapabilityLearning } from "./components/CapabilityLearning";
 import { BlueprintScreen } from "./components/BlueprintScreen";
 import { BuildScreen } from "./components/BuildScreen";
@@ -170,10 +169,9 @@ export default function App() {
     if (state.designIdx < questions.length - 1) dispatch({ t: "designIdx", i: state.designIdx + 1 });
     else {
       // Kick off blueprint generation as they leave the questions, so it runs in the
-      // background through Assemble + Meet the Pieces and is ready by the time they finish
-      // the learning (toLearn keeps a guarded fallback in case they arrive another way).
+      // background through Meet the Pieces and is ready by the time they finish the learning.
       if (!state.blueprint && !state.generating) generate();
-      dispatch({ t: "phase", phase: "assemble" });
+      dispatch({ t: "phase", phase: "learn" });
     }
   }
   function backDesign() {
@@ -181,15 +179,11 @@ export default function App() {
     else dispatch({ t: "phase", phase: "teach" });
   }
 
-  // --- Assemble -> Learn -> Blueprint ---
-  // Entering the learning phase kicks off blueprint generation in the background, so the
-  // ~50s generation is hidden behind the per-piece modules + quiz (same pattern as the
-  // design-question generation during the primer). The learn phase's CTA just switches to
-  // the Blueprint screen, which shows the result (or its own generating panel if not done).
-  function toLearn() {
-    dispatch({ t: "phase", phase: "learn" });
-    if (!state.blueprint && !state.generating) generate();
-  }
+  // --- Design -> Learn -> Blueprint ---
+  // Blueprint generation is kicked off as the user leaves the design questions (nextDesign),
+  // so the ~50s generation is hidden behind the architecture overview + per-piece modules +
+  // quiz. The learn phase's CTA just switches to the Blueprint screen, which shows the result
+  // (or its own generating panel if not done).
   async function generate(adjust = "") {
     dispatch({ t: "genStart" });
     try {
@@ -312,14 +306,10 @@ export default function App() {
             onBack={backDesign} onNext={nextDesign}
             nextLabel={lastQ ? "See what fits →" : "Next →"} />
         )}
-        {state.phase === "assemble" && (
-          <AssembleScreen picks={shownPicks(state)}
-            onBack={() => { dispatch({ t: "phase", phase: "design" }); dispatch({ t: "designIdx", i: questions.length - 1 }); }}
-            onNext={toLearn} />
-        )}
         {state.phase === "learn" && (
           <CapabilityLearning capabilities={state.capabilities}
-            onBack={() => dispatch({ t: "phase", phase: "assemble" })}
+            fits={Object.fromEntries(shownPicks(state).map((p) => [p.name, p.fits]))}
+            onBack={() => { dispatch({ t: "phase", phase: "design" }); dispatch({ t: "designIdx", i: questions.length - 1 }); }}
             onDone={() => dispatch({ t: "phase", phase: "blueprint" })} />
         )}
         {state.phase === "blueprint" && (

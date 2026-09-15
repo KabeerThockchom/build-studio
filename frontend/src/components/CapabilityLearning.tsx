@@ -10,15 +10,16 @@ import { VideoEmbed } from "./VideoEmbed";
    background, so the wait is hidden behind real learning (Akil's ask). */
 
 interface Props {
-  capabilities: string[];   // the locked, prescribed set
-  onBack: () => void;       // → Assemble
-  onDone: () => void;       // → Blueprint
+  capabilities: string[];              // the locked, prescribed set
+  fits?: Record<string, string>;       // per-idea "what it does for you" per capability (from the SA)
+  onBack: () => void;                  // → back to the design questions
+  onDone: () => void;                  // → Blueprint
 }
 
 // Canonical teaching order; we render modules for the pieces that have a concept card.
 const ORDER = ["Genie", "Knowledge Assistant", "Supervisor agent", "Lakebase", "Databricks Apps"];
 
-export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
+export function CapabilityLearning({ capabilities, fits, onBack, onDone }: Props) {
   const caps = ORDER.filter((c) => capabilities.includes(c) && CONCEPTS[c]);
   const [beat, setBeat] = useState(0);
   const [maxSeen, setMaxSeen] = useState(0);
@@ -50,7 +51,7 @@ export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
       {/* current beat */}
       <div className="flex flex-1 items-start py-8">
         <div key={beat} className="rise w-full">
-          {onArch ? <ArchitectureBeat caps={caps} onOpen={openPiece} />
+          {onArch ? <ArchitectureBeat caps={caps} fits={fits} onOpen={openPiece} />
             : onQuiz ? <QuizBeat caps={caps} />
             : <ModuleBeat cap={caps[beat - 1]} idx={beat - 1} count={caps.length} onHome={() => goTo(0)} />}
         </div>
@@ -94,7 +95,10 @@ export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
 // It reads top-down as a story (you -> app -> agent -> tools -> data) and doubles as
 // navigation: each named piece is a door into its own module. No two builds differ here,
 // so the diagram is fixed, not generated.
-function ArchitectureBeat({ caps, onOpen }: { caps: string[]; onOpen: (cap: string) => void }) {
+function ArchitectureBeat({ caps, fits, onOpen }: { caps: string[]; fits?: Record<string, string>; onOpen: (cap: string) => void }) {
+  // The shape is fixed; the descriptions are contextualized to this idea (the SA's "fits"),
+  // with a plain generic fallback when a fit is missing. Trim a trailing period for fit-in.
+  const desc = (cap: string, fallback: string) => { const f = (fits?.[cap] || "").trim().replace(/\.$/, ""); return f || fallback; };
   const [lit, setLit] = useState(false);
   useEffect(() => { const r = requestAnimationFrame(() => setLit(true)); return () => cancelAnimationFrame(r); }, []);
   // staggered top-to-bottom entrance; transform+opacity only, honors reduced motion
@@ -135,7 +139,7 @@ function ArchitectureBeat({ caps, onOpen }: { caps: string[]; onOpen: (cap: stri
       <div className="mb-2 font-mono text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">The architecture &middot; everyone builds this</div>
       <h1 className="text-[32px] font-extrabold leading-[1.08] tracking-[-0.025em] text-navy">Here's the whole thing you'll build.</h1>
       <p className="mt-3 max-w-[60ch] text-[15.5px] leading-relaxed text-navy-2">
-        Same shape for everyone. You open an app; behind it, an agent sends each question to the right piece &mdash; all inside your governed Databricks workspace. Tap any piece to jump into it.
+        The shape is the same for everyone; the labels show what each piece does in <em>your</em> build. You open an app; behind it, an agent sends each question to the right piece &mdash; all inside your governed Databricks workspace. Tap any piece to jump in.
       </p>
 
       <div className="mt-6 flex flex-col items-center">
@@ -165,14 +169,14 @@ function ArchitectureBeat({ caps, onOpen }: { caps: string[]; onOpen: (cap: stri
                 className="group rounded text-left outline-none focus-visible:ring-[3px] focus-visible:ring-green-soft">
                 <span className="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-green-ink">Databricks App</span>
                 <div className="mt-0.5 text-[13px] leading-snug text-navy">
-                  the front door &middot; React + FastAPI <span className="font-semibold text-navy-3 group-hover:text-green-ink">Learn &rarr;</span>
+                  {desc("Databricks Apps", "the front door · React + FastAPI")} <span className="font-semibold text-navy-3 group-hover:text-green-ink">Learn &rarr;</span>
                 </div>
               </button>
               <span className="shrink-0 rounded-full bg-green-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-green-ink">where you interact</span>
             </div>
             <div className="rounded-lg bg-oat/60 p-2">
               <div className="mb-1.5 px-1 text-[10px] font-medium uppercase tracking-[0.08em] text-navy-3">runs inside the app</div>
-              <Door cap="Supervisor agent" name="Supervisor agent" role="reads your question, picks the right piece" />
+              <Door cap="Supervisor agent" name="Supervisor agent" role={desc("Supervisor agent", "reads your question, picks the right piece")} />
             </div>
           </div>
 
@@ -180,8 +184,8 @@ function ArchitectureBeat({ caps, onOpen }: { caps: string[]; onOpen: (cap: stri
 
           {/* the pieces the agent calls */}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Door cap="Genie" name="Genie" role="asks your data in plain English" />
-            <Door cap="Lakebase" name="Lakebase" role="saves what people do" />
+            <Door cap="Genie" name="Genie" role={desc("Genie", "asks your data in plain English")} />
+            <Door cap="Lakebase" name="Lakebase" role={desc("Lakebase", "saves what people do")} />
           </div>
 
           <Link label="Genie reads" />
