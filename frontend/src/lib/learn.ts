@@ -24,7 +24,7 @@ export interface ConceptCard {
   // A short product walkthrough video. IDs are TODO — see the morning notes for which
   // product lines need capture. When set, the Learn panel renders it; when absent, nothing
   // breaks (concept + demo + quiz carry the learning).
-  video?: { id: string; title: string; sub?: string };
+  video?: { id: string; title: string; sub?: string; short?: boolean };
   quiz: LearnQuiz;
   links: LearnLink[];
 }
@@ -85,6 +85,8 @@ export const CONCEPTS: Record<string, ConceptCard> = {
     tagline: "Ask your data questions in plain English.",
     demo: "genie-chat",
     deeper: "A Genie space sits on top of your tables and learns what each column means, so someone can ask a plain-English question and get a real answer back. Creating the space isn't enough. It has to be set up with the tables, how they connect, and a couple of example questions, or it looks ready but can't answer anything.",
+    video: { id: "7eSOvPsSjgU", title: "Building a Genie Agent with Genie Code",
+             sub: "How the space you'll build comes together.", short: true },
     quiz: {
       q: "You created a Genie space but it can't answer questions. Most likely why?",
       options: ["It has no tables, joins, or example questions set up yet", "Genie is down for everyone", "You have to write the SQL by hand first"],
@@ -109,6 +111,8 @@ export const CONCEPTS: Record<string, ConceptCard> = {
     title: "Where your app remembers things",
     tagline: "A fast place for your app to save what people do.",
     deeper: "Lakebase is a fast database that sits right next to your data. It's where your app saves what people do, like a decision they marked or an item they flagged, so it sticks between visits. Your app signs in to it automatically, so there's no password to manage.",
+    video: { id: "ed2WJ5YayQ4", title: "What is Lakebase",
+             sub: "The fast database your app writes to.", short: true },
     quiz: {
       q: "What is Lakebase for in your app?",
       options: ["Training a machine learning model", "Drawing the charts on the screen", "Saving what people do, like a decision they made, so it sticks between visits"],
@@ -120,19 +124,21 @@ export const CONCEPTS: Record<string, ConceptCard> = {
   "Supervisor agent": {
     title: "What the agent actually does",
     tagline: "Sends each question to the right piece.",
-    deeper: "The supervisor is the traffic cop of your app. When a question comes in, it decides which piece should handle it: Genie for the data, Knowledge Assistant for documents, Lakebase to save something. It's not a heavy framework. The skill is giving each piece a clear description so it picks the right one without guessing.",
+    deeper: "The supervisor is the reasoning layer of your app: a language model that reads each question and decides which piece should handle it, then calls it and replies. Genie for the data, Lakebase to save something, and any other tool in the build. This is tool-calling, not a heavy framework. The skill is giving each tool a clear, distinct description so it routes by intent without guessing.",
     quiz: {
       q: "What is the supervisor agent's job?",
-      options: ["Picking the right tool for each question and replying", "Replacing Genie and Knowledge Assistant entirely", "Storing the app's data"],
+      options: ["Picking the right tool for each question and replying", "Replacing Genie and Lakebase entirely", "Storing the app's data"],
       answer: 0,
-      why: "It's a router. It picks the right piece (Genie, Knowledge Assistant, or Lakebase) for each question and responds.",
+      why: "It's a router. A model reads the question and picks the right piece (Genie, Lakebase, or another tool) for each one, then responds.",
     },
-    links: [{ label: "Agent framework", url: "https://docs.databricks.com/aws/en/generative-ai/agent-framework/", kind: "docs" }],
+    links: [{ label: "What is an AI agent?", url: "https://docs.databricks.com/aws/en/getting-started/gen-ai-llm-agent", kind: "docs" }],
   },
   "Databricks Apps": {
     title: "The app people actually open",
     tagline: "The interface people open and use.",
     deeper: "Databricks Apps hosts the interface your users open, running in your workspace and already governed. One hard-won truth: a green 'SUCCEEDED' deploy does not mean a working app. Always open the URL and confirm it loads, and glance at the logs if it doesn't.",
+    video: { id: "_nMgCvsCcns", title: "Vibe-coding an AI app",
+             sub: "The idea behind what you're about to build.", short: true },
     quiz: {
       q: "Your app deploy shows SUCCEEDED. Are you done?",
       options: ["Yes, SUCCEEDED means it's working", "No, you always have to deploy a second time", "No, open the URL and confirm it loads with real data"],

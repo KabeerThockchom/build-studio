@@ -65,9 +65,7 @@ export function BlueprintScreen({ blueprint, generating, error, onRetry, onRefin
           note="This takes up to a minute or two. It's writing a real plan tailored to what you described, not a template."
           quiz={{ q: "Your plan is about to appear. What should you do with it?",
                   options: ["Read it and fix anything that's off before you build", "Start building right away and skip reading it", "Treat it as final and never change it"],
-                  answer: 0, why: "The first draft is a starting point. Read it and steer anything that's wrong now, before it becomes the build." }}
-          video={{ id: "_nMgCvsCcns", title: "Vibe-coding an AI app",
-                   sub: "The idea behind what you're doing right now.", short: true }} />
+                  answer: 0, why: "The first draft is a starting point. Read it and steer anything that's wrong now, before it becomes the build." }} />
       )}
       {error && !generating && (
         <div className="rounded-2xl bg-[#fdecef] px-5 py-4">
