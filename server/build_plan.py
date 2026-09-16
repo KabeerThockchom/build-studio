@@ -106,7 +106,7 @@ SEEDED_DATASETS = [
         "tables": ("dim_employee (5000), dim_department, fact_headcount_snapshot, "
                    "fact_attrition_events (1131 leavers)"),
         "eval": "workshop.evaluation.hr_people_eval",
-        "docs_domain": "hr_people",
+        "docs_domain": None,  # no shared docs for this theme — KA (if added) generates its own
     },
     {
         "label": "AI adoption / ROI",
@@ -116,7 +116,7 @@ SEEDED_DATASETS = [
         "tables": ("dim_employee, dim_tool, fact_tool_usage (200k), fact_adoption_monthly, "
                    "fact_productivity_feedback"),
         "eval": "workshop.evaluation.ai_productivity_eval",
-        "docs_domain": "ai_productivity",
+        "docs_domain": None,  # no shared docs for this theme — KA (if added) generates its own
     },
 ]
 # The shared document corpus (real PDFs in a Volume) that the Knowledge Assistant indexes.
@@ -457,10 +457,10 @@ def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
                 f"expected_sql, expected_answer, expected_facts) — use THOSE questions as your benchmark "
                 f"instead of inventing your own, and tighten the space's column descriptions and instructions "
                 f"until Genie's answers match the expected ones repeatably.")
-        if "Knowledge Assistant" in guardrails:
+        if "Knowledge Assistant" in guardrails and ds.get("docs_domain"):
             guardrails["Knowledge Assistant"] += (
-                f" A shared document corpus already exists — do NOT generate documents. Point the assistant at "
-                f"{SEEDED_DOCS_VOLUME}, filtered to domain='{ds['docs_domain']}', and index those.")
+                f" A shared document corpus already exists for this theme — do NOT generate documents. Point the "
+                f"assistant at {SEEDED_DOCS_VOLUME}, filtered to domain='{ds['docs_domain']}', and index those.")
         if "Databricks Apps" in guardrails:
             guardrails["Databricks Apps"] += (
                 f" DATA ACCESS FOR THIS APP (this SUPERSEDES the 'grant the service principal USE CATALOG/SELECT' "
