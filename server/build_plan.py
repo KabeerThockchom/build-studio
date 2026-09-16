@@ -49,7 +49,90 @@ DATA_GUARDRAIL = {
         "The user is pointing at a table that already exists. Confirm the exact catalog.schema.table "
         "name and that they can read it — do NOT create or alter it (assume read-only access). Verify a "
         "simple SELECT returns rows before building on it."),
+    "seeded": (
+        "A governed, workshop-ready dataset for this exact theme ALREADY EXISTS in Unity Catalog and the "
+        "participant has read access to it via their workshop group — do NOT regenerate it and do NOT copy it "
+        "into another schema. Point the build straight at the named tables: confirm a simple SELECT returns "
+        "rows, and skim the columns so every later step uses the REAL column names (they are given below). The "
+        "participant MAY still create their own schema (named below) to add a FEW supplementary synthetic tables "
+        "— but ONLY for something their specific use case needs that the seeded tables genuinely don't cover; "
+        "keep those few, realistic, and joined by real keys to the seeded data. A ready-made benchmark question "
+        "set for this theme also exists (named below) — use it to check Genie in the next step rather than "
+        "inventing your own. Any supplementary table you create goes ONLY in the participant's own schema "
+        "(named in the prompt), never inside the shared seeded schema; keep the two straight and always "
+        "fully-qualify each table with its correct schema when you reference it in a later step."),
 }
+
+# The facilitator (Akil) pre-seeded a governed, benchmark-ready dataset in the
+# `workshop` catalog, aligned 1:1 to the Costa survey themes, granted read to the
+# participant group. Most use cases map to one of these, so the harness points the
+# build at the matching schema (real, realistic, already benchmarked) instead of
+# having each person regenerate weaker data — and threads the matching evaluation.*
+# set in as a ready-made Genie benchmark and docs_corpus as the Knowledge Assistant
+# source. Participants keep CREATE_SCHEMA, so they can still add supplementary tables.
+SEEDED_CATALOG = "workshop"
+SEEDED_DATASETS = [
+    {
+        "label": "AP / finance operations",
+        "keywords": ["invoice", "purchase order", "supplier", "vendor", "payment", "accounts payable",
+                     "three-way", "duplicate invoice", "overdue", "procure", "spend", "ap team",
+                     "ap clerk", "po match"],
+        "schema": "workshop.finance_ap",
+        "tables": ("dim_supplier (500 suppliers), fact_purchase_orders (50k POs), fact_invoices "
+                   "(80k invoices, with is_overdue / is_duplicate / days_late flags baked in), "
+                   "fact_payments (68k), dim_project"),
+        "eval": "workshop.evaluation.finance_ap_eval",
+        "docs_domain": "finance_ap",
+    },
+    {
+        "label": "commercial / revenue / store & machine performance",
+        "keywords": ["price", "pricing", "elasticity", "store", "machine", "express", "tier",
+                     "tiering", "revenue", "commercial", "basket", "footfall", "forecast",
+                     "competitor", "promotion", "discount", "sales per", "category"],
+        "schema": "workshop.retail_commercial",
+        "tables": ("dim_store (400 stores, with tier/region/format), dim_product (174) + "
+                   "product_elasticity (per-product elasticity), dim_costa_express_machine (1500), "
+                   "fact_transactions (450k), fact_store_daily (292k daily rows: net_sales, footfall, "
+                   "conversion_rate, labour_hours, sales_per_labour_hour), price_change_events, "
+                   "sales_forecast, competitor_sites, customer_reviews, dim_date, dim_customer"),
+        "eval": "workshop.evaluation.retail_commercial_eval",
+        "docs_domain": "retail_commercial",
+    },
+    {
+        "label": "HR / workforce analytics",
+        "keywords": ["employee", "headcount", "attrition", "turnover", "workforce", "retention",
+                     "hiring", "leaver", "staffing", "department", "people analytics"],
+        "schema": "workshop.hr_people",
+        "tables": ("dim_employee (5000), dim_department, fact_headcount_snapshot, "
+                   "fact_attrition_events (1131 leavers)"),
+        "eval": "workshop.evaluation.hr_people_eval",
+        "docs_domain": "hr_people",
+    },
+    {
+        "label": "AI adoption / ROI",
+        "keywords": ["ai roi", "ai adoption", "tool usage", "productivity", "copilot usage",
+                     "ai tool", "solution delivery", "seat utilization", "adoption rate"],
+        "schema": "workshop.ai_productivity",
+        "tables": ("dim_employee, dim_tool, fact_tool_usage (200k), fact_adoption_monthly, "
+                   "fact_productivity_feedback"),
+        "eval": "workshop.evaluation.ai_productivity_eval",
+        "docs_domain": "ai_productivity",
+    },
+]
+# The shared document corpus (real PDFs in a Volume) that the Knowledge Assistant indexes.
+SEEDED_DOCS_VOLUME = "workshop.docs_corpus (a Volume of real PDFs at /Volumes/workshop/docs_corpus/raw_data/pdf/, with a doc_metadata table; filter by domain)"
+
+
+def _match_dataset(req: BuildRequest) -> dict | None:
+    """Best-fit pre-seeded dataset for this idea/PRD, by keyword hit count. Returns None
+    when nothing matches (an off-theme use case) so the build falls back to generate-your-own."""
+    text = f"{req.idea} {req.prd_markdown} {req.project_name}".lower()
+    best, best_score = None, 0
+    for ds in SEEDED_DATASETS:
+        score = sum(1 for kw in ds["keywords"] if kw in text)
+        if score > best_score:
+            best, best_score = ds, score
+    return best if best_score >= 1 else None
 
 # The distilled, must-preserve guardrails per capability (fed to the model).
 # Per-capability build rigor cross-checked against Databricks Solution Builder's
@@ -345,7 +428,11 @@ def _ordered_targets(req: BuildRequest) -> list[str]:
 
 def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
     targets = _ordered_targets(req)
-    data_mode = req.design_answers.get("data_mode", "synthetic")
+    # A pre-seeded, governed dataset for this theme usually exists (facilitator-built,
+    # aligned to the survey). If the idea maps to one, point the build at it ("seeded"
+    # path) instead of regenerating data; otherwise fall back to generate-your-own.
+    ds = _match_dataset(req)
+    data_mode = "seeded" if ds else req.design_answers.get("data_mode", "synthetic")
     interaction = req.design_answers.get("interaction_model", "")
     schema = _schema_name(req.project_name or req.idea)
     # The catalog comes from workshop config (facilitator-set). When unset, tell Genie Code
@@ -359,6 +446,34 @@ def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
     # The generic data guardrail plus the path-specific one for this data_mode.
     guardrails = dict(GUARDRAILS)
     guardrails["data"] = f"{GUARDRAILS['data']} {DATA_GUARDRAIL.get(data_mode, DATA_GUARDRAIL['synthetic'])}"
+    # When a pre-seeded dataset matched, thread it through the dependent steps: the
+    # ready-made benchmark set into Genie, the shared docs Volume into Knowledge
+    # Assistant, and on-behalf-of-user (OBO) auth into the App (the app SP can't be
+    # granted access to the shared catalog by a participant, but the logged-in user has it).
+    if ds:
+        if "Genie" in guardrails:
+            guardrails["Genie"] += (
+                f" A READY-MADE benchmark set for this theme lives in {ds['eval']} (columns: question, "
+                f"expected_sql, expected_answer, expected_facts) — use THOSE questions as your benchmark "
+                f"instead of inventing your own, and tighten the space's column descriptions and instructions "
+                f"until Genie's answers match the expected ones repeatably.")
+        if "Knowledge Assistant" in guardrails:
+            guardrails["Knowledge Assistant"] += (
+                f" A shared document corpus already exists — do NOT generate documents. Point the assistant at "
+                f"{SEEDED_DOCS_VOLUME}, filtered to domain='{ds['docs_domain']}', and index those.")
+        if "Databricks Apps" in guardrails:
+            guardrails["Databricks Apps"] += (
+                f" DATA ACCESS FOR THIS APP (this SUPERSEDES the 'grant the service principal USE CATALOG/SELECT' "
+                f"guidance in point (5) for the SHARED data): the app reads {ds['schema']}, a shared dataset the "
+                f"app's service principal CANNOT be granted access to by a participant (catalog USE is owner-only). "
+                f"Use ON-BEHALF-OF-USER auth for the SQL and Genie reads — read the `X-Forwarded-Access-Token` "
+                f"request header and use that token for the warehouse and Genie Conversation API calls. The "
+                f"logged-in participant already has USE CATALOG + SELECT on {ds['schema']} and CAN USE on the "
+                f"workshop SQL warehouse via their workshop group, so no admin grant is needed. Declare the scopes "
+                f"in app.yaml as `user_api_scopes: [sql, dashboards.genie]` (changing scopes forces every user to "
+                f"re-consent — test in a fresh/incognito browser window). The app's Lakebase writes still use the "
+                f"app's own identity (the participant owns their Lakebase project and grants its Postgres role), "
+                f"and any supplementary tables in the participant's OWN schema they can grant the SP directly.")
     gl = "\n".join(f"- {t}: {guardrails.get(t, '')}" for t in targets)
     # The PRD is authoritative: the user may have refined the blueprint (changed the
     # whole idea) after describing it. Build from the plan they approved, not the first
@@ -385,8 +500,24 @@ def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
         f"in-app model call): '{config.get_serving_endpoint()}'. Use this exact endpoint; do not hardcode a "
         f"different model, and omit the temperature param (some models reject it).\n"
         f"{catalog_line}"
-        f"Dedicated schema for this participant (isolate ALL their work here; the data step creates it, "
-        f"every later step references it): {schema}\n"
+        + (
+            f"PRE-SEEDED DATA — USE THIS, DO NOT REGENERATE: this use case maps to the workshop's ready-made "
+            f"'{ds['label']}' dataset. Point step 1 (and every later step) at {ds['schema']}. Tables: "
+            f"{ds['tables']}. The participant can SELECT these via their workshop group. Benchmark Genie against "
+            f"{ds['eval']}. Only create SUPPLEMENTARY tables their use case needs beyond these — do not duplicate "
+            f"the seeded tables.\n"
+            f"TWO SCHEMAS, DO NOT CONFUSE THEM — this is a strict naming rule for EVERY step's move:\n"
+            f"  1. SEEDED (shared, read-only): {ds['schema']} — always qualify seeded tables as "
+            f"`{ds['schema']}.<table>` (e.g. {ds['schema']}.fact_invoices). NEVER create a table here.\n"
+            f"  2. THE PARTICIPANT'S OWN (writable): {SEEDED_CATALOG}.{schema} — this is where step 1 creates any "
+            f"supplementary tables AND where Lakebase-adjacent app state lives. Always qualify the participant's "
+            f"own supplementary tables as `{SEEDED_CATALOG}.{schema}.<table>` (e.g. {SEEDED_CATALOG}.{schema}."
+            f"fact_receipts). NEVER write a supplementary table under the seeded schema name ({ds['schema']}) — "
+            f"a supplementary table lives ONLY in {SEEDED_CATALOG}.{schema}.\n"
+            if ds else
+            f"Dedicated schema for this participant (isolate ALL their work here; the data step creates it, "
+            f"every later step references it): {schema}\n")
+        +
         f"The full plan (this PRD plus the steps) is saved in the participant's workspace; step 1 must tell "
         f"Genie Code to read it first, referring to it with the exact literal token __PROJECT_MD__.\n"
         f"ORDER (produce exactly these steps, in this order): {targets}\n\n"

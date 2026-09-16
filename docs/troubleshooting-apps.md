@@ -39,25 +39,30 @@ Check the logs, then match the error:
 - **`Request URL is missing an 'http://' or 'https://' protocol`.** In Apps, `DATABRICKS_HOST` is a
   **bare hostname**. Prepend `https://` before building any API URL, or use the SDK
   (`WorkspaceClient().statement_execution.execute_statement(...)`) which resolves the host for you.
-- **Permission denied / empty results (the app runs as its Service Principal).** The SP is a fresh
-  identity and needs ALL of the following, or a query silently returns nothing:
-  - **`USE CATALOG` on the catalog — this is catalog-owner-only. A participant CANNOT grant it.**
-  - `USE SCHEMA` + `SELECT` on your schema (you own the schema you created, so you CAN grant these).
-  - `CAN USE` on the SQL warehouse and `CAN RUN` on the Genie space (attach both as app resources).
-
-  If your app reads Unity Catalog data and comes up empty, it is almost always the missing
-  `USE CATALOG`. **Ask the catalog owner / workspace admin to grant `USE CATALOG` on the workshop
-  catalog to `account users`** — a one-time action that covers everyone's app SP. You can't grant it
-  yourself (you'll get `User does not have MANAGE on Catalog`).
-- **OBO alternative — run queries as the logged-in user instead of the SP.** Read the forwarded
-  `X-Forwarded-Access-Token` header and query with it: the user already has `USE CATALOG` via their
-  group, so no admin grant is needed. But you must set the app's **`user_api_scopes`** to include what
-  you call — `sql` (SQL), `dashboards.genie` (Genie), `workspace.workspace` (Workspace files). Two
-  traps: (a) changing scopes forces every user to **re-consent** — test in a **fresh/incognito** window;
-  (b) the error names a short scope ("required scopes: sql") but you set the longer settable name. The
-  `iam.*` scopes are auto-granted defaults and are not settable. For a workshop the **SP path with the
-  admin `USE CATALOG` grant is usually simpler** than OBO (which also has a known consent/redirect
-  quirk: `next_url present more than once`).
+- **Permission denied / empty results — and you're reading the SHARED workshop data
+  (`workshop.finance_ap`, `retail_commercial`, `hr_people`, `ai_productivity`, `docs_corpus`).** By
+  default the app runs as its **Service Principal**, a fresh identity that is NOT in your workshop group,
+  so it has no access to the shared catalog — and you **cannot grant it `USE CATALOG` yourself** (that's
+  catalog-owner-only; you'll get `User does not have MANAGE on Catalog`). **The fix is on-behalf-of-user
+  (OBO) auth — this is the default for the shared data and needs no admin grant.** YOU already have
+  `USE CATALOG` + `SELECT` on the shared schemas and `CAN USE` on the workshop warehouse via your group,
+  so run the queries as yourself:
+  - Read the forwarded **`X-Forwarded-Access-Token`** header on each request and use that token for the
+    SQL warehouse and Genie Conversation API calls.
+  - Declare the scopes in `app.yaml`: **`user_api_scopes: [sql, dashboards.genie]`** (add
+    `workspace.workspace` only if you read Workspace files). Two traps: (a) changing scopes forces every
+    user to **re-consent** — test in a **fresh/incognito** window; (b) the runtime error names a short
+    scope ("required scopes: sql") but you set the longer settable name; the `iam.*` scopes are
+    auto-granted and not settable. Known quirk: an OBO redirect can show `next_url present more than once`
+    on first consent — reload once.
+- **Permission denied on YOUR OWN tables (a supplementary schema you created, e.g.
+  `workshop.<you>_<project>`).** These you own, so the SP path works: grant the app SP `USE SCHEMA` +
+  `SELECT` on that schema (and `CAN USE` on the warehouse / `CAN RUN` on your Genie space, attached as app
+  resources). You don't need OBO for your own data — but if the app ALSO reads the shared data, keep it
+  simple and use OBO for everything. Lakebase writes always use the app's own identity regardless (you own
+  the Lakebase project and grant its Postgres role — see §3).
+- **`No SQL warehouse found` under OBO too.** The user token still needs a warehouse to run on: attach the
+  workshop warehouse as an app **resource** and take its id from the resource/env, not auto-discovery.
 
 ## 3. Lakebase (recording decisions) issues
 - **Auth failed / can't create a table on a shared Lakebase project.** You lack manage rights there.
