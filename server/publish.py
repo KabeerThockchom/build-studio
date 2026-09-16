@@ -286,6 +286,14 @@ def _logo_path() -> str:
                         "design", "mockups", LOGO_NAME)
 
 
+def _troubleshooting_path() -> str:
+    """Bundled apps troubleshooting doc, dropped into each participant folder as troubleshooting.md.
+    General 'my app isn't working' guidance for the Databricks Apps portion — kept separate from
+    PROJECT.md (which stays lean) and editable on its own."""
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "docs", "troubleshooting-apps.md")
+
+
 def publish_assets(*, idea: str, prd_markdown: str, capabilities: list[str],
                    design_answers: dict, decisions: list[Decision] | None = None,
                    steps: list[BuildStep] | None = None, usable_assets: str = "",
@@ -325,6 +333,12 @@ def publish_assets(*, idea: str, prd_markdown: str, capabilities: list[str],
                 w.workspace.upload(f"{target}/{LOGO_NAME}", io.BytesIO(fh.read()),
                                    format=ImportFormat.RAW, overwrite=True)
             files_written.append(LOGO_NAME)
+        ts_src = _troubleshooting_path()
+        if os.path.exists(ts_src):
+            with open(ts_src, "rb") as fh:
+                w.workspace.upload(f"{target}/troubleshooting.md", io.BytesIO(fh.read()),
+                                   format=ImportFormat.RAW, overwrite=True)
+            files_written.append("troubleshooting.md")
     except Exception as e:
         print(f"design asset publish warning: {e}")
 
