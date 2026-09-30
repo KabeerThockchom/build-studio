@@ -5,9 +5,9 @@ import type { CapabilityPick } from "../lib/types";
 // jargon (a nervous newcomer stalled on "Postgres" here). The SA supplies the
 // idea-specific "fits"; this is the "what it does for you" the person needs.
 const BLURB: Record<string, string> = {
-  "Genie": "Ask your data questions in plain English and get real answers back.",
-  "Knowledge Assistant": "Point it at your notes and documents and it can answer from them.",
-  "Supervisor agent": "The traffic cop: reads each question and sends it to the right piece.",
+  "Zerobus": "Streams events straight into your lakehouse in near real time, with no message bus to run.",
+  "SDP medallion": "A declarative pipeline that shapes raw events into clean bronze, silver, and gold tables.",
+  "Genie": "Ask your gold data questions in plain English and get real answers back.",
   "Lakebase": "A place for your app to save things, like the decisions people make, so they stick.",
   "Databricks Apps": "The interface people actually open and use.",
 };

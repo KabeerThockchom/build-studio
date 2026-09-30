@@ -2,8 +2,9 @@
 (concept -> the move -> verify) for the capabilities in the blueprint.
 
 Design notes:
-- Ordered by dependency: data -> Genie -> Knowledge Assistant -> Lakebase ->
-  Supervisor agent -> Databricks App.
+- Ordered by the Publix data-engineering-to-app journey: data (sample events) ->
+  Zerobus (real-time ingest) -> SDP medallion (bronze/silver/gold) -> Genie ->
+  Lakebase -> Databricks App.
 - The guardrails are the load-bearing, hard-won lessons distilled from V2V (see
   the research): they go in the SYSTEM prompt so every generated move carries the
   rigor without the ceremony. We are NOT AppKit, so AppKit-specific import
@@ -27,9 +28,10 @@ def _schema_name(text: str) -> str:
         s = "p_" + s
     return (s[:40].rstrip("_") or "my_build")
 
-# Canonical dependency order for the steps we know how to guide. No Lakeflow —
-# a workshop day never stands up a live ingestion source.
-STEP_ORDER = ["data", "Genie", "Knowledge Assistant", "Lakebase", "Supervisor agent", "Databricks Apps"]
+# Canonical dependency order for the steps we know how to guide: generate the sample
+# events, stream them in with Zerobus, shape them through the SDP medallion, then serve
+# with Genie / Lakebase / the app.
+STEP_ORDER = ["data", "Zerobus", "SDP medallion", "Genie", "Lakebase", "Databricks Apps"]
 
 # The data step is one of three workshop-realistic paths, keyed by data_mode.
 DATA_GUARDRAIL = {
@@ -59,29 +61,35 @@ DATA_GUARDRAIL = {
 GUARDRAILS = {
     "data": (
         "Data comes first. Notebook cells need the '# Databricks notebook source' header and "
-        "'# COMMAND ----------' separators or cells silently merge."),
+        "'# COMMAND ----------' separators or cells silently merge. Generate the sample events so they "
+        "are ready to STREAM in the next step (a simple event shape with a timestamp), not just a static "
+        "table dump — Zerobus will push them into the lakehouse."),
+    "Zerobus": (
+        "Zerobus is Databricks' direct-write ingest API (part of Lakeflow Connect): producers push "
+        "events straight into a managed Delta table in near real time, with NO message bus and no Kafka "
+        "to run. Build it in this order: (1) create the target bronze Delta table in the participant's "
+        "schema FIRST — Zerobus never creates or alters tables, the table schema is the contract; "
+        "(2) grant the ingesting service principal USE CATALOG + USE SCHEMA on the schema and SELECT + "
+        "MODIFY on the table; (3) use the Zerobus ingest SDK (Python) to stream the step-1 sample events "
+        "in. Confirm it works by streaming a batch and watching the row count climb within a few seconds. "
+        "Keep the table schema simple and matched to the sample events."),
+    "SDP medallion": (
+        "Build a Lakeflow Spark Declarative Pipeline (SDP) that shapes the raw Zerobus bronze table into "
+        "silver then gold. Declare each layer (streaming tables / materialized views): bronze = the raw "
+        "ingested events; silver = cleaned and typed, with data-quality EXPECTATIONS that drop or "
+        "quarantine bad rows; gold = the analytics-ready tables the app and Genie read. Let the pipeline "
+        "manage dependencies, incremental updates, and retries — do NOT hand-roll MERGE or orchestration. "
+        "Confirm it works by running the pipeline once and checking the gold table has sensible, non-empty "
+        "rows that line up with the events you streamed."),
     "Genie": (
         "A Genie space is the semantic layer over the tables. Creating the asset is NOT enough. Point "
-        "it at a few query-ready tables (not many raw ones); give each important column a short "
+        "it at the GOLD tables from your medallion pipeline (not the raw bronze ones); give each important column a short "
         "description with its units and allowed values (the single biggest driver of answer accuracy); "
         "define the idea's key numbers as reusable metric expressions; and write the space instructions "
         "in the idea's real terms — what the numbers mean, how to format them — rather than generic "
         "text. Then confirm it works by asking two or three of the actual questions this app is for and "
         "checking the answers use the right tables and return sensible numbers. An empty/unconfigured "
         "space looks created but is useless."),
-    "Knowledge Assistant": (
-        "Knowledge Assistant lets the app answer from documents/notes with no embedding pipeline to build. "
-        "Point it at the text source (a table column or docs) and kick off indexing. If the idea has no "
-        "obvious document source, GENERATE a small, focused set of realistic documents for it (roughly 6 to "
-        "12 short documents, e.g. SOPs, policies, past notes/tickets, product or FAQ pages) — name the "
-        "specific document types and how many in the prompt, and make their names, IDs and dates match the "
-        "tables exactly, so a document answer lines up with the data. This build includes a "
-        "document-answering piece. Keep the set focused rather than dumping everything in. "
-        "IMPORTANT: indexing runs "
-        "in the background and takes several minutes to tens of minutes; do NOT sit and poll waiting for it to "
-        "finish, and do NOT block the rest of the build on it. Kick it off, tell the user it's indexing in the "
-        "background (they can move on and check back), and treat 'a query returns a relevant passage' as a "
-        "later verification once indexing is READY, not a same-step confirm."),
     "Lakebase": (
         "Lakebase is managed Postgres for the app's writes/state (e.g. recording a decision). Keep it to a "
         "few small operational tables for what the app records at runtime — it is not a place to copy the "
@@ -90,13 +98,6 @@ GUARDRAILS = {
         "after a quiet period (like the morning of a demo) waits while it wakes: open the connection with a "
         "generous timeout and retry the first attempt (e.g. a psycopg pool opened with wait=True and "
         "timeout~30s, or a small retry loop), so a cold start shows briefly instead of erroring."),
-    "Supervisor agent": (
-        "The supervisor agent is a small tool-calling loop (not a framework): it calls the Foundation "
-        "Model API and routes to the tools you built (for example Genie for data questions and Lakebase to "
-        "record something, plus any others in the plan). Keep it to a "
-        "small number of tools (two or three) and give each a clear, distinct description so it routes by "
-        "the intent of the question without guessing. Confirm it works by asking one question that should "
-        "go to each tool and checking it picked the right one. Omit the temperature param (Sonnet rejects it)."),
     "Databricks Apps": (
         "The app hosts the UI. Build it as a React + Tailwind CSS front end with a FastAPI (Python) backend — "
         "this exact stack, not Streamlit/Gradio/Dash. Hold a high design bar (see APP QUALITY below): it should "
@@ -199,8 +200,8 @@ APP QUALITY & STACK (the finished app must impress, not look like a prototype):
   showing what the agent read, its judgement/confidence, and the drafted action — most consequential first.
   The primary action is APPROVE or OVERRIDE per item; approving records (and, where in scope, performs) the
   action, and every approve/override is written to Lakebase as a visible audit trail / activity log the
-  person can scroll. Here the Supervisor agent must actually DO the per-item work (reason across the data and
-  notes and propose an action), not merely answer ad-hoc questions, and Lakebase is the action ledger, not a
+  person can scroll. Here the app's agent (a small tool-calling loop over Genie and the gold data) must actually
+  DO the per-item work (reason across the data and propose an action), not merely answer ad-hoc questions, and Lakebase is the action ledger, not a
   single saved flag. Respect the write boundary: if an action targets an external system the build can't call,
   record the decided action and label it as recorded (not sent).
 - Make the PRIMARY ACTION obvious. The plan's "Primary action" (the thing they do 80% of the time) dominates

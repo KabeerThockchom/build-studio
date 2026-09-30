@@ -16,13 +16,15 @@ from .scope import WORKSHOP_SCOPE, VOICE, strip_em_dashes, clamp_idea
 from .models import Blueprint, DiagramSpec, Node, FlowStep, Decision, GenerateRequest
 
 # --- capability -> diagram node (the spine mapping) ---
-# No Lakeflow: a one-day workshop never stands up a live ingestion source. Data
-# arrives as sample data, a spreadsheet turned into a table, or an existing table.
+# The Publix data-engineering-to-app journey, laid out left-to-right across the four bands:
+# Data (Zerobus ingest) -> Capabilities (the medallion pipeline + Lakebase) -> Agent (Genie
+# over the gold data) -> Delivery (the app). Bands are chosen so every wired edge crosses
+# columns forward, never within a column.
 CAP_TO_NODE = {
-    "Genie":               {"band": "capability", "label": "Genie", "sub": "ask the data"},
-    "Knowledge Assistant": {"band": "capability", "label": "Knowledge Assistant", "sub": "understand text"},
+    "Zerobus":             {"band": "data", "label": "Zerobus", "sub": "real-time ingest"},
+    "SDP medallion":       {"band": "capability", "label": "SDP medallion", "sub": "bronze · silver · gold"},
     "Lakebase":            {"band": "capability", "label": "Lakebase", "sub": "record decisions"},
-    "Supervisor agent":    {"band": "agent", "label": "Supervisor agent", "sub": "routes the tools"},
+    "Genie":               {"band": "agent", "label": "Genie", "sub": "ask the gold data"},
     "Databricks Apps":     {"band": "delivery", "label": "Databricks App", "sub": "the front door"},
 }
 CAP_IDS = {cap: cap.lower().replace(" ", "_") for cap in CAP_TO_NODE}
@@ -37,31 +39,40 @@ DATA_NODE = {
 
 
 def compute_spec(capabilities: list[str], data_mode: str = "synthetic") -> DiagramSpec:
-    """Deterministic: capabilities -> nodes + edges across Data/Capability/Agent/Delivery."""
+    """Deterministic: capabilities -> nodes + edges laid out as the Publix data-engineering-to-app
+    journey (Zerobus -> SDP medallion -> Genie -> App, with Lakebase feeding the app). Every wired
+    edge crosses bands forward, so the diagram reads cleanly left-to-right with no back-arrows."""
     nodes: list[Node] = []
-    meta = DATA_NODE.get(data_mode, DATA_NODE["synthetic"])
-    nodes.append(Node(id="data", band="data", label=meta["label"], sub=meta["sub"]))
-    data_id = "data"
-
+    ids: dict[str, str] = {}
     for cap in capabilities:
-        node_meta = CAP_TO_NODE.get(cap)
-        if node_meta:
-            nodes.append(Node(id=CAP_IDS[cap], band=node_meta["band"], label=node_meta["label"], sub=node_meta["sub"]))
+        m = CAP_TO_NODE.get(cap)
+        if m:
+            nid = CAP_IDS[cap]
+            ids[cap] = nid
+            nodes.append(Node(id=nid, band=m["band"], label=m["label"], sub=m["sub"]))
+
+    # If nothing landed in the Data band (e.g. a refine removed the ingest piece), fall back
+    # to a generic source node so the downstream pieces still have something to read from.
+    if not any(n.band == "data" for n in nodes):
+        meta = DATA_NODE.get(data_mode, DATA_NODE["synthetic"])
+        nodes.insert(0, Node(id="data", band="data", label=meta["label"], sub=meta["sub"]))
+        ids["__source__"] = "data"
 
     edges: list[tuple[str, str]] = []
-    cap_ids = [CAP_IDS[c] for c in capabilities if CAP_TO_NODE.get(c, {}).get("band") == "capability"]
-    agent_id = CAP_IDS.get("Supervisor agent") if "Supervisor agent" in capabilities else None
-    delivery_id = CAP_IDS.get("Databricks Apps") if "Databricks Apps" in capabilities else None
 
-    for cid in cap_ids:
-        edges.append((data_id, cid))          # data -> each capability
-        if agent_id:
-            edges.append((cid, agent_id))      # capability -> agent
-    if agent_id and delivery_id:
-        edges.append((agent_id, delivery_id))  # agent -> delivery
-    elif delivery_id:                          # no agent: capabilities -> delivery
-        for cid in cap_ids:
-            edges.append((cid, delivery_id))
+    def link(a: str | None, b: str | None) -> None:
+        if a and b and a != b:
+            edges.append((a, b))
+
+    source_id = ids.get("Zerobus") or ids.get("__source__")   # where the raw data enters
+    gold_id = ids.get("SDP medallion") or source_id           # the analytics-ready shape
+    delivery_id = ids.get("Databricks Apps")
+    intelligence_id = ids.get("Genie")                        # asks the gold data
+
+    link(source_id, ids.get("SDP medallion"))                 # ingest -> medallion
+    link(gold_id, intelligence_id)                            # gold   -> Genie
+    link(intelligence_id or gold_id, delivery_id)             # Genie (or gold) -> app
+    link(ids.get("Lakebase"), delivery_id)                    # Lakebase -> app (app state)
 
     return DiagramSpec(nodes=nodes, edges=edges)
 
@@ -177,9 +188,9 @@ def _extract_json(text: str) -> dict:
 
 # What each capability provides — used so a refine can explain the ripple of removing one.
 _CAP_PROVIDES = {
-    "Genie": "asking your data questions in plain English",
-    "Knowledge Assistant": "answering from documents/notes",
-    "Supervisor agent": "an assistant that routes across the pieces",
+    "Zerobus": "real-time ingest of events into the lakehouse",
+    "SDP medallion": "a bronze/silver/gold pipeline that produces clean gold tables",
+    "Genie": "asking your gold data questions in plain English",
     "Lakebase": "recording decisions / app state that persists",
     "Databricks Apps": "the app people open",
 }

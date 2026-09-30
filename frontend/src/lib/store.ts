@@ -42,18 +42,19 @@ export interface StudioState {
 export function mergedQuestions(s: StudioState): DesignQuestion[] {
   return s.plan?.questions ?? [];
 }
-// The architecture is prescribed (Akil, 2026-09-09): every app uses the SAME pieces.
-// Assemble is "meet your stack," not a selector — nothing toggles off.
-// Knowledge Assistant was moved OUT of the locked set (2026-09-09): three eval passes
-// couldn't cleanly verify its answer path in a workshop-realistic flow (opaque endpoints,
-// async indexing, no build-time check), so it's too fragile to be mandatory. It stays a
-// defined capability (concept + guardrails) so it can be re-enabled as an optional add-on.
-export const LOCKED_CAPABILITIES = ["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"];
+// The architecture is prescribed: every app uses the SAME pieces. Assemble is
+// "meet your stack," not a selector — nothing toggles off.
+// This is the Publix workshop stack (content updated after speaking with Ashwin):
+// a real data-engineering-to-app journey — stream events in with Zerobus, shape them
+// through an SDP medallion (bronze/silver/gold), then serve them: ask the gold data with
+// Genie, record what people decide in Lakebase, and open it all in a Databricks App.
+export const LOCKED_CAPABILITIES = ["Zerobus", "SDP medallion", "Genie", "Lakebase", "Databricks Apps"];
 const DEFAULT_PICKS: CapabilityPick[] = [
-  { name: "Genie", selected: true, fits: "ask your data in plain English" },
-  { name: "Supervisor agent", selected: true, fits: "tie the pieces together" },
-  { name: "Lakebase", selected: true, fits: "record decisions" },
-  { name: "Databricks Apps", selected: true, fits: "the front door" },
+  { name: "Zerobus", selected: true, fits: "stream events straight into the lakehouse" },
+  { name: "SDP medallion", selected: true, fits: "shape raw events into clean gold tables" },
+  { name: "Genie", selected: true, fits: "ask your gold data in plain English" },
+  { name: "Lakebase", selected: true, fits: "record what people decide in the app" },
+  { name: "Databricks Apps", selected: true, fits: "the front door people open" },
 ];
 // Always the full locked set; fold in the SA's per-idea "fits" rationale when it's loaded.
 export function shownPicks(s: StudioState): CapabilityPick[] {

@@ -16,7 +16,8 @@ interface Props {
 }
 
 // Canonical teaching order; we render modules for the pieces that have a concept card.
-const ORDER = ["Genie", "Knowledge Assistant", "Supervisor agent", "Lakebase", "Databricks Apps"];
+// Follows the Publix data-engineering-to-app journey: ingest → transform → serve.
+const ORDER = ["Zerobus", "SDP medallion", "Genie", "Lakebase", "Databricks Apps"];
 
 export function CapabilityLearning({ capabilities, onBack, onDone }: Props) {
   const caps = ORDER.filter((c) => capabilities.includes(c) && CONCEPTS[c]);

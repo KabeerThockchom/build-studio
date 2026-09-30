@@ -108,8 +108,9 @@ TRIAGE_SYS = """You are an expert Databricks workshop proctor triaging a partici
 stuck. Given their current state, respond with ONE JSON object:
 {"status": "<one plain line: where they are>", "likely_blocker": "<the most probable thing blocking them, or 'none — progressing'>", "suggested_action": "<what the proctor should do/check, concrete>"}
 Ground it in the specifics. Common workshop blockers: a build step running long (app deploys and
-Knowledge Assistant indexing take many minutes — usually fine, just slow), an empty/misconfigured
-Genie space, or a deploy that says SUCCEEDED but didn't render. Keep each field to one sentence."""
+SDP pipeline runs take a few minutes — usually fine, just slow), Zerobus ingest not landing rows
+(missing table grants for the ingesting service principal), an empty/misconfigured Genie space, or a
+deploy that says SUCCEEDED but didn't render. Keep each field to one sentence."""
 
 
 @router.post("/admin/participant/{session_id}/triage")

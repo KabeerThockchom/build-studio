@@ -4,14 +4,15 @@ from unittest.mock import patch
 from server import generate, llm
 from server.models import GenerateRequest, Blueprint
 
-FULL = ["Genie", "Knowledge Assistant", "Supervisor agent", "Lakebase", "Databricks Apps"]
+FULL = ["Zerobus", "SDP medallion", "Genie", "Lakebase", "Databricks Apps"]
 
 
 # --- compute_spec: deterministic diagram spine ---
-def test_spec_bands_and_data_node():
+def test_spec_bands_and_ingest_node():
     spec = generate.compute_spec(FULL, data_mode="synthetic")
     ids = {n.id for n in spec.nodes}
-    assert "data" in ids  # synthetic -> generic data node
+    # Zerobus IS the data-band node, so no generic "data" source node is added.
+    assert "zerobus" in ids and "data" not in ids
     assert {n.band for n in spec.nodes} >= {"data", "capability", "agent", "delivery"}
 
 
@@ -30,13 +31,13 @@ def test_spec_no_lakeflow_capability():
     assert "lakeflow" not in ids and "data" in ids
 
 
-def test_spec_edges_route_through_agent():
-    spec = generate.compute_spec(["Genie", "Supervisor agent", "Databricks Apps"])
+def test_spec_edges_follow_the_journey():
+    spec = generate.compute_spec(FULL)
     edges = set(spec.edges)
-    assert ("data", "genie") in edges           # data -> capability
-    assert ("genie", "supervisor_agent") in edges  # capability -> agent
-    assert ("supervisor_agent", "databricks_app".replace("app", "apps")) in edges or \
-           ("supervisor_agent", "databricks_apps") in edges  # agent -> delivery
+    assert ("zerobus", "sdp_medallion") in edges         # ingest -> medallion
+    assert ("sdp_medallion", "genie") in edges           # gold -> Genie
+    assert ("genie", "databricks_apps") in edges         # Genie -> app
+    assert ("lakebase", "databricks_apps") in edges      # app state -> app
 
 
 def test_spec_no_agent_wires_caps_to_delivery():

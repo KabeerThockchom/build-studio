@@ -8,16 +8,17 @@ from .scope import WORKSHOP_SCOPE, VOICE
 from .models import DesignPlan, DesignQuestion, DesignOption, CapabilityPick, PlanRequest
 
 # The fixed capability vocabulary the SA may choose from (no inventing).
-# No Lakeflow: a one-day workshop never stands up a new live ingestion source —
-# data is sample data, a spreadsheet turned into a table, or an existing table.
+# This is the Publix data-engineering-to-app stack: stream events in with Zerobus,
+# shape them through an SDP medallion (bronze/silver/gold), then serve with Genie,
+# Lakebase, and a Databricks App.
 CAPABILITIES = [
-    "Genie", "Knowledge Assistant", "Supervisor agent",
+    "Zerobus", "SDP medallion", "Genie",
     "Lakebase", "Databricks Apps",
 ]
 CAP_BLURB = {
-    "Genie": "plain-English questions over governed data",
-    "Knowledge Assistant": "managed RAG over documents/notes",
-    "Supervisor agent": "an agent that routes across the other tools",
+    "Zerobus": "real-time event ingest straight into the lakehouse (no message bus)",
+    "SDP medallion": "a declarative bronze/silver/gold pipeline that produces clean gold tables",
+    "Genie": "plain-English questions over governed gold data",
     "Lakebase": "Postgres for app state / recording decisions",
     "Databricks Apps": "hosts the interface people open",
 }
@@ -63,12 +64,10 @@ The ONLY capabilities you may pre-select from (never invent others):
 
 Pre-select CONSERVATIVELY — only mark selected:true for pieces the idea clearly needs. A workshop
 build shouldn't accumulate pieces the person never asked for. Guidance:
-- Genie and Databricks Apps are the usual core for an interactive build; select them when they fit.
+- Zerobus, SDP medallion, Genie, and Databricks Apps are the usual core: stream events in, shape them to
+  gold, ask the gold data, and open it in an app. Select them when they fit the idea.
 - Do NOT auto-select Lakebase unless the idea implies recording/saving something between sessions
   (a decision log, saved state, a queue). "Just look at data" does not need it.
-- Do NOT auto-select a Supervisor agent unless the idea genuinely needs to route across MULTIPLE
-  tools. A single-purpose build (one dashboard, one Q&A) does not.
-- Do NOT auto-select Knowledge Assistant unless there are documents/notes/text to answer from.
 - If the idea reads like a dashboard/report rather than a chat, reflect that — don't assume a chat agent.
   And when you DO select Genie for a dashboard/report build, write its "fits" as powering the numbers
   and charts behind the scenes — NOT "ask follow-up questions" or "chat," which contradicts a person
@@ -300,10 +299,10 @@ def fallback_plan(idea: str = "") -> DesignPlan:
                                "Sample, a file you upload, or an existing table.", "We'll confirm specifics first."]),
         ],
         capabilities=[
-            CapabilityPick(name="Genie", selected=True, fits="ask your data in plain English"),
-            CapabilityPick(name="Knowledge Assistant", selected=True, fits="understand notes & docs"),
-            CapabilityPick(name="Supervisor agent", selected=True, fits="tie the pieces together"),
-            CapabilityPick(name="Lakebase", selected=True, fits="record decisions"),
-            CapabilityPick(name="Databricks Apps", selected=True, fits="the front door"),
+            CapabilityPick(name="Zerobus", selected=True, fits="stream events straight into the lakehouse"),
+            CapabilityPick(name="SDP medallion", selected=True, fits="shape raw events into clean gold tables"),
+            CapabilityPick(name="Genie", selected=True, fits="ask your gold data in plain English"),
+            CapabilityPick(name="Lakebase", selected=True, fits="record what people decide in the app"),
+            CapabilityPick(name="Databricks Apps", selected=True, fits="the front door people open"),
         ],
     )

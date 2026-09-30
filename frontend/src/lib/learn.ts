@@ -33,23 +33,23 @@ export interface ConceptCard {
 // difficulty as the post-Shape primer quiz (plausible distractors, a real decision to
 // reason through — not leading-the-witness). Answer positions are varied on purpose.
 export const FINAL_QUIZ: Record<string, LearnQuiz> = {
+  Zerobus: {
+    q: "Your store events are landing in the lakehouse a few seconds after they happen, with no Kafka cluster in sight. What's doing that?",
+    options: ["Zerobus, which lets producers push events straight into a Delta table with no message bus to run", "A nightly batch job you scheduled", "Genie, which pulls the events in when someone asks a question"],
+    answer: 0,
+    why: "Zerobus is a direct-write ingest API: producers push events straight into a managed Delta table in near real time, so there's no separate message bus to stand up and run.",
+  },
+  "SDP medallion": {
+    q: "Your raw Zerobus events are messy and you need clean, analytics-ready tables. What does the SDP pipeline do for you?",
+    options: ["Nothing; you query the raw events directly and hope they're clean", "Declares bronze → silver → gold transforms once, and the pipeline handles the ordering, retries, and data quality", "Copies the raw table five times under different names"],
+    answer: 1,
+    why: "Spark Declarative Pipelines let you declare the bronze/silver/gold transforms and the quality rules; the pipeline works out dependencies, incremental updates, and retries so gold stays trustworthy.",
+  },
   Genie: {
     q: "Your Genie space keeps using the wrong column when someone asks about revenue. What most likely fixes it?",
     options: ["Give each column a clear description (meaning, units, allowed values) and define revenue as a metric", "Delete the space and create it again", "Switch the app to a different foundation model"],
     answer: 0,
     why: "Genie answers from the setup you give it. Clear column descriptions and defined metrics are what let it pick the right field.",
-  },
-  "Knowledge Assistant": {
-    q: "You point Knowledge Assistant at 200 documents and a demo starts in two minutes. What's the safe move?",
-    options: ["Sit and refresh until indexing finishes", "Cut the documents to zero so it indexes instantly", "Kick off indexing, keep building other pieces, and check answers once it's ready"],
-    answer: 2,
-    why: "Indexing runs in the background for minutes. Start it, keep moving, and verify answers once it's ready rather than blocking on it.",
-  },
-  "Supervisor agent": {
-    q: "A question that should go to Genie gets answered from your documents instead. Most likely cause?",
-    options: ["The foundation model is broken", "The tool descriptions aren't distinct enough for it to route by intent", "Lakebase has run out of space"],
-    answer: 1,
-    why: "The supervisor routes by each tool's description. Vague or overlapping descriptions make it pick the wrong one.",
   },
   Lakebase: {
     q: "Where should the app store the approve / reject decisions people click, and why?",
@@ -65,26 +65,46 @@ export const FINAL_QUIZ: Record<string, LearnQuiz> = {
   },
 };
 
-// Keyed by BuildStep.capability ("data", "Genie", "Knowledge Assistant",
-// "Lakebase", "Supervisor agent", "Databricks Apps").
+// Keyed by BuildStep.capability ("Zerobus", "SDP medallion", "Genie",
+// "Lakebase", "Databricks Apps") — the Publix data-engineering-to-app stack.
+// Every `video` id below is a verified, real Databricks YouTube video (checked before
+// wiring; content updated after speaking with Ashwin).
 export const CONCEPTS: Record<string, ConceptCard> = {
-  data: {
-    title: "Where your data lives",
-    tagline: "Your tables, governed by Unity Catalog.",
-    deeper: "Everything you build sits on tables in Unity Catalog, Databricks' governed home for data, so permissions and lineage come for free. In a workshop we generate small, realistic sample tables so you can get to the interesting part fast, then swap in real tables later.",
+  Zerobus: {
+    title: "How your events get in",
+    tagline: "Stream events straight into the lakehouse, no message bus.",
+    deeper: "Zerobus is a direct-write ingest API: whatever produces your events (a register, a sensor, an app) pushes them straight into a governed Delta table, landing in seconds. There's no Kafka cluster to size or run in the middle. You create the table first, grant the producer access, and start streaming; Zerobus never changes your table's shape, so the table stays the source of truth.",
+    video: { id: "wrH5wWmFT94", title: "Zerobus: real-time ingest, no message bus",
+             sub: "Databricks PMs on pushing events straight into the lakehouse with Zerobus." },
     quiz: {
-      q: "Why start a workshop build on generated sample data?",
-      options: ["Sample data is more accurate than a company's real data", "It's the only kind of data Databricks can read", "You skip data wrangling and start building now, then swap in real tables later"],
-      answer: 2,
-      why: "Sample data lets you build the interesting parts right away. You swap in real tables once the shape works.",
+      q: "What does Zerobus save you compared with a traditional streaming setup?",
+      options: ["Nothing; you still run and size a Kafka cluster yourself", "Standing up and operating a separate message bus, since producers push events straight into a Delta table", "The need to have any tables at all"],
+      answer: 1,
+      why: "Zerobus is a direct-to-lakehouse write API. Producers push events straight into a managed Delta table, so there's no separate message bus to run.",
     },
-    links: [{ label: "Unity Catalog basics", url: "https://docs.databricks.com/aws/en/data-governance/unity-catalog/", kind: "docs" }],
+    links: [{ label: "Zerobus Ingest", url: "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/zerobus", kind: "docs" }],
+  },
+  "SDP medallion": {
+    title: "How raw events become clean data",
+    tagline: "Declare bronze → silver → gold, once.",
+    deeper: "Spark Declarative Pipelines (SDP) is how you turn the raw Zerobus events into trustworthy tables. You declare the layers: bronze keeps the raw stream, silver cleans and enriches it, gold is the analytics-ready shape everyone reads. You describe WHAT each table should be and the quality rules it must meet; the pipeline figures out the ordering, runs it incrementally, retries on failure, and keeps it fresh, so you don't hand-write the orchestration.",
+    video: { id: "BIxwoO65ylY", title: "Declarative pipelines: bronze to gold",
+             sub: "A Databricks walkthrough of a declarative medallion ETL pipeline." },
+    quiz: {
+      q: "In a bronze/silver/gold pipeline, what is the gold layer for?",
+      options: ["The untouched raw events exactly as they landed", "The clean, analytics-ready tables the rest of the app reads", "A backup copy you never query"],
+      answer: 1,
+      why: "Bronze is the raw landing, silver is cleaned and enriched, and gold is the curated, analytics-ready shape Genie and the app read from.",
+    },
+    links: [{ label: "Lakeflow Declarative Pipelines", url: "https://docs.databricks.com/aws/en/dlt/", kind: "docs" }],
   },
   Genie: {
     title: "What a Genie space really is",
-    tagline: "Ask your data questions in plain English.",
+    tagline: "Ask your gold data questions in plain English.",
     demo: "genie-chat",
-    deeper: "A Genie space sits on top of your tables and learns what each column means, so someone can ask a plain-English question and get a real answer back. Creating the space isn't enough. It has to be set up with the tables, how they connect, and a couple of example questions, or it looks ready but can't answer anything.",
+    deeper: "A Genie space sits on top of your gold tables and learns what each column means, so someone can ask a plain-English question and get a real answer back. Creating the space isn't enough. It has to be set up with the tables, how they connect, clear column descriptions, and a couple of example questions, or it looks ready but can't answer anything.",
+    video: { id: "3_TpRj3z_Gs", title: "What is AI/BI Genie?",
+             sub: "How Genie lets business users ask governed data questions in plain English." },
     quiz: {
       q: "You created a Genie space but it can't answer questions. Most likely why?",
       options: ["It has no tables, joins, or example questions set up yet", "Genie is down for everyone", "You have to write the SQL by hand first"],
@@ -93,46 +113,26 @@ export const CONCEPTS: Record<string, ConceptCard> = {
     },
     links: [{ label: "AI/BI Genie", url: "https://docs.databricks.com/aws/en/genie/", kind: "docs" }],
   },
-  "Knowledge Assistant": {
-    title: "Answering from documents",
-    tagline: "Answers from your documents and notes.",
-    deeper: "Knowledge Assistant lets your app answer from documents and notes with no embedding pipeline to build. You point it at a text source and it indexes it. One thing to know: indexing runs in the background and can take several minutes, so kick it off and move on rather than waiting on it.",
-    quiz: {
-      q: "You point Knowledge Assistant at your documents. What should you expect?",
-      options: ["It answers the moment you point it at them", "It indexes them in the background for a few minutes before it can answer well", "You have to build an embedding pipeline yourself first"],
-      answer: 1,
-      why: "Indexing runs in the background. Kick it off, keep building, and check answers once it's ready.",
-    },
-    links: [],
-  },
   Lakebase: {
     title: "Where your app remembers things",
     tagline: "A fast place for your app to save what people do.",
-    deeper: "Lakebase is a fast database that sits right next to your data. It's where your app saves what people do, like a decision they marked or an item they flagged, so it sticks between visits. Your app signs in to it automatically, so there's no password to manage.",
+    deeper: "Lakebase is a fast Postgres database that sits right next to your data. It's where your app saves what people do, like a decision they marked or an item they flagged, so it sticks between visits. Your gold tables stay a clean source of truth; Lakebase holds what the app itself records. Your app signs in to it automatically, so there's no password to manage.",
+    video: { id: "_nMgCvsCcns", title: "The app database: Lakebase",
+             sub: "Databricks on the vibe stack: a Lakebase Postgres backend for your app." },
     quiz: {
       q: "What is Lakebase for in your app?",
       options: ["Training a machine learning model", "Drawing the charts on the screen", "Saving what people do, like a decision they made, so it sticks between visits"],
       answer: 2,
-      why: "Lakebase is fast Postgres for app state. What you record there sticks.",
+      why: "Lakebase is fast Postgres for app state. What you record there sticks, while your gold tables stay the clean source of truth.",
     },
-    links: [],
-  },
-  "Supervisor agent": {
-    title: "What the agent actually does",
-    tagline: "Sends each question to the right piece.",
-    deeper: "The supervisor is the traffic cop of your app. When a question comes in, it decides which piece should handle it: Genie for the data, Knowledge Assistant for documents, Lakebase to save something. It's not a heavy framework. The skill is giving each piece a clear description so it picks the right one without guessing.",
-    quiz: {
-      q: "What is the supervisor agent's job?",
-      options: ["Picking the right tool for each question and replying", "Replacing Genie and Knowledge Assistant entirely", "Storing the app's data"],
-      answer: 0,
-      why: "It's a router. It picks the right piece (Genie, Knowledge Assistant, or Lakebase) for each question and responds.",
-    },
-    links: [{ label: "Agent framework", url: "https://docs.databricks.com/aws/en/generative-ai/agent-framework/", kind: "docs" }],
+    links: [{ label: "Lakebase", url: "https://docs.databricks.com/aws/en/oltp/", kind: "docs" }],
   },
   "Databricks Apps": {
     title: "The app people actually open",
     tagline: "The interface people open and use.",
-    deeper: "Databricks Apps hosts the interface your users open, running in your workspace and already governed. One hard-won truth: a green 'SUCCEEDED' deploy does not mean a working app. Always open the URL and confirm it loads, and glance at the logs if it doesn't.",
+    deeper: "Databricks Apps hosts the interface your users open, running in your workspace and already governed. It's the front door onto everything upstream: the gold tables, Genie, and Lakebase. One hard-won truth: a green 'SUCCEEDED' deploy does not mean a working app. Always open the URL and confirm it loads with real data, and glance at the logs if it doesn't.",
+    video: { id: "85sbR06ZyKE", title: "Build apps natively on Databricks",
+             sub: "A Databricks session on building and deploying data & AI apps on the platform." },
     quiz: {
       q: "Your app deploy shows SUCCEEDED. Are you done?",
       options: ["Yes, SUCCEEDED means it's working", "No, you always have to deploy a second time", "No, open the URL and confirm it loads with real data"],
