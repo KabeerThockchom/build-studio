@@ -187,33 +187,7 @@ export function PlanScreen({ blueprint, job, error, answers, onRefine, onRetry, 
 
           {blueprint.components_changed?.added.length ? (
             <div className="rise mt-4 flex flex-col gap-3">
-              {blueprint.components_changed.added.map((cap) => {
-                const concept = CONCEPTS[cap];
-                if (!concept) return null;
-                const [expanded, setExpanded] = useState(false);
-                return (
-                  <Card key={cap} className="px-4 py-3.5">
-                    <button onClick={() => setExpanded(!expanded)} className="flex w-full items-start justify-between gap-2 text-left">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[12px] font-medium text-green-ink">New piece</div>
-                        <div className="mt-0.5 text-[15px] font-semibold text-navy">{concept.title}</div>
-                        <div className="mt-1 text-[14px] text-navy-2">{concept.tagline}</div>
-                      </div>
-                      <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-navy-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
-                    </button>
-                    {expanded && (
-                      <div className="mt-3 border-t border-line pt-3">
-                        <div className="text-[14px] leading-snug text-navy-2">{concept.deeper}</div>
-                        {concept.video && (
-                          <div className="mt-3">
-                            <VideoEmbed id={concept.video.id} title={concept.video.title} sub={concept.video.sub} short={concept.video.short} eyebrow="How it works" />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </Card>
-                );
-              })}
+              {blueprint.components_changed.added.map((cap) => <NewPieceCard key={cap} cap={cap} />)}
             </div>
           ) : null}
 
@@ -309,5 +283,35 @@ export function PlanScreen({ blueprint, job, error, answers, onRefine, onRetry, 
         <Go onClick={onNext} disabled={!blueprint || running}>Looks good, let's build <ArrowRight className="h-4 w-4" /></Go>
       </div>
     </div>
+  );
+}
+
+// A piece a refine added that Learn never taught: its short version, right here (hooks live in their own
+// component, so adding several pieces in one refine can't change the parent's hook order).
+function NewPieceCard({ cap }: { cap: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const concept = CONCEPTS[cap];
+  if (!concept) return null;
+  return (
+    <Card className="px-4 py-3.5">
+      <button onClick={() => setExpanded(!expanded)} className="flex w-full items-start justify-between gap-2 text-left">
+        <div className="min-w-0 flex-1">
+          <div className="text-[12px] font-medium text-green-ink">New piece</div>
+          <div className="mt-0.5 text-[15px] font-semibold text-navy">{concept.title}</div>
+          <div className="mt-1 text-[14px] text-navy-2">{concept.tagline}</div>
+        </div>
+        <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-navy-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+      {expanded && (
+        <div className="mt-3 border-t border-line pt-3">
+          <div className="text-[14px] leading-snug text-navy-2">{concept.deeper}</div>
+          {concept.video && (
+            <div className="mt-3">
+              <VideoEmbed id={concept.video.id} title={concept.video.title} sub={concept.video.sub} short={concept.video.short} eyebrow="How it works" />
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
