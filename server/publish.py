@@ -201,11 +201,11 @@ def _design_md(*, idea: str, interaction_model: str, brand: bool = False) -> str
             f"- **Logo**: `{LOGO_NAME}` is in this project folder (512×512 SVG). Package it INTO the app — copy it "
             "into the frontend's static assets (e.g. Vite `public/`) so it ships inside `dist/`, and use it in the "
             "header and as the favicon. Do NOT hotlink an external URL (the app's CSP will block it).",
-            "- **Primary brand color**: Publix green `#4c8c2b` (the Publix mark green) — the anchor. Header, primary "
-            "actions, key emphasis. Use `#3a6a20` for hover/depth.",
+            "- **Primary brand color**: Publix green `#3D8B37` (Pantone 363 C, the Publix brand green) — the anchor. Header, "
+            "primary actions, key emphasis. Use `#2E6A2A` for hover/depth.",
             "- **Page ground**: warm cream (`#faf4ea` / `#f6f3ee`), never pure `#ffffff` as the canvas. Cards sit "
             "on the cream as white/lighter-cream surfaces.",
-            "- **Positive / approved**: green `#4c8c2b` (Publix green, primary). **Secondary accent**: a cool blue "
+            "- **Positive / approved**: green `#3D8B37` (Publix green, primary). **Secondary accent**: a cool blue "
             "`#0066cc` or warm gold `#d4a574` (sparingly). **Text/ink**: warm near-black `#211318`.",
         ]
     else:
