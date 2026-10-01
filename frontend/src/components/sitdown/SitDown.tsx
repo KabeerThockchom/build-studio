@@ -78,6 +78,7 @@ export function SitDown({ saved, onSave, onHandoff, focusStage }: Props) {
   const [toastMsg, setToastMsg] = useState("");
   const [dayCapacity, setDayCapacity] = useState(6);
   const [tour, setTour] = useState<{ i: number; ready: boolean } | null>(null);
+  const [firstWait, setFirstWait] = useState(false);   // the very first reply, before any words
   const [tourCls, setTourCls] = useState<string[]>([]);
   const toured = useRef((() => { try { return localStorage.getItem(TOUR_KEY) === "1"; } catch { return false; } })());
 
@@ -225,6 +226,7 @@ export function SitDown({ saved, onSave, onHandoff, focusStage }: Props) {
     scrollReq.current = { idx, ms: idx > 0 ? 600 : 0 };
     setTurns((ts) => [...ts, turn]);
     if (withTour) setTourCls(["touring", "tour-hideAsk", "tour-hideR"]);
+    if (first) setFirstWait(true);
     setBusy(true);
     setThinking(first ? "Reading your idea…" : "Reading your answer…");
     // wait for the new page's voice element
@@ -235,8 +237,10 @@ export function SitDown({ saved, onSave, onHandoff, focusStage }: Props) {
     let st: Streamer | null = null;
     const reveal = new Promise<void>((res) => {
       st = el ? makeStream(el, {
-        onFirst: () => { setThinking(""); if (withTour) setTour({ i: 0, ready: false }); },
-        onEnd: () => { if (!done) patchTurn(id, { _pend: "Preparing the next step" }); res(); },
+        // the tour starts with the first words (never over an empty page) and can move on as soon as
+        // the words are complete (text_end), without waiting for the cards (done)
+        onFirst: () => { setThinking(""); setFirstWait(false); if (withTour) setTour({ i: 0, ready: false }); },
+        onEnd: () => { if (!done) patchTurn(id, { _pend: "Preparing the next step" }); if (withTour) setTour((t) => (t ? { ...t, ready: true } : t)); res(); },
       }) : null;
       if (!st) res();
     });
@@ -266,7 +270,7 @@ export function SitDown({ saved, onSave, onHandoff, focusStage }: Props) {
       (st as Streamer | null)?.finish();
     } catch (e: any) {
       (st as Streamer | null)?.abort();
-      setThinking(""); setBusy(false);
+      setThinking(""); setBusy(false); setFirstWait(false);
       setTour(null); setTourCls([]);
       patchTurn(id, { _live: false, text: "", _err: e?.message || String(e) });
       return;
@@ -436,7 +440,14 @@ export function SitDown({ saved, onSave, onHandoff, focusStage }: Props) {
                 {session && <button className="hbtn" onClick={() => setLost(true)}>I'm lost</button>}
               </div>
             </div>
-            <div className="thread" ref={threadRef}>
+            <div className={`thread ${firstWait ? "firstwaiting" : ""}`} ref={threadRef}>
+              {firstWait && (
+                <div className="firstwait" style={threadH ? { height: threadH } : undefined} role="status">
+                  <div className="av breathe">SA</div>
+                  <div className="fw1">Your SA is reading your idea</div>
+                  <div className="fw2">First thoughts in a few seconds.</div>
+                </div>
+              )}
               {turns.length === 0 ? (
                 <Landing idea={landing} minH={threadH} onStart={(v) => { setLanding(v); send(v); }} />
               ) : turns.map((t, i) => (

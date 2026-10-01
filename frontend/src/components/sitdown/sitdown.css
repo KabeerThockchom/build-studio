@@ -490,3 +490,10 @@
 .sd .hdr .hbtn{white-space:nowrap}
 @media (max-width:1360px){.sd .left{padding:0 32px}.sd .segs i{width:14px}.sd .hdr{gap:12px}}
 @media (max-width:1240px){.sd .segs{display:none}}
+
+/* the very first reply: one warm, centred waiting state (the page is otherwise empty) */
+.sd .thread.firstwaiting .blk{visibility:hidden}
+.sd .firstwait{position:absolute;left:0;right:0;top:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:2;animation:sd_tmIn .3s var(--ease) both}
+.sd .firstwait .av{width:52px;height:52px;font-size:15px}
+.sd .firstwait .fw1{font-size:18px;color:var(--navy)}
+.sd .firstwait .fw2{font-size:12px;font-weight:500;color:var(--navy3)}
