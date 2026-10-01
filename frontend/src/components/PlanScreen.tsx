@@ -161,6 +161,23 @@ export function PlanScreen({ blueprint, job, error, answers, onRefine, onRetry, 
               <div className="flex-1">
                 <div className="text-[12px] font-medium text-green-ink">What changed</div>
                 <div className="mt-0.5 text-[15px] leading-snug text-navy">{blueprint.refine_note}</div>
+                {blueprint.components_changed && (blueprint.components_changed.added.length > 0 || blueprint.components_changed.removed.length > 0) && (
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {blueprint.components_changed.added.map((c) => (
+                      <span key={c} className="inline-flex items-center gap-1 rounded-full bg-white bg-opacity-60 px-2.5 py-1 text-[12px] font-semibold text-green-ink">
+                        + {c}
+                      </span>
+                    ))}
+                    {blueprint.components_changed.removed.map((c) => (
+                      <span key={c} className="inline-flex items-center gap-1 rounded-full bg-white bg-opacity-40 px-2.5 py-1 text-[12px] font-semibold text-navy-2">
+                        – {c}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {blueprint.components_changed?.notes && (
+                  <div className="mt-2 text-[13px] text-navy-2">{blueprint.components_changed.notes}</div>
+                )}
               </div>
               <button onClick={() => setNoteOpen(false)} aria-label="Dismiss" className="text-navy-3 hover:text-navy"><X className="h-4 w-4" /></button>
             </div>
