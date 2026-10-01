@@ -94,7 +94,7 @@ SEEDED_DATASETS = [
                      "competitor", "promotion", "discount", "sales per", "category"],
         "schema": "workshop.retail_commercial",
         "tables": ("dim_store (400 stores, with tier/region/format), dim_product (174) + "
-                   "product_elasticity (per-product elasticity), dim_costa_express_machine (1500), "
+                   "product_elasticity (per-product elasticity), dim_publix_kiosk (1500), "
                    "fact_transactions (450k), fact_store_daily (292k daily rows: net_sales, footfall, "
                    "conversion_rate, labour_hours, sales_per_labour_hour), price_change_events, "
                    "sales_forecast, competitor_sites, customer_reviews, dim_date, dim_customer"),
