@@ -1,5 +1,6 @@
 import { useReducer } from "react";
 import type { Blueprint, BuildPlan, DiagramSpec, PlanJob, SitDownPlan, StudioHandoff } from "./types";
+import { CONCEPTS } from "./learn";
 
 // The journey: overview -> sitdown -> learn -> plan -> build.
 //   sitdown: the conversational SA sharpens the idea (its own session, see components/sitdown)
@@ -126,14 +127,17 @@ export function reducer(s: StudioState, a: Action): StudioState {
         const capsChanged = JSON.stringify(newCaps) !== JSON.stringify(a.bp.capabilities);
         if (capsChanged && newPlan?.capabilities) {
           newCaps = a.bp.capabilities;
-          // Update plan.capabilities with new pieces (keeping existing fits where they match)
+          // Update plan.capabilities with new pieces (keeping existing fits, new ones get the catalog tagline)
           newPlan = {
             ...newPlan,
-            capabilities: a.bp.capabilities.map((c) => ({
-              name: c,
-              selected: true,
-              fits: newPlan!.capabilities.find((pc) => pc.name === c)?.fits || "",
-            })),
+            capabilities: a.bp.capabilities.map((c) => {
+              const existing = newPlan!.capabilities.find((pc) => pc.name === c);
+              return {
+                name: c,
+                selected: true,
+                fits: existing?.fits || (CONCEPTS[c]?.tagline || ""),
+              };
+            }),
           };
         }
       }
