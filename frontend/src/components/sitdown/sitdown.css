@@ -510,3 +510,19 @@
 .sd .firstwait .av{width:52px;height:52px;font-size:15px}
 .sd .firstwait .fw1{font-size:18px;color:var(--navy)}
 .sd .firstwait .fw2{font-size:12px;font-weight:500;color:var(--navy3)}
+
+/* idea gallery on the first screen */
+.sd .gal{margin-top:18px}
+.sd .galt{font-size:13.5px;font-weight:500;color:var(--green-ink);text-decoration:underline;text-decoration-color:rgba(0,168,112,.35);text-underline-offset:3px}
+.sd .galt:hover{text-decoration-color:var(--green)}
+.sd .galp{margin-top:12px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px;animation:sd_cardIn .3s var(--ease) both}
+.sd .galv{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.sd .galv button{font-size:12.5px;font-weight:500;color:var(--navy2);border:1px solid var(--line);border-radius:999px;padding:3px 11px;background:var(--paper)}
+.sd .galv button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.sd .galc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sd .galo{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--green-ink);margin-bottom:6px}
+.sd .gali{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px;background:var(--paper);transition:border-color .15s}
+.sd .gali:hover{border-color:var(--navy3)}
+.sd .gali b{font-size:13px;font-weight:600;color:var(--navy)}
+.sd .gali span{font-size:12px;line-height:1.4;color:var(--navy3)}
+.sd .galn{margin-top:4px;font-size:12px;color:var(--navy3)}

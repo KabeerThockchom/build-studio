@@ -5,6 +5,7 @@
    - cards, open questions, colleagues, drift, shapes, scope, and the go-ahead ceremony
    - the right pane waits its turn: drafts, then solid, then the grade
    API: POST /api/sitdown/chat (NDJSON), /apply_package, /set_features, /handoff. */
+import { GALLERY } from "../../lib/gallery";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import "./sitdown.css";
 import { api } from "../../lib/api";
@@ -522,7 +523,44 @@ function Landing({ idea, minH, onStart }: { idea: string; minH: number; onStart:
         <textarea ref={ta} className="idea" value={v} placeholder={IDEA_PH} onChange={(e) => setV(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); go(); } }} />
         <div className="crow"><button className="cbtn" onClick={go}>Pull up a chair</button></div>
+        <IdeaGallery onPick={(t) => { setV(t); setTimeout(() => { ta.current?.focus(); ta.current?.setSelectionRange(t.length, t.length); }, 0); }} />
       </div>
+    </div>
+  );
+}
+
+/* Need an idea? The workshop's example ideas, by industry and goal. Picking one fills the idea box
+   (still editable); it never starts the Sit-Down by itself. */
+function IdeaGallery({ onPick }: { onPick: (starter: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [vert, setVert] = useState(GALLERY[0]?.id);
+  const active = GALLERY.find((g) => g.id === vert) || GALLERY[0];
+  if (!active) return null;
+  return (
+    <div className="gal">
+      <button className="galt" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        {open ? "Hide the examples" : "Need an idea? Start from an example"}
+      </button>
+      {open && (
+        <div className="galp" ref={(el) => el?.scrollIntoView({ behavior: "smooth", block: "nearest" })}>
+          <div className="galv">
+            {GALLERY.map((g) => <button key={g.id} className={g.id === active.id ? "on" : ""} onClick={() => setVert(g.id)}>{g.label}</button>)}
+          </div>
+          <div className="galc">
+            {active.columns.map((c) => (
+              <div key={c.outcome}>
+                <div className="galo">{c.outcome}</div>
+                {c.apps.map((a) => (
+                  <button key={a.id} className="gali" onClick={() => { onPick(a.starter); setOpen(false); }}>
+                    <b>{a.label}</b><span>{a.blurb}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+          <p className="galn">Picking one fills in the idea above. Make it yours before you start.</p>
+        </div>
+      )}
     </div>
   );
 }
