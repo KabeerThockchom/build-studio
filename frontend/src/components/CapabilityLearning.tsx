@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, X, ChevronLeft, ArrowRight, BookOpen, ExternalLink, Sparkles } from "lucide-react";
-import { CONCEPTS, learnComponents } from "../lib/learn";
+import { CONCEPTS, learnComponents, quizFor } from "../lib/learn";
+import { VideoEmbed } from "./VideoEmbed";
 import { BAND_LABELS, NODE_COLORS } from "../lib/constants";
 import { componentBand } from "../lib/diagram";
 import type { DiagramSpec } from "../lib/types";
@@ -145,6 +146,7 @@ function ModuleBeat({ cap, idx, count, fit, onHome }: { cap: string; idx: number
           {card.demo === "medallion" && <MedallionMock />}
           {card.demo === "app-builder" && <AppBuilderMock />}
           {!card.demo && <DashboardMock />}
+          {card.video && <VideoEmbed id={card.video.id} title={card.video.title} sub={card.video.sub} short={card.video.short} eyebrow="A short walkthrough" />}
           {card.links.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {card.links.map((l) => (
@@ -163,7 +165,7 @@ function ModuleBeat({ cap, idx, count, fit, onHome }: { cap: string; idx: number
 
 // ── The quick check: instant feedback, a small celebration when it's done. ──
 function QuizBeat({ caps }: { caps: string[] }) {
-  const items = useMemo(() => caps.map((c) => ({ cap: c, ...CONCEPTS[c].quiz })), [caps]);
+  const items = useMemo(() => quizFor(caps), [caps.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const [picked, setPicked] = useState<Record<number, number>>({});
   const answered = Object.keys(picked).length;
   const right = items.filter((it, i) => picked[i] === it.answer).length;
@@ -171,7 +173,7 @@ function QuizBeat({ caps }: { caps: string[] }) {
   return (
     <div>
       <Label>Quick check</Label>
-      <Title className="mt-1">One question on each piece.</Title>
+      <Title className="mt-1">Five quick questions on your build.</Title>
       <Lead className="mt-2">No grade. Tap an answer to see why.</Lead>
       <div className="mt-6 flex flex-col gap-3">
         {items.map((item, qi) => {
@@ -179,7 +181,7 @@ function QuizBeat({ caps }: { caps: string[] }) {
           return (
             <section key={qi} data-quiz className="rounded-xl border border-line bg-white p-5">
               <div className="flex items-center justify-between">
-                <Label>{qi + 1} of {items.length} · {CONCEPTS[item.cap].short}</Label>
+                <Label>{qi + 1} of {items.length} · {item.cap ? CONCEPTS[item.cap].short : "How it fits together"}</Label>
                 {done && (chosen === item.answer
                   ? <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-green-ink"><Check className="h-3.5 w-3.5" /> Right</span>
                   : <span className="text-[12px] font-semibold text-navy-3">Not quite</span>)}
