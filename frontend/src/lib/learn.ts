@@ -20,7 +20,11 @@ export interface ConceptCard {
   tagline: string;  // one plain line: what this piece IS
   deeper: string;   // 2-3 sentences, plain language
   demo?: "genie-chat" | "medallion" | "app-builder";
-  quiz: LearnQuiz;
+  // A short verified YouTube walkthrough (rendered with VideoEmbed). Leave unset rather
+  // than guess an id: a missing video renders nothing.
+  video?: { id: string; title: string; sub?: string; short?: boolean };
+  quiz: LearnQuiz;       // the headline question for this piece
+  more: LearnQuiz[];     // extra questions, used to fill the 5-question quick check
   links: LearnLink[];
 }
 
@@ -34,6 +38,7 @@ export const CONCEPTS: Record<string, ConceptCard> = {
       "Data moves through layers: bronze keeps it as it arrived, silver cleans and joins it, and gold is shaped for the people and tools that use it. " +
       "Any rule your build needs, like scoring, flagging or ranking items, lives in the gold layer so everything reads the same answer.",
     demo: "medallion",
+    // TODO(facilitator): no verified walkthrough video for Declarative Pipelines yet. Add one here when chosen.
     quiz: {
       q: "Your build needs a ranked list of items to act on each morning. Where should the ranking rule live?",
       options: [
@@ -44,6 +49,14 @@ export const CONCEPTS: Record<string, ConceptCard> = {
       answer: 0,
       why: "Gold is the shared, ready-to-use layer. Put the rule there and Genie, dashboards and the app all see the same ranking.",
     },
+    more: [
+      { q: "Your source data has duplicate rows and missing values. Which layer cleans that up?",
+        options: ["Bronze, so the raw copy is already clean", "Silver, where data is cleaned and joined", "Gold, right before people read it"],
+        answer: 1, why: "Bronze keeps exactly what arrived so you can always re-run. Silver is where cleaning and joining happen, so gold starts from data you can trust." },
+      { q: "You change a scoring rule in the pipeline. What happens to the gold table?",
+        options: ["Nothing until someone rebuilds it by hand", "It's deleted and you start again", "The pipeline refreshes it with the new rule, and everything downstream reads the update"],
+        answer: 2, why: "Declarative Pipelines manage the refresh for you. Change the rule, run the pipeline, and every reader sees the same new answer." },
+    ],
     links: [
       { label: "Declarative Pipelines docs", url: "https://docs.databricks.com/aws/en/dlt/", kind: "docs" },
       { label: "The medallion architecture", url: "https://docs.databricks.com/aws/en/lakehouse/medallion", kind: "docs" },
@@ -57,6 +70,7 @@ export const CONCEPTS: Record<string, ConceptCard> = {
       "A Genie space sits on top of your gold tables. People type a question the way they would ask a colleague, and Genie writes the query, runs it and shows the answer. " +
       "You teach it your vocabulary with instructions and example questions, so it picks the right column every time.",
     demo: "genie-chat",
+    video: { id: "7eSOvPsSjgU", title: "Building a Genie Agent with Genie Code", sub: "How the space you'll build comes together.", short: true },
     quiz: {
       q: "Your Genie space keeps using the wrong column when someone asks about a key term. What most likely fixes it?",
       options: [
@@ -67,6 +81,14 @@ export const CONCEPTS: Record<string, ConceptCard> = {
       answer: 1,
       why: "Genie learns your terms from the instructions and example questions on the space. Define it once and it is fixed for everyone.",
     },
+    more: [
+      { q: "Which tables should your Genie space point at?",
+        options: ["The gold tables your pipeline builds", "The raw bronze tables, so nothing is hidden", "Every table in the catalog, to be safe"],
+        answer: 0, why: "Gold tables are clean and shaped for questions. Pointing Genie at raw or unrelated tables makes its answers slower and less reliable." },
+      { q: "Genie answers one question wrongly. What's the most useful next step?",
+        options: ["Delete the space and start again", "Tell people to stop using Genie for now", "Add that question as an example with the right answer"],
+        answer: 2, why: "Example questions with the right answer teach the space. Each one you add makes the next similar question come out right." },
+    ],
     links: [{ label: "Genie docs", url: "https://docs.databricks.com/aws/en/genie/", kind: "docs" }],
   },
   [DASHBOARDS]: {
@@ -76,6 +98,7 @@ export const CONCEPTS: Record<string, ConceptCard> = {
     deeper:
       "An AI/BI dashboard reads the same gold tables and turns them into counters, charts and filters people can scan in seconds. " +
       "You can describe the visual you want in plain words and refine it from there. A Genie space can sit alongside it for the questions nobody planned for.",
+    // TODO(facilitator): no verified walkthrough video for AI/BI Dashboards yet. Add one here when chosen.
     quiz: {
       q: "A manager wants to see this week's trend first thing every morning, without typing anything. Which piece fits best?",
       options: [
@@ -86,6 +109,14 @@ export const CONCEPTS: Record<string, ConceptCard> = {
       answer: 2,
       why: "Dashboards are for the numbers you look at every time. Genie is for the questions you did not plan for.",
     },
+    more: [
+      { q: "Where should the dashboard get its numbers?",
+        options: ["A spreadsheet someone exports each week", "The same gold tables Genie and the app read", "Its own copy of the raw data"],
+        answer: 1, why: "Reading the gold tables means the dashboard, Genie and the app always agree. A separate copy drifts out of date." },
+      { q: "A dashboard tile shows a number that looks wrong. Where do you fix it?",
+        options: ["In the pipeline rule that builds the gold table it reads", "By typing the right number into the tile", "By hiding the tile until someone asks"],
+        answer: 0, why: "The tile only shows what gold holds. Fix the rule upstream and the dashboard, Genie and the app all get the right number." },
+    ],
     links: [{ label: "AI/BI dashboards docs", url: "https://docs.databricks.com/aws/en/dashboards/", kind: "docs" }],
   },
   [LAKEBASE]: {
@@ -95,6 +126,7 @@ export const CONCEPTS: Record<string, ConceptCard> = {
     deeper:
       "Analytics tables are great for reading lots of history, but an app also needs to save small things the moment they happen: an approval, a change, a note. " +
       "Lakebase is a managed Postgres database inside your Databricks workspace for exactly that, governed alongside the rest of your data.",
+    video: { id: "ed2WJ5YayQ4", title: "What is Lakebase", sub: "The fast database your app writes to.", short: true },
     quiz: {
       q: "Someone approves a suggestion in your app. Where should that decision be saved?",
       options: [
@@ -105,6 +137,14 @@ export const CONCEPTS: Record<string, ConceptCard> = {
       answer: 1,
       why: "Pipelines rebuild gold tables from the source, so a write there would be overwritten. Lakebase is where the app records what people do.",
     },
+    more: [
+      { q: "A manager wants a list of every decision made this week. Where does it come from?",
+        options: ["The app's browser history", "The Genie space's chat log", "The Lakebase table the app writes each decision to"],
+        answer: 2, why: "Every approve or change is a row in Lakebase, so you can list them, report on them, and later feed them back into the pipeline." },
+      { q: "Why does the app show saved decisions back in its list?",
+        options: ["So people can see what's been handled and nothing gets done twice", "Because Lakebase deletes rows nobody looks at", "It doesn't need to; saving is enough"],
+        answer: 0, why: "Closing the loop is what makes the app trustworthy: you act, it records it, and the list shows it was handled." },
+    ],
     links: [{ label: "Lakebase docs", url: "https://docs.databricks.com/aws/en/oltp/", kind: "docs" }],
   },
   [APPS]: {
@@ -116,6 +156,7 @@ export const CONCEPTS: Record<string, ConceptCard> = {
       "In this build you create it with Genie App Builder: open Apps, go to the Build tab, pick an App Space and describe the screens in plain language. " +
       "It builds the app with AppKit and you refine it in short cycles. Genie App Builder is in Beta, so the preview needs to be turned on in your workspace.",
     demo: "app-builder",
+    video: { id: "_nMgCvsCcns", title: "Vibe-coding an AI app", sub: "The idea behind what you're about to build.", short: true },
     quiz: {
       q: "How will you create the app screen in this build?",
       options: [
@@ -126,12 +167,45 @@ export const CONCEPTS: Record<string, ConceptCard> = {
       answer: 2,
       why: "Genie App Builder turns a plain-language description of your screens into a working app in an App Space. You iterate by asking for one change at a time.",
     },
+    more: [
+      { q: "Your first prompt in Genie App Builder got close but not right. What next?",
+        options: ["Rewrite the whole prompt and start over", "Ask for one specific change, check it, then the next", "Accept it as is and refine it another day"],
+        answer: 1, why: "Short cycles work best. One clear change at a time keeps what works and fixes what doesn't." },
+      { q: "Where does the app get the list on its first screen?",
+        options: ["Numbers typed into the prompt", "A file uploaded to the app", "The gold table your pipeline builds"],
+        answer: 2, why: "The app reads the same governed gold table everything else reads, so its list stays current and matches Genie and the dashboard." },
+    ],
     links: [
       { label: "Databricks Apps docs", url: "https://docs.databricks.com/aws/en/dev-tools/databricks-apps/", kind: "docs" },
       { label: "Genie App Builder docs", url: "https://docs.databricks.com/aws/en/dev-tools/databricks-apps/genie-app-builder", kind: "docs" },
     ],
   },
 };
+
+// General questions about how the pieces fit together, used after every component is covered.
+export const GENERAL_QUIZ: LearnQuiz[] = [
+  { q: "Why do Genie, the dashboard and the app all read the gold tables?",
+    options: ["Gold tables are the only ones they're allowed to open", "So everyone sees the same cleaned answer, from one place", "Gold tables are the cheapest to store"],
+    answer: 1, why: "One shared, cleaned source means a number in the app, a chart on the dashboard and an answer from Genie always agree." },
+  { q: "Your build runs on generated data today. What changes when you move to real data?",
+    options: ["You point the pipeline at the real tables; everything else keeps reading gold", "You rebuild every piece from scratch", "Nothing can change once it's built"],
+    answer: 0, why: "The pipeline is the only piece that touches the source. Swap its input and everything downstream keeps working." },
+  { q: "What is Genie App Builder for in this build?",
+    options: ["Training a model on your data", "Writing the pipeline's cleaning rules", "Turning a plain-language description of your screens into a working app"],
+    answer: 2, why: "Genie Code builds the data pieces; Genie App Builder builds the screen people open, from a description of what it should show and do." },
+];
+
+export interface QuizItem extends LearnQuiz { cap: string | null; }
+// The quick check: always 5 questions, tailored to the build. Every component in the build is
+// covered first (its headline question), then the general ones, then each piece's extras.
+export function quizFor(capabilities: string[], n = 5): QuizItem[] {
+  const caps = learnComponents(capabilities);
+  const out: QuizItem[] = caps.map((c) => ({ cap: c, ...CONCEPTS[c].quiz }));
+  for (const g of GENERAL_QUIZ) if (out.length < n) out.push({ cap: null, ...g });
+  for (let round = 0; out.length < n && round < 3; round++)
+    for (const c of caps) if (out.length < n && CONCEPTS[c].more[round]) out.push({ cap: c, ...CONCEPTS[c].more[round] });
+  return out.slice(0, n);
+}
 
 // The components a build teaches, in the order given, limited to ones we have content for.
 export function learnComponents(capabilities: string[]): string[] {

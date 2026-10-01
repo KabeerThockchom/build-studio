@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CONCEPTS, learnComponents, learnBeatCount } from "./learn";
+import { CONCEPTS, learnComponents, learnBeatCount, quizFor, GENERAL_QUIZ } from "./learn";
 import { COMPONENT_ORDER, APPS, GENIE, PIPELINES } from "./constants";
 import { initialState, type StudioState } from "./store";
 import { buildRail } from "../components/LeftRail";
@@ -17,6 +17,13 @@ describe("learn content", () => {
       expect(k.links.every((l) => l.url.startsWith("https://docs.databricks.com/"))).toBe(true);
     }
   });
+  it("restores the verified videos and invents none", () => {
+    expect(CONCEPTS[GENIE].video?.id).toBe("7eSOvPsSjgU");
+    expect(CONCEPTS["Lakebase"].video?.id).toBe("ed2WJ5YayQ4");
+    expect(CONCEPTS[APPS].video?.id).toBe("_nMgCvsCcns");
+    expect(CONCEPTS[PIPELINES].video).toBeUndefined();
+    expect(CONCEPTS["AI/BI Dashboards"].video).toBeUndefined();
+  });
   it("teaches Genie App Builder in the Apps module", () => {
     expect(CONCEPTS[APPS].deeper).toMatch(/Genie App Builder/);
     expect(CONCEPTS[APPS].links.some((l) => /genie-app-builder/.test(l.url))).toBe(true);
@@ -28,6 +35,27 @@ describe("learn content", () => {
   it("never mentions retired pieces or a currency", () => {
     const text = JSON.stringify(CONCEPTS);
     expect(text).not.toMatch(/Supervisor agent|Knowledge Assistant|£|Costa|\u2014/);
+  });
+});
+
+describe("the quick check", () => {
+  const all = [...Object.values(CONCEPTS).flatMap((c) => [c.quiz, ...c.more]), ...GENERAL_QUIZ];
+  it("is always five questions, covering every component in the build first", () => {
+    for (const caps of [[GENIE], [PIPELINES, GENIE, APPS], [...COMPONENT_ORDER]]) {
+      const q = quizFor(caps);
+      expect(q).toHaveLength(5);
+      expect(q.slice(0, caps.length).map((x) => x.cap)).toEqual(learnComponents(caps));
+      expect(new Set(q.map((x) => x.q)).size).toBe(5);   // no repeats
+    }
+  });
+  it("uses the general questions after the components, then each piece's extras", () => {
+    const q = quizFor([GENIE]);
+    expect(q[1].cap).toBeNull();
+    expect(q.filter((x) => x.cap === GENIE).length).toBeGreaterThan(1);
+  });
+  it("every question has a valid answer and varied answer positions", () => {
+    expect(all.every((x) => x.options[x.answer] !== undefined && x.why.length > 20)).toBe(true);
+    expect(new Set(all.map((x) => x.answer)).size).toBe(3);
   });
 });
 
