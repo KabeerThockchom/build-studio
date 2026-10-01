@@ -12,6 +12,7 @@ Call types: open · turn · shapes · scope · readback. Prompt builders return 
 message lists; callers choose the model/transport (the bench injects streaming timers).
 """
 import json
+import os
 import re
 
 from .build_plan import SEEDED_DATASETS
@@ -83,14 +84,20 @@ they accept it, drop the tag. Never add specifics they did not give. If they cor
 proposed, say so in a few words and move on; do not pretend you had suggested it."""
 
 
-DEFAULT_CONTEXT = {"org": "Costa Coffee", "industry": "coffee retail", "currency": "£", "locale": "UK"}
+# The workshop host, if this deployment runs for one company: WORKSHOP_HOST="Costa Coffee|coffee retail|£|UK".
+# Unset (the default) means no host: an idea that names no company stays generic.
+_host = [x.strip() for x in os.environ.get("WORKSHOP_HOST", "").split("|")]
+DEFAULT_CONTEXT = dict(zip(("org", "industry", "currency", "locale"), _host)) if _host[0] else {}
 
 
 def context_block(ctx: dict | None) -> str:
     c = ctx or {}
     if not c.get("org") and not c.get("industry"):
+        if not DEFAULT_CONTEXT:
+            return ("PARTICIPANT CONTEXT: infer it from their idea. If it names no company, keep it generic: "
+                    "no invented company name, and plain units rather than a guessed currency.")
         return ("PARTICIPANT CONTEXT: infer it from their idea. If it gives none, assume the workshop host, "
-                f"{DEFAULT_CONTEXT['org']} ({DEFAULT_CONTEXT['locale']}, {DEFAULT_CONTEXT['currency']}).")
+                f"{DEFAULT_CONTEXT['org']} ({DEFAULT_CONTEXT.get('locale', '')}, {DEFAULT_CONTEXT.get('currency', '')}).")
     return (f"PARTICIPANT CONTEXT: {c.get('org') or 'their organisation'} · {c.get('industry', '')} · "
             f"currency {c.get('currency', '')} · {c.get('locale', '')} wording. Speak in their terms.")
 

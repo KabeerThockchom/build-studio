@@ -113,7 +113,10 @@ function ModuleBeat({ cap, idx, count, fit, onHome }: { cap: string; idx: number
   const card = CONCEPTS[cap];
   const points = sentences(card.deeper).slice(0, 3);
   return (
-    <div>
+    // With a video, it gets the whole right column from the top (sticky, full height); everything else,
+    // title included, stacks on the left. Without one, the title spans and the visual sits on the right.
+    <div className={card.video ? "grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto]" : ""}>
+     <div className="min-w-0">
       <button onClick={onHome} className="mb-4 inline-flex items-center gap-1 text-[13.5px] text-navy-3 hover:text-navy">
         <ChevronLeft className="h-4 w-4" /> Your architecture
       </button>
@@ -121,8 +124,7 @@ function ModuleBeat({ cap, idx, count, fit, onHome }: { cap: string; idx: number
       <Title className="mt-1">{card.title}</Title>
       <Lead className="mt-2 max-w-[56ch]">{card.tagline}</Lead>
 
-      {/* With a video, it gets the whole right column (sticky, full height); everything else stacks on the left. */}
-      <div className={`mt-6 grid grid-cols-1 gap-5 ${card.video ? "lg:grid-cols-[minmax(0,1fr)_auto]" : "lg:grid-cols-[1.15fr_1fr]"}`}>
+      <div className={`mt-6 grid grid-cols-1 gap-5 ${card.video ? "" : "lg:grid-cols-[1.15fr_1fr]"}`}>
         <div className="flex min-w-0 flex-col gap-4">
           {clean(fit) && (
             <div className="rounded-xl border border-green/40 bg-green-soft px-4 py-3.5">
@@ -143,14 +145,14 @@ function ModuleBeat({ cap, idx, count, fit, onHome }: { cap: string; idx: number
           </Card>
           {card.video && <><ModuleDemo demo={card.demo} /><ModuleLinks links={card.links} /></>}
         </div>
-        {card.video ? (
-          <div className="lg:sticky lg:top-6 lg:self-start">
-            <VideoEmbed id={card.video.id} title={card.video.title} sub={card.video.sub} short={card.video.short} tall eyebrow="A short walkthrough" />
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4"><ModuleDemo demo={card.demo} /><ModuleLinks links={card.links} /></div>
-        )}
+        {!card.video && <div className="flex flex-col gap-4"><ModuleDemo demo={card.demo} /><ModuleLinks links={card.links} /></div>}
       </div>
+     </div>
+      {card.video && (
+        <div className="lg:sticky lg:top-4 lg:self-start">
+          <VideoEmbed id={card.video.id} title={card.video.title} sub={card.video.sub} short={card.video.short} tall eyebrow="A short walkthrough" />
+        </div>
+      )}
     </div>
   );
 }

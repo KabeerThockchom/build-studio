@@ -12,6 +12,7 @@ Design notes:
   Code session). Best-effort from the V2V reference + first principles; treat as
   the known-soft area to refine with real runs.
 """
+import os
 import re
 from . import llm, config
 from .jsonx import loads_tolerant
@@ -119,6 +120,10 @@ SEEDED_DATASETS = [
         "docs_domain": None,  # no shared docs for this theme — KA (if added) generates its own
     },
 ]
+# The seeded catalog only exists in workspaces where a facilitator loaded it. Off unless SEEDED_DATA=on,
+# so a workspace without it never gets told to read tables that aren't there (it generates data instead).
+if os.environ.get("SEEDED_DATA", "off").lower() not in ("on", "1", "true"):
+    SEEDED_DATASETS = []
 # The shared document corpus (real PDFs in a Volume) that the Knowledge Assistant indexes.
 SEEDED_DOCS_VOLUME = "workshop.docs_corpus (a Volume of real PDFs at /Volumes/workshop/docs_corpus/raw_data/pdf/, with a doc_metadata table; filter by domain)"
 

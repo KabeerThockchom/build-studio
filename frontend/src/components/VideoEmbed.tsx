@@ -19,7 +19,7 @@ interface Props {
 export function VideoEmbed({ id, title, sub, short, tall, eyebrow = "Watch while you wait" }: Props) {
   const src = `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1`;
   return (
-    <div className={`overflow-hidden rounded-2xl border border-line bg-white shadow-[0_2px_14px_rgba(20,32,41,0.05)] ${tall ? (short ? "w-full lg:w-[min(380px,calc((100vh-190px)*9/16))]" : "w-full lg:w-[min(560px,42vw)]") : short ? "mx-auto w-full max-w-[320px]" : ""}`}>
+    <div className={`overflow-hidden rounded-2xl border border-line bg-white shadow-[0_2px_14px_rgba(20,32,41,0.05)] ${tall ? (short ? "w-full lg:w-[min(360px,calc((100vh-330px)*9/16))]" : "w-full lg:w-[min(560px,42vw)]") : short ? "mx-auto w-full max-w-[320px]" : ""}`}>
       <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-green-soft text-green">
           <Play className="h-4 w-4 fill-current" />

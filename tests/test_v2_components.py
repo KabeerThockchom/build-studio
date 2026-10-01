@@ -224,3 +224,11 @@ def test_how_answer_recorded_in_code():
     st = sa.new_session("idea"); st["how_pending"] = True
     sa.take_how(st, "Ask why a crew is flagged, then approve the swap")
     assert set(st["how_used"]) == {"ask_questions", "act_on_list"} and sa.genie_earned(st)
+
+
+def test_no_workshop_host_means_generic_context():
+    if not sd.DEFAULT_CONTEXT:
+        assert "keep it generic" in sd.context_block(None) and "Costa" not in sd.context_block(None)
+    r = _valid({"org": "", "industry": "coffee retail", "currency": "", "locale": "", "host_business": True,
+                "cast": [{"role": "Store lead", "avatar": a} for a in ("data_engineer", "finance", "store_manager", "governance")]})
+    assert r["host_business"] is bool(sd.DEFAULT_CONTEXT) and r["host_business"] is False

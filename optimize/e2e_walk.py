@@ -71,37 +71,41 @@ def main():
                 page.wait_for_timeout(900)
                 if page.locator(".tn").count():
                     page.locator(".tk").first.click()
-                go = page.locator(".cbtn.go:not([disabled])")
-                if go.count():
-                    shot(page, "ceremony"); go.first.click(); break
-                scope = page.locator(".cbtn:not([disabled])", has_text="Scope looks good")
-                if scope.count():
-                    if "scope" not in stage_shots:
-                        page.locator(".pgrid").first.scroll_into_view_if_needed(); shot(page, "packages"); stage_shots.add("scope")
-                        log.append({"packages": page.locator(".pgrid").first.inner_text()[:900]})
-                    scope.first.click(); continue
-                if page.locator(".cgrid .cc").count() and page.locator(".cbtn", has_text="Use this").count():
-                    if "shapes" not in stage_shots:
-                        page.locator(".cgrid").last.scroll_into_view_if_needed(); shot(page, "shapes"); stage_shots.add("shapes")
-                        log.append({"shapes": page.locator(".cgrid").last.inner_text()[:900]})
-                    page.locator(".cgrid").last.locator(".cc").first.click()
-                    page.locator(".cbtn:not([disabled])", has_text="Use this").last.click(); continue
-                last = page.locator(".blk").last
-                opt = last.locator(".opt:not([disabled])")
-                if opt.count():
-                    idle = 0
-                    q = last.locator("h2.q").inner_text() if last.locator("h2.q").count() else ""
-                    log.append({"turn": turn, "q": q[:140]})
-                    if page.locator(".gchip, [class*=gamif], [class*=flychip]").count() and "gamify" not in stage_shots:
-                        shot(page, "gamify"); stage_shots.add("gamify")
-                    opt.first.click()
-                    send = last.locator(".cbtn:not([disabled])", has_text="Send picks")
-                    if send.count():
-                        send.first.click()
-                    page.wait_for_timeout(1300)
-                    if "gamify" not in stage_shots and page.locator(".gchip, [class*=fly]").count():
-                        shot(page, "gamify"); stage_shots.add("gamify")
-                    continue
+                last = page.locator(".blk").last                  # only ever act on the latest block
+                try:
+                    go = last.locator(".cbtn.go:not([disabled])")
+                    if go.count():
+                        idle = 0; shot(page, "ceremony"); go.first.click(); break
+                    scope = last.locator(".cbtn:not([disabled])", has_text="Scope looks good")
+                    if scope.count():
+                        idle = 0
+                        if "scope" not in stage_shots:
+                            last.locator(".pgrid").first.scroll_into_view_if_needed(); shot(page, "packages"); stage_shots.add("scope")
+                            log.append({"packages": last.locator(".pgrid").first.inner_text()[:900]})
+                        scope.first.click(); page.wait_for_timeout(2500); continue
+                    if last.locator(".cgrid .cc").count() and last.locator(".cbtn", has_text="Use this").count():
+                        idle = 0
+                        if "shapes" not in stage_shots:
+                            last.locator(".cgrid").scroll_into_view_if_needed(); shot(page, "shapes"); stage_shots.add("shapes")
+                            log.append({"shapes": last.locator(".cgrid").inner_text()[:900]})
+                        last.locator(".cgrid .cc").first.click(timeout=5000)
+                        last.locator(".cbtn:not([disabled])", has_text="Use this").click(timeout=5000)
+                        page.wait_for_timeout(2500); continue
+                    opt = last.locator(".opt:not([disabled])")
+                    if opt.count():
+                        idle = 0
+                        q = last.locator("h2.q").inner_text() if last.locator("h2.q").count() else ""
+                        log.append({"turn": turn, "q": q[:140]})
+                        opt.first.click(timeout=5000)
+                        send = last.locator(".cbtn:not([disabled])", has_text="Send picks")
+                        if send.count():
+                            send.first.click(timeout=5000)
+                        page.wait_for_timeout(1300)
+                        if "gamify" not in stage_shots and page.locator("[class*=fly], [class*=gchip]").count():
+                            shot(page, "gamify"); stage_shots.add("gamify")
+                        page.wait_for_timeout(1500); continue
+                except PWTimeout as e:
+                    log.append({"click_timeout": turn, "err": str(e)[:120]})
                 idle += 1                                       # reply still streaming: wait, don't give up
                 if idle > 40:
                     log.append({"no_action_turn": turn}); shot(page, "no-action"); break
@@ -123,14 +127,15 @@ def main():
                 shot(page, f"learn-{i + 1}")
             # Plan
             page.get_by_role("button", name="Looks good, let's build").wait_for(timeout=300000)
-            page.wait_for_function("() => ![...document.querySelectorAll('button')].find(b => b.textContent.includes(\"Looks good, let's build\")).disabled", timeout=300000)
+            page.wait_for_function("() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.includes(\"Looks good, let's build\")); return !!b && !b.disabled; }", timeout=300000)
+            page.wait_for_timeout(2500)                          # let the diagram finish drawing
             shot(page, "plan")
             log.append({"plan_pieces": page.locator("main").inner_text()[:400]})
             if a.refine:
                 page.locator("textarea[placeholder='Say what to change…']").fill(a.refine)
                 page.get_by_role("button", name="Rework it").click()
                 page.wait_for_timeout(3000)
-                page.wait_for_function("() => ![...document.querySelectorAll('button')].find(b => b.textContent.includes(\"Looks good, let's build\")).disabled", timeout=300000)
+                page.wait_for_function("() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.includes(\"Looks good, let's build\")); return !!b && !b.disabled; }", timeout=300000)
                 page.wait_for_timeout(1500)
                 shot(page, "plan-refined")
                 log.append({"after_refine": page.locator("main").inner_text()[:700]})

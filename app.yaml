@@ -21,3 +21,10 @@ env:
   # live); this is a break-glass allowlist so proctors are never locked out.
   - name: ADMIN_EMAILS
     value: "ashwin.pothukuchi@databricks.com,akil.thomas@databricks.com"
+  # Seeded workshop tables (catalog `workshop`): only "on" in a workspace where a facilitator loaded them.
+  # Off means every build generates its own sample data.
+  - name: SEEDED_DATA
+    value: "off"
+  # Workshop host for ideas that name no company, e.g. "Costa Coffee|coffee retail|£|UK". Empty = generic.
+  - name: WORKSHOP_HOST
+    value: ""

@@ -16,6 +16,7 @@ import time
 
 from . import llm
 from .scope import VOICE
+from .sitdown import DEFAULT_CONTEXT
 
 CAST_MODEL = "databricks-claude-haiku-4-5"
 DIMS = ["problem", "user_moment", "objective", "decision", "data", "risk"]
@@ -35,10 +36,8 @@ PROMPT = """A workshop participant described something they want to build:
 "{idea}"
 
 1. Work out THEIR context from the idea: the organisation (only if named or clearly implied), the industry,
-   the currency and the wording locale. If the idea gives no clue, use the workshop host: Costa Coffee,
-   coffee retail, £, UK.
-2. host_business: true only if the idea is about Costa Coffee's own business (stores, coffee, food,
-   retail, its finance/HR/AP functions). False for any other company or industry.
+   the currency and the wording locale. {host_rule}
+2. host_business: {host_q}
 3. Invent the 6 colleagues who would genuinely weigh in on THIS idea in THEIR organisation: real job
    titles for that industry (e.g. an airline: crew scheduling lead, revenue manager, FAA compliance lead).
    Give each a short voice (how they talk and what they always ask,
@@ -78,14 +77,21 @@ def _valid(d: dict) -> dict | None:
     ctx = {k: str(d.get(k, ""))[:40] for k in ("org", "industry", "currency", "locale")}
     # Decided in code, not by the model: it's the host's business only if the org IS the host.
     org = ctx["org"].lower()
-    host = "costa" in org or (not org and "coffee" in ctx["industry"].lower())
+    h = DEFAULT_CONTEXT.get("org", "").lower()
+    host = bool(h) and (h.split()[0] in org or (not org and DEFAULT_CONTEXT.get("industry", "").lower() in ctx["industry"].lower()))
     unknowns = [{"q": str(u.get("q"))[:120], "dim": u.get("dim") if u.get("dim") in DIMS else "problem"}
                 for u in (d.get("unknowns") or []) if isinstance(u, dict) and u.get("q")][:5]
     return {"context": ctx, "host_business": host, "cast": cast, "unknowns": unknowns}
 
 
 def generate(idea: str) -> dict | None:
-    prompt = PROMPT.format(idea=idea[:1200], dims=", ".join(DIMS), voice=VOICE,
+    hc = DEFAULT_CONTEXT
+    host_rule = (f"If the idea gives no clue, use the workshop host: {hc['org']}, {hc.get('industry', '')}, "
+                 f"{hc.get('currency', '')}, {hc.get('locale', '')}." if hc else
+                 "If the idea names no company, leave org empty and keep it generic (industry from the idea).")
+    host_q = (f"true only if the idea is about {hc['org']}'s own business. False for any other company or industry."
+              if hc else "always false (this deployment has no workshop host).")
+    prompt = PROMPT.format(idea=idea[:1200], dims=", ".join(DIMS), voice=VOICE, host_rule=host_rule, host_q=host_q,
                            avatars="\n".join(f"   - {k}: {v}" for k, v in AVATARS.items()))
     for _ in range(2):
         try:
