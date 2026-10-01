@@ -99,6 +99,30 @@ The left rail is back and accurate at every step, including inside the Sit-Down.
 7. **Plan generation time.** The three passes take about 2.5 minutes in the background. Learn usually covers it; someone who rushes Learn sees the live "Drafting, Checking, Tightening" state. Keep the critic pass, or trade it for speed?
 8. **Characters outside the Sit-Down.** They currently appear on the Overview and the Build finish. Keep that, or also add a "who weighed in" strip to the Plan?
 
+## Round 2 (2026-10-01): your feedback, then hardening
+
+**From your feedback**
+- **Four components, one surface.** AI/BI Dashboards is gone. Declarative Pipelines shapes the data; Lakebase and Genie are the only "serve it" pieces; the Databricks App is always the one "use it" surface (key numbers are charts on an app screen).
+- **Genie has to earn its place.** One question, asked once after User & moment: "once it's open, what do they mostly do?" (act on a list, edit a draft, ask open questions, glance at numbers). Genie is only in the build if people will ask open questions, and then it sits in the app as a chat panel. The answer is captured in code from the card they pick.
+- **Plan refines can add or remove a piece.** "I want an agent they can chat with" adds Genie; "drop X" removes it. Code rules keep it coherent. Plan shows "+ Genie" chips, a "New piece" card, and the redrawn diagram; Build uses the new list.
+- **Colleagues can bring ideas**, not just challenges ("has an idea"). Challenges must have a non-obvious answer that changes the build.
+- **Build shapes from first principles:** the three differ on when the work happens, who does the thinking and what comes out. No generic Queue / Tracker / Dashboard names.
+- **Fit it in a day:** three different builds (Lean core loop, Recommended plus one step up, Bold plus the rest) from 2 to 3 "level-ups"; duplicates are dropped. Cards show a day meter, piece chips and only what each adds.
+- **Build:** the workshop rhythm is back. What you're doing and why, ask in your own words (example prompt behind "I need help"), look at what it made, confirm. The App Builder step works the same way.
+- **Learn:** no Dashboards module; videos get a full-height right column; Lakebase has its own visual. Five-question quiz.
+- **Idea gallery** is back on the Sit-Down's first screen (the workshop's 27 ideas). Facilitators add a vertical or company set in `frontend/src/lib/gallery.ts`.
+- First-load waiting state and a tour that's never empty; plain-words rule for the SA.
+
+**Found by testing and fixed**
+- A stage could end with nothing to click (the build options never shown). Every stage now forces its item if the model skips it.
+- A data "level-up" was treated as foundation and broke Bold ("Won't fit today").
+- A refine that added a piece blanked the Plan page (a React hook inside a loop).
+- Build steps said "paste this prompt"; the diagram drew the pipeline-to-app line behind Lakebase.
+- **Deploy blocker:** the FEVM workspace has no `workshop` catalog, so seeded tables are now off unless `SEEDED_DATA=on`. The Costa default is now `WORKSHOP_HOST` (empty = generic).
+- Sessions saved by the earlier Build Studio flow are never loaded into v2 (versioned state).
+
+**How it was tested:** 56 backend and 36 frontend tests; simulated Sit-Downs on off-core ideas (SA point-of-view docs, hotel RFPs); and `optimize/e2e_walk.py`, a headless browser that plays a card-clicking participant through the whole journey and screenshots each stage (`screens/e2e-*`).
+
 ## Known gaps
 
 - **Plan quality has levelled off around 6.2/10.** The remaining critiques are about data-modelling depth: per-user scoping, invented "ordered" quantities where no order data exists, metric definitions. The critic catches some of these. Further gains likely need a short data-modelling step in the Sit-Down, or a schema sketch in the plan.
