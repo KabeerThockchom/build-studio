@@ -98,7 +98,10 @@ def draft(sd: dict, previous: dict | None = None, adjust: str = "") -> dict:
     return _call([{"role": "system", "content": SYSTEM}, {"role": "user", "content": user + "\n\n" + SHAPE}])
 
 
-CHECK = """You are reviewing a build plan against the participant's own Sit-Down. List concrete problems only:
+CHECK = """You are reviewing a build plan against the participant's own Sit-Down. Context you must not flag: the
+Databricks Apps piece is ALWAYS built with Genie App Builder (Apps > Build tab, from a plain description of the
+screens); naming it is correct and required. Declarative Pipelines, Genie, AI/BI Dashboards and Lakebase are
+Databricks products. List concrete problems only:
 - a fact they stated (number, target, deadline, role, device, essential component, worry) missing or changed
 - something in Today's scope missing from the plan, or something from Later/parked presented as built today
 - invented data, tables or columns not in the data plan; generated data presented as real
@@ -127,7 +130,7 @@ def check(sd: dict, plan: dict) -> list[str]:
 
 def refine(sd: dict, plan: dict, issues: list[str]) -> dict:
     user = (_context(sd) + "\n\nYOUR DRAFT PLAN:\n" + json.dumps(plan, ensure_ascii=False)[:12000]
-            + "\n\nA REVIEWER FOUND THESE PROBLEMS. Fix every one, change nothing else:\n- " + "\n- ".join(issues)
+            + "\n\nA REVIEWER FOUND THESE PROBLEMS. Fix every one, change nothing else. Keep Genie App Builder as how the app is built:\n- " + "\n- ".join(issues)
             + "\n\n" + SHAPE)
     return _call([{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}])
 
@@ -169,9 +172,12 @@ def run_plan(sd: dict, job: dict, previous: dict | None = None, adjust: str = ""
         try:
             p2 = refine(sd, p, issues)
             if p2.get("prd_markdown"):
-                p = {**p2, "change_note": p2.get("change_note") or p.get("change_note", "")}
+                # The internal check is not a user request: only a participant's own refine gets a "what changed".
+                p = {**p2, "change_note": p.get("change_note", "") if adjust else ""}
         except Exception:
             pass
+    if not adjust:
+        p["change_note"] = ""
     job["blueprint"] = to_blueprint(sd, p, comps)
     job["stage"] = "done"
     job["status"] = "done"
