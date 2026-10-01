@@ -64,6 +64,24 @@ The left rail is back and accurate at every step, including inside the Sit-Down.
 | Unit tests | catalog, packages, handoff, cast, normalisation, step guard | **45 passing**, plus 28 frontend tests, typecheck and a production build |
 | Browser end to end (React, Chromium, 1440 to 1200 wide) | the full journey for both ideas, rail accuracy, Sit-Down parity, plan job states, App Builder step | both ideas complete Overview → Build with no page errors |
 
+## Changes in this iteration (Build Studio v2 polish)
+
+1. **First load and Sit-Down tour improvements:** A calm waiting state ("Your SA is reading your idea") appears during the first API call before any text streams, so the tour never shows an empty page. The tour starts with the first words and Next is enabled once text streaming ends, not blocked by card rendering delays.
+
+2. **Learn videos restored:** Walkthrough videos embedded on matching modules as YouTube iframes (privacy-friendly nocookie domain):
+   - Genie: "Building a Genie Agent with Genie Code" (7eSOvPsSjgU)
+   - Lakebase: "What is Lakebase" (ed2WJ5YayQ4)
+   - Databricks Apps: "Vibe-coding an AI app" (_nMgCvsCcns)
+   - Declarative Pipelines and AI/BI Dashboards have no verified videos yet (marked with TODO).
+
+3. **Five-question quiz tailored to the build:** The quick check always shows exactly 5 questions: one headline question per component first, then general "how the pieces fit together" questions, then each piece's bonus questions to fill to 5. No repeats within a session.
+
+4. **One architecture source of truth:** Learn and Plan both render `studio.spec`, computed server-side and passed in the Sit-Down handoff. Fall back to client-side compute only for old saved sessions without it.
+
+5. **Plan refine can change components:** When a refine job completes with a blueprint that has `refine_note`, the studio state adopts the blueprint's new `capabilities` and `spec`. Added and removed pieces display as green and muted chips next to the change note. The diagram and all downstream steps use the updated component list.
+
+6. **Gamification foundations:** The Sit-Down's grade system already animates dot fills when sections improve (staggered per dot, with fill animations) and shows a ring flash + slight grow when the overall letter advances. These animations use prefers-reduced-motion to respect accessibility.
+
 ## Decisions for you
 
 1. **Generic ideas default to the workshop host.** If an idea names no company, the colleagues and context assume Costa (UK, £). That's right for a Costa workshop, but the judge flags it as invented on generic test ideas. Keep it, or make the host a facilitator setting that can be left blank?
