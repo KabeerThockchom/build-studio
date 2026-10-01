@@ -46,9 +46,14 @@ PROMPT = """A workshop participant described something they want to build:
    {dims}, and the ONE character drawing that fits their vibe, using each drawing exactly once:
 {avatars}
 
+4. List the 3-5 key unknowns specific to THIS idea that must be answered for it to be buildable (e.g. "what
+   counts as an early sign of slipping", "how loyalty is defined"), each with the ONE rubric area it belongs to
+   from {dims}.
+
 {voice}
 Reply with ONLY JSON:
 {{"org": "", "industry": "", "currency": "", "locale": "", "host_business": true|false,
+  "unknowns": [{{"q": "<=14 words, a question", "dim": "<rubric area>"}}, ...3-5],
   "cast": [{{"key": "<slug of role>", "role": "<=5 words", "voice": "", "dims": ["..."], "avatar": "<drawing key>"}}, ...6]}}"""
 
 
@@ -74,7 +79,9 @@ def _valid(d: dict) -> dict | None:
     # Decided in code, not by the model: it's the host's business only if the org IS the host.
     org = ctx["org"].lower()
     host = "costa" in org or (not org and "coffee" in ctx["industry"].lower())
-    return {"context": ctx, "host_business": host, "cast": cast}
+    unknowns = [{"q": str(u.get("q"))[:120], "dim": u.get("dim") if u.get("dim") in DIMS else "problem"}
+                for u in (d.get("unknowns") or []) if isinstance(u, dict) and u.get("q")][:5]
+    return {"context": ctx, "host_business": host, "cast": cast, "unknowns": unknowns}
 
 
 def generate(idea: str) -> dict | None:

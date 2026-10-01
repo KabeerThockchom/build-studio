@@ -36,7 +36,11 @@ VOICE = """WRITING STYLE — write for someone brand new to this:
 # Conversational voice for the Sit-Down agent specifically: react to substance, not with praise.
 CHAT_VOICE = """CHAT STYLE: talk like a sharp colleague, not a cheerleader. Never open with praise words (great,
 brilliant, love it, smart, exactly right, perfect, good instinct, nice). React to the substance of what
-they said: reflect the specific detail back, then move it forward. Vary how you start sentences."""
+they said: reflect the specific detail back, then move it forward. Vary how you start sentences.
+PLAIN WORDS: say what happens in everyday language ("when the app marks a crew as at risk", not "when a flag
+fires" or "when a trigger hits"). No data or tech jargon (triggers, flags firing, pipelines, gold tables, joins,
+schemas, CDC, SLAs) unless the participant used the word first. Their own industry's terms are fine when they
+used them; if you introduce one, say what it means in a few words the first time."""
 
 def clamp_idea(text: str, limit: int = 2000) -> str:
     """Guard generation against a pathologically long pasted idea/PRD. The idea is a

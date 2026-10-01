@@ -225,6 +225,8 @@ def _merge_cast(st: dict, wait: float = 0.0):
         st["cast_failed"] = True                  # generic cast stays; never retried mid-session
         return
     st["cast"], st["context"] = got["cast"], got["context"]
+    if got.get("unknowns") and not st.get("unknowns"):
+        st["unknowns"] = [{**u, "resolved": False} for u in got["unknowns"]]
     if not got["host_business"]:
         st["dataset_schema"] = None               # the host's seeded tables don't fit another business
 
@@ -303,7 +305,7 @@ def _chat_stream(req: ChatRequest):
             except Exception:
                 pass
         sa.remember(st, req.text, text, parsed)
-        _merge_cast(st, wait=1.5 if not req.session else 0.0)   # usually ready by the end of the opening reply
+        _merge_cast(st, wait=0.0)                 # ready by the end of the opening reply, or picked up next turn
         yield json.dumps({"type": "done", "ui": ui, "events": events, "session": st, "model": model,
                           "debug": {"tools": [c["name"] for c in parsed], "dropped": dropped, "finish": finish,
                                     "raw": {c["name"]: str(c["args"])[:300] for c in parsed

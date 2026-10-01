@@ -288,7 +288,7 @@ def turn_contract(st: dict, meta: dict | None = None) -> str:
                 "set_grades for EVERY dimension whose grade changed" + (" (first reply: grade all seven)" if first else "")]
         if first:
             need.insert(1, "update_north_star with their idea restated in <=25 words")
-            need.insert(2, "plan_unknowns: the 3-5 key unknowns specific to this idea")
+            # (the key unknowns are planned in the background with the cast, so the opening reply stays light)
         open_u = [f"{i + 1}. {u['q']}" for i, u in enumerate(st.get("unknowns", [])) if not u["resolved"] and u["dim"] == f]
         if open_u:
             need.append(f"aim your question at this open key unknown: {open_u[0]} (mark it in update_brief.resolves once answered)")
