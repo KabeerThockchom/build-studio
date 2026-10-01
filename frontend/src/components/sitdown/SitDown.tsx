@@ -17,6 +17,7 @@ import {
 import { BriefPane, type Draft, type BriefFx } from "./BriefPane";
 import { TurnBlock, type TurnData } from "./Turn";
 import { ChatBar } from "./ChatBar";
+import { FlyingChip, detectGamificationEvents, type GamificationEvent } from "./Gamification";
 
 export const SD_KEY = "bs2_sitdown";
 const TOUR_KEY = "bs2_sitdown_toured";
@@ -81,6 +82,8 @@ export function SitDown({ saved, onSave, onHandoff, focusStage }: Props) {
   const [firstWait, setFirstWait] = useState(false);   // the very first reply, before any words
   const [tourCls, setTourCls] = useState<string[]>([]);
   const toured = useRef((() => { try { return localStorage.getItem(TOUR_KEY) === "1"; } catch { return false; } })());
+  const [gamifyEvents, setGamifyEvents] = useState<GamificationEvent[]>([]);
+  const prevDispRef = useRef<Disp>(init.disp);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
@@ -186,7 +189,27 @@ export function SitDown({ saved, onSave, onHandoff, focusStage }: Props) {
       setDisp(d);
       return ch;
     };
-    const finish = () => { const ch = applyGrades(); bumpFx({ changed: ch }); persist(); };
+    const finish = () => {
+      const ch = applyGrades();
+      bumpFx({ changed: ch });
+      persist();
+      // Trigger gamification: detect improvements and show flying chips
+      if (!RM && turnId) {
+        const turn = turnsRef.current.find((t) => t.id === turnId);
+        const prevD = turn?.dispBefore || prevDispRef.current;
+        const evts = detectGamificationEvents(prevD.grades, d.grades, prevD.brief, d.brief, DIMS);
+        if (evts.length > 0) {
+          // Get the turn's voice row position to launch chips from
+          const voiceEl = voiceEls.current[turnId];
+          if (voiceEl) {
+            const rect = voiceEl.getBoundingClientRect();
+            const withPos = evts.map((e) => ({ ...e, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }));
+            setGamifyEvents(withPos);
+          }
+        }
+      }
+      prevDispRef.current = clone(d);
+    };
     if (RM) { applyBriefs(briefs); finish(); setDrafts([]); return; }
     setDisp(d);
     if (briefs.length <= 2) {
@@ -473,6 +496,9 @@ export function SitDown({ saved, onSave, onHandoff, focusStage }: Props) {
       )}
       {tour && <TourMark i={tour.i} ready={tour.ready} root={rootRef.current} onEnd={endTour} />}
       {toastMsg && <div className="toast">{toastMsg}</div>}
+      {gamifyEvents.map((evt) => (
+        <FlyingChip key={`${evt.dim}-${evt.label}`} event={evt} onEnd={() => setGamifyEvents((es) => es.filter((e) => e !== evt))} />
+      ))}
     </div>
   );
 }
