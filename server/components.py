@@ -84,6 +84,30 @@ def components_for(features: list, lanes=("today", "stretch"), interaction_model
     return [c for c in ORDER if c in used]
 
 
+def reconcile(wanted: list[str], previous: list[str]) -> tuple[list[str], list[str]]:
+    """Apply the same coherence rules to a list changed by a Plan refine. Returns (components, notes), where
+    notes are plain sentences for anything the rules changed beyond what was asked."""
+    want = {c for c in wanted if c in COMPONENTS}
+    prev = set(previous)
+    notes = []
+    if LAKEBASE in want and APPS not in want:
+        if APPS in prev:                       # they dropped the app: nothing left to write decisions
+            want.discard(LAKEBASE)
+            notes.append("Without the app nothing writes decisions, so Lakebase comes out too.")
+        else:
+            want.add(APPS)
+            notes.append("Lakebase needs an app to write to it, so the app comes in too.")
+    if not want & SURFACES:
+        keep = [c for c in ORDER if c in prev & SURFACES][:1] or [GENIE]
+        want.add(keep[0])
+        notes.append(f"Every build needs something people use, so {COMPONENTS[keep[0]]['label']} stays.")
+    if PIPELINES not in want:
+        want.add(PIPELINES)
+        if PIPELINES in prev:
+            notes.append("Everything reads the gold tables the pipeline makes, so Declarative Pipelines stays.")
+    return [c for c in ORDER if c in want], notes
+
+
 def spec_for(components: list[str], data_label: str = "Sample data", data_sub: str = "tables we create for you") -> dict:
     """Deterministic architecture diagram: nodes per band + left-to-right wiring."""
     nodes = [{"id": "data", "band": "data", "label": data_label, "sub": data_sub}]

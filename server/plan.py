@@ -65,6 +65,15 @@ SHAPE = """Return ONLY one JSON object:
  "change_note": "<only for a refine: one plain sentence on what changed, else ''>"
 }"""
 
+PIECES_ASK = """
+PIECES CAN CHANGE ON A REFINE. Also return "pieces": the full list of pieces after this change, chosen only from
+Declarative Pipelines, Genie, AI/BI Dashboards, Lakebase, Databricks Apps. Map what they ask for onto a piece:
+asking questions or chatting with the data (even if they say "an agent" or "a chatbot") -> Genie; numbers or trends
+on one page -> AI/BI Dashboards; recording approvals, notes or changes -> Lakebase; a screen to act from ->
+Databricks Apps. Remove a piece when they ask to drop it or what it did. There are no AI agents in these builds:
+if they asked for one, say in change_note that Genie is how people chat with the data here. If nothing about the
+pieces changed, return the current list unchanged. Write the PRD for the NEW list of pieces."""
+
 
 def _context(sd: dict) -> str:
     a = sd.get("answers") or {}
@@ -95,6 +104,8 @@ def draft(sd: dict, previous: dict | None = None, adjust: str = "") -> dict:
         user += (f"\n\nTHE CURRENT PLAN:\n{previous.get('prd_markdown', '')}\n\nTHE PARTICIPANT ASKED FOR THIS CHANGE: "
                  f"\"{adjust}\". Honour it if it fits the pieces and the one-day scope; if it doesn't, say so in change_note "
                  "and do the closest honest thing.")
+        return _call([{"role": "system", "content": SYSTEM}, {"role": "user", "content": user + "\n\n" + SHAPE.rstrip()[:-1].rstrip() +
+                       ',\n "pieces": ["<every piece in the build after this change>"]\n}' + PIECES_ASK}])
     return _call([{"role": "system", "content": SYSTEM}, {"role": "user", "content": user + "\n\n" + SHAPE}])
 
 
@@ -135,7 +146,7 @@ def refine(sd: dict, plan: dict, issues: list[str]) -> dict:
     return _call([{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}])
 
 
-def to_blueprint(sd: dict, p: dict, components: list[str]) -> dict:
+def to_blueprint(sd: dict, p: dict, components: list[str], changed: dict | None = None) -> dict:
     a = sd.get("answers") or {}
     seeded = a.get("seeded_schema", "none") not in ("", "none") if "seeded_schema" in a else bool(a.get("data_seeded (read only)"))
     spec = C.spec_for(components, "Your seeded data" if seeded else "Sample data",
@@ -156,6 +167,7 @@ def to_blueprint(sd: dict, p: dict, components: list[str]) -> dict:
         "app_screens": [clean(x) for x in p.get("app_screens") or [] if isinstance(x, str)][:6] if C.APPS in components else [],
         "decisions_note": "",
         "refine_note": clean(p.get("change_note")),
+        "components_changed": changed or {"added": [], "removed": [], "notes": []},
     }
 
 
@@ -164,6 +176,16 @@ def run_plan(sd: dict, job: dict, previous: dict | None = None, adjust: str = ""
     sd = {**sd, "idea": clamp_idea(sd.get("idea", ""))}
     job["stage"] = "drafting"
     p = draft(sd, previous, adjust)
+    changed = None
+    if adjust and isinstance(p.get("pieces"), list):
+        new, notes = C.reconcile([str(x) for x in p["pieces"]], comps)
+        if new != comps:
+            changed = {"added": [c for c in new if c not in comps], "removed": [c for c in comps if c not in new],
+                       "notes": notes}
+            comps = new
+            sd = {**sd, "capabilities": comps}
+            if notes:                          # the rules overrode part of the model's list: redraft for the real one
+                p = draft(sd, previous, adjust)
     job["stage"] = "checking"
     issues = check(sd, p)
     job["issues"] = issues
@@ -178,7 +200,7 @@ def run_plan(sd: dict, job: dict, previous: dict | None = None, adjust: str = ""
             pass
     if not adjust:
         p["change_note"] = ""
-    job["blueprint"] = to_blueprint(sd, p, comps)
+    job["blueprint"] = to_blueprint(sd, p, comps, changed)
     job["stage"] = "done"
     job["status"] = "done"
 

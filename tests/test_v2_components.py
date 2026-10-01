@@ -131,3 +131,35 @@ def test_learn_and_plan_render_the_same_architecture():
     studio = sd.to_studio(st, {})
     bp = P.to_blueprint({"idea": studio["idea"], "answers": studio["answers"]}, {"prd_markdown": "x"}, studio["capabilities"])
     assert studio["spec"] == bp["spec"]
+
+
+def test_refine_can_add_and_remove_pieces_coherently():
+    base = [C.PIPELINES, C.DASHBOARDS]
+    assert C.reconcile([C.PIPELINES, C.DASHBOARDS, C.GENIE], base) == ([C.PIPELINES, C.GENIE, C.DASHBOARDS], [])
+    new, notes = C.reconcile([C.PIPELINES, C.DASHBOARDS, C.LAKEBASE], base)
+    assert new == [C.PIPELINES, C.LAKEBASE, C.DASHBOARDS, C.APPS] and notes
+    # dropping the app takes its decision log with it
+    new, notes = C.reconcile([C.PIPELINES, C.LAKEBASE, C.GENIE], [C.PIPELINES, C.LAKEBASE, C.GENIE, C.APPS])
+    assert new == [C.PIPELINES, C.GENIE] and notes
+    # can't drop the only surface or the pipeline
+    new, _ = C.reconcile([], [C.PIPELINES, C.DASHBOARDS])
+    assert new == [C.PIPELINES, C.DASHBOARDS]
+
+
+def test_refine_job_swaps_pieces_and_diagram(monkeypatch):
+    from server import plan as P
+    calls = []
+
+    def fake(messages, max_tokens=8000):
+        calls.append(messages)
+        return {"prd_markdown": "x", "pieces": [C.PIPELINES, C.DASHBOARDS, C.GENIE], "change_note": "Added Genie for chat."}
+    monkeypatch.setattr(P, "_call", fake)
+    monkeypatch.setattr(P, "check", lambda sd, p: [])
+    job = {}
+    P.run_plan({"idea": "i", "answers": {}, "capabilities": [C.PIPELINES, C.DASHBOARDS]}, job,
+               previous={"prd_markdown": "old"}, adjust="I want an agent they can chat with")
+    bp = job["blueprint"]
+    assert bp["capabilities"] == [C.PIPELINES, C.GENIE, C.DASHBOARDS]
+    assert bp["components_changed"]["added"] == [C.GENIE]
+    assert any(n["id"] == "genie" for n in bp["spec"]["nodes"])
+    assert "pieces" in calls[0][-1]["content"]
