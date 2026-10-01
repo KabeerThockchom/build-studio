@@ -33,6 +33,11 @@ VOICE = """WRITING STYLE — write for someone brand new to this:
   Say what a thing does in everyday words instead.
 - Do NOT use em-dashes (—). Use a period, comma, or "like" instead. Keep sentences short."""
 
+# Conversational voice for the Sit-Down agent specifically: react to substance, not with praise.
+CHAT_VOICE = """CHAT STYLE: talk like a sharp colleague, not a cheerleader. Never open with praise words (great,
+brilliant, love it, smart, exactly right, perfect, good instinct, nice). React to the substance of what
+they said: reflect the specific detail back, then move it forward. Vary how you start sentences."""
+
 def clamp_idea(text: str, limit: int = 2000) -> str:
     """Guard generation against a pathologically long pasted idea/PRD. The idea is a
     'seed' of a sentence or two; anything past a sane limit only bloats the prompt and

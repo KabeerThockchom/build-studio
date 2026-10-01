@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Build Studio", lifespan=lifespan)
 
-from server.routes import health, blueprint, design, session, build, admin, publish, idea  # noqa: E402
+from server.routes import health, blueprint, design, session, build, admin, publish, idea, sitdown  # noqa: E402
 app.include_router(health.router, prefix="/api")
 app.include_router(blueprint.router, prefix="/api")
 app.include_router(design.router, prefix="/api")
@@ -32,6 +32,25 @@ app.include_router(build.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(publish.router, prefix="/api")
 app.include_router(idea.router, prefix="/api")
+app.include_router(sitdown.router, prefix="/api")
+
+# Standalone Sit-Down test page (pre-React integration): /sitdown
+_sitdown_page = os.path.join(os.path.dirname(__file__), "server", "static", "sitdown.html")
+
+
+@app.get("/sitdown")
+async def sitdown_page():
+    return FileResponse(_sitdown_page)
+
+
+@app.get("/sitdown2")
+async def sitdown2_page():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "server", "static", "sitdown2.html"))
+
+
+@app.get("/sitdown3")
+async def sitdown3_page():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "server", "static", "sitdown3.html"))
 
 # Serve the built React SPA (frontend/dist) when present.
 frontend_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")

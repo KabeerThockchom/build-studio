@@ -75,7 +75,7 @@ SEEDED_DATASETS = [
     {
         "label": "AP / finance operations",
         "keywords": ["invoice", "purchase order", "supplier", "vendor", "payment", "accounts payable",
-                     "three-way", "duplicate invoice", "overdue", "procure", "spend", "ap team",
+                     "three-way", "duplicate invoice", "overdue", "procure", "supplier spend", "ap team",
                      "ap clerk", "po match"],
         "schema": "workshop.finance_ap",
         "tables": ("dim_supplier (500 suppliers), fact_purchase_orders (50k POs), fact_invoices "
@@ -126,10 +126,19 @@ SEEDED_DOCS_VOLUME = "workshop.docs_corpus (a Volume of real PDFs at /Volumes/wo
 def _match_dataset(req: BuildRequest) -> dict | None:
     """Best-fit pre-seeded dataset for this idea/PRD, by keyword hit count. Returns None
     when nothing matches (an off-theme use case) so the build falls back to generate-your-own."""
-    text = f"{req.idea} {req.prd_markdown} {req.project_name}".lower()
+    return match_text(f"{req.idea} {req.prd_markdown} {req.project_name}")
+
+
+def keyword_hits(ds: dict, text: str) -> int:
+    """Whole-word/phrase hits only, so 'store' doesn't fire on 'restore' and 'spend' on 'spend time'."""
+    t = text.lower()
+    return sum(1 for kw in ds["keywords"] if re.search(r"(?<![a-z])" + re.escape(kw) + r"s?(?![a-z])", t))
+
+
+def match_text(text: str) -> dict | None:
     best, best_score = None, 0
     for ds in SEEDED_DATASETS:
-        score = sum(1 for kw in ds["keywords"] if kw in text)
+        score = keyword_hits(ds, text)
         if score > best_score:
             best, best_score = ds, score
     return best if best_score >= 1 else None

@@ -39,7 +39,20 @@ export default function App() {
   // in-progress session and OFFER to resume it (so returning to the base URL isn't a dead
   // end); (3) if there's nothing to resume, fall back to any shape typing cached in this
   // browser, so a refresh while writing the idea (before the first server save) isn't lost.
+  // Sit-Down handoff: the new Shape stage (/sitdown2) finishes by writing its result here and
+  // navigating to "/". Adopt it, land on Learn, and start the blueprint behind the learning.
+  const kickBlueprint = useRef(false);
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bs_handoff");
+      if (raw) {
+        localStorage.removeItem("bs_handoff");
+        dispatch({ t: "hydrate", s: JSON.parse(raw) });
+        kickBlueprint.current = true;
+        restored.current = true;
+        return;
+      }
+    } catch { /* fall through to normal restore */ }
     const id = new URLSearchParams(location.search).get("s");
     if (id) {
       sessionId.current = id;
@@ -165,6 +178,24 @@ export default function App() {
 
   const questions = mergedQuestions(state);   // all SA-authored, tailored to the idea
 
+  // Design answers for downstream generation. Questions map option keys (and "other" text);
+  // answers with no matching question (the Sit-Down's brief/scope lines) pass through as-is.
+  function designAnswers(): Record<string, string> {
+    const out: Record<string, string> = { ...state.answers };
+    for (const q of questions) {
+      const key = state.answers[q.id];
+      out[q.id] = key === "other" ? (state.answersOther[q.id] || "other") : (key || "");
+    }
+    return out;
+  }
+
+  useEffect(() => {
+    if (kickBlueprint.current && state.phase === "learn" && !state.blueprint && !state.generating) {
+      kickBlueprint.current = false;
+      generate();
+    }
+  }, [state.phase, state.blueprint, state.generating]); // eslint-disable-line
+
   function nextDesign() {
     if (state.designIdx < questions.length - 1) dispatch({ t: "designIdx", i: state.designIdx + 1 });
     else {
@@ -187,11 +218,7 @@ export default function App() {
   async function generate(adjust = "") {
     dispatch({ t: "genStart" });
     try {
-      const answers: Record<string, string> = {};
-      for (const q of questions) {
-        const key = state.answers[q.id];
-        answers[q.id] = key === "other" ? (state.answersOther[q.id] || "other") : (key || "");
-      }
+      const answers = designAnswers();
       const bp = await api.generateBlueprint({
         idea: state.idea, expertise: state.expertise, interests: state.interests,
         design_answers: answers, capabilities: state.capabilities, adjust,
@@ -207,8 +234,7 @@ export default function App() {
   // lose their work. Fire-and-forget + best-effort: the endpoint always 200s (ok:false
   // on failure), so this never blocks the build — the copy-paste path still stands.
   function publishAssets(steps: unknown[]) {
-    const answers: Record<string, string> = {};
-    for (const q of questions) answers[q.id] = state.answers[q.id] || "";
+    const answers = designAnswers();
     api.publishAssets({
       idea: state.idea, prd_markdown: state.blueprint?.prd_markdown || "",
       capabilities: state.capabilities, design_answers: answers,
@@ -226,8 +252,7 @@ export default function App() {
     }
     dispatch({ t: "buildStart" });
     try {
-      const answers: Record<string, string> = {};
-      for (const q of questions) answers[q.id] = state.answers[q.id] || "";
+      const answers = designAnswers();
       const plan = await api.buildPlan({
         idea: state.idea, expertise: state.expertise,
         capabilities: state.capabilities, design_answers: answers,
@@ -309,7 +334,10 @@ export default function App() {
         {state.phase === "learn" && (
           <CapabilityLearning capabilities={state.capabilities}
             fits={Object.fromEntries(shownPicks(state).map((p) => [p.name, p.fits]))}
-            onBack={() => { dispatch({ t: "phase", phase: "design" }); dispatch({ t: "designIdx", i: questions.length - 1 }); }}
+            onBack={() => {
+              if (!questions.length) { location.href = "/sitdown2"; return; }   // came from the Sit-Down
+              dispatch({ t: "phase", phase: "design" }); dispatch({ t: "designIdx", i: questions.length - 1 });
+            }}
             onDone={() => dispatch({ t: "phase", phase: "blueprint" })} />
         )}
         {state.phase === "blueprint" && (
