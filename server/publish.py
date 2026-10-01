@@ -256,12 +256,16 @@ def publish_assets(*, idea: str, prd_markdown: str, capabilities: list[str],
     # a failure here never blocks the build (the plan still stands).
     files_written = [DOC_NAME]
     try:
-        design = _design_md(idea=idea, interaction_model=(design_answers or {}).get("interaction_model", ""))
-        w.workspace.upload(f"{target}/design.md", io.BytesIO(design.encode("utf-8")),
-                           format=ImportFormat.RAW, overwrite=True)
-        files_written.append("design.md")
+        # The Costa brand pack only applies when this deployment runs a Costa workshop (WORKSHOP_HOST).
+        from .sitdown import DEFAULT_CONTEXT
+        costa = "costa" in DEFAULT_CONTEXT.get("org", "").lower()
+        if costa:
+            design = _design_md(idea=idea, interaction_model=(design_answers or {}).get("interaction_model", ""))
+            w.workspace.upload(f"{target}/design.md", io.BytesIO(design.encode("utf-8")),
+                               format=ImportFormat.RAW, overwrite=True)
+            files_written.append("design.md")
         logo_src = _logo_path()
-        if os.path.exists(logo_src):
+        if costa and os.path.exists(logo_src):
             with open(logo_src, "rb") as fh:
                 w.workspace.upload(f"{target}/{LOGO_NAME}", io.BytesIO(fh.read()),
                                    format=ImportFormat.RAW, overwrite=True)
