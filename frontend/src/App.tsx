@@ -186,14 +186,8 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-oat">
-      <LeftRail state={state} go={go} />
+      <LeftRail state={state} go={go} onProctor={admin?.is_admin ? () => setInConsole(true) : undefined} />
       <main className={`relative flex-1 ${full ? "overflow-hidden" : "overflow-y-auto px-[72px] py-12"}`}>
-        {admin?.is_admin && !full && (
-          <button onClick={() => setInConsole(true)}
-            className="absolute right-5 top-4 z-10 rounded-full border border-line bg-white px-3 py-1.5 text-[12px] font-bold text-navy-2 shadow-sm hover:border-green hover:text-green-ink">
-            Proctor console →
-          </button>
-        )}
         {resume && !full && (
           <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border-[1.5px] border-green bg-green-soft px-6 py-4">
             <div className="min-w-0 flex-1">

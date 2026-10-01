@@ -155,7 +155,7 @@ export function PlanScreen({ blueprint, job, error, answers, onRefine, onRetry, 
 
       {blueprint && (
         <div className={running ? "pointer-events-none mt-6 opacity-40 transition-opacity" : "transition-opacity"}>
-          {blueprint.refine_note && noteOpen && (
+          {blueprint.refine_note?.trim() && noteOpen && (
             <div className="rise mt-2 flex items-start gap-3 rounded-xl border border-green/40 bg-green-soft px-4 py-3.5">
               <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-green-ink" />
               <div className="flex-1">

@@ -434,7 +434,6 @@ export function SitDown({ saved, onSave, onHandoff, focusStage }: Props) {
               <div className="hbtns">
                 {turns.length > 0 && !busy && <button className="hbtn" onClick={goBack}>Back</button>}
                 {session && <button className="hbtn" onClick={() => setLost(true)}>I'm lost</button>}
-                {session && !busy && <button className="hbtn" onClick={resetAll}>Start over</button>}
               </div>
             </div>
             <div className="thread" ref={threadRef}>
@@ -458,7 +457,8 @@ export function SitDown({ saved, onSave, onHandoff, focusStage }: Props) {
 
       {lost && session && (
         <LostSheet stepText={stepText} disp={disp} session={session} turns={turns} stage={stage}
-          onClose={() => setLost(false)} onGo={(k) => { setLost(false); restoreTo(k); }} />
+          onClose={() => setLost(false)} onGo={(k) => { setLost(false); restoreTo(k); }}
+          onStartOver={() => { setLost(false); resetAll(); }} />
       )}
       {tour && <TourMark i={tour.i} ready={tour.ready} root={rootRef.current} onEnd={endTour} />}
       {toastMsg && <div className="toast">{toastMsg}</div>}
@@ -490,8 +490,8 @@ function Landing({ idea, minH, onStart }: { idea: string; minH: number; onStart:
   );
 }
 
-function LostSheet({ stepText, disp, session, turns, stage, onClose, onGo }: {
-  stepText: string; disp: Disp; session: any; turns: TurnData[]; stage: string; onClose: () => void; onGo: (k: number) => void;
+function LostSheet({ stepText, disp, session, turns, stage, onClose, onGo, onStartOver }: {
+  stepText: string; disp: Disp; session: any; turns: TurnData[]; stage: string; onClose: () => void; onGo: (k: number) => void; onStartOver: () => void;
 }) {
   const order = ["shapes", "scope", "readback"];
   const left = [...DIMS.filter((d) => !disp.brief[d.key]).map((d) => d.label),
@@ -515,7 +515,10 @@ function LostSheet({ stepText, disp, session, turns, stage, onClose, onGo }: {
           </>
         )}
         <p className="muted" style={{ marginTop: 16 }}>You can always just type in the box below and tell your SA what's confusing.</p>
-        <div className="acts" style={{ marginTop: 8 }}><button className="hbtn" onClick={onClose}>Keep going</button></div>
+        <div className="acts" style={{ marginTop: 8, justifyContent: "space-between", alignItems: "center" }}>
+          <button className="hbtn" onClick={onClose}>Keep going</button>
+          <button className="link" style={{ fontSize: 13 }} onClick={onStartOver}>Start over with a new idea</button>
+        </div>
       </div>
     </div>
   );

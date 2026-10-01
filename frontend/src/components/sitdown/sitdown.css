@@ -481,3 +481,12 @@
 .sd .lanechips .stretch .ch{border-color:#ecd9a8;background:#fdf6e6}
 .sd .lanechips .later .ch{color:var(--navy3)}
 .sd .lanechips .none{font-size:12px;color:var(--navy3)}
+
+/* header fits its column at any width: the step text truncates, the controls never wrap or overflow */
+.sd .hdr{min-width:0;overflow:hidden}
+.sd .hdr .step{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sd .hdr .think{flex:1 1 0}
+.sd .hdr .hbtns{flex:none;margin-left:auto}
+.sd .hdr .hbtn{white-space:nowrap}
+@media (max-width:1360px){.sd .left{padding:0 32px}.sd .segs i{width:14px}.sd .hdr{gap:12px}}
+@media (max-width:1240px){.sd .segs{display:none}}

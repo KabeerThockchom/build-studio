@@ -87,7 +87,7 @@ export function buildRail(s: StudioState): Group[] {
   ];
 }
 
-export function LeftRail({ state, go }: { state: StudioState; go: (t: RailTarget) => void }) {
+export function LeftRail({ state, go, onProctor }: { state: StudioState; go: (t: RailTarget) => void; onProctor?: () => void }) {
   const groups = buildRail(state);
   return (
     <aside className="flex w-[252px] shrink-0 flex-col overflow-y-auto border-r border-line bg-white px-4 py-5" aria-label="Your journey">
@@ -128,6 +128,11 @@ export function LeftRail({ state, go }: { state: StudioState; go: (t: RailTarget
           </div>
         );
       })}
+      {onProctor && (
+        <button onClick={onProctor} className="mt-auto rounded-lg border border-line px-3 py-2 text-left text-[12.5px] font-medium text-navy-2 hover:border-navy-3 hover:text-navy">
+          Proctor console →
+        </button>
+      )}
     </aside>
   );
 }
