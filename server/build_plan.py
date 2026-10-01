@@ -2,8 +2,8 @@
 (concept -> the move -> verify) for the capabilities in the blueprint.
 
 Design notes:
-- Ordered by dependency: data -> Genie -> Knowledge Assistant -> Lakebase ->
-  Supervisor agent -> Databricks App.
+- Ordered by dependency: data -> Declarative Pipelines -> Lakebase -> Genie ->
+  Databricks App (the app step is done in Genie App Builder, not Genie Code).
 - The guardrails are the load-bearing, hard-won lessons distilled from V2V (see
   the research): they go in the SYSTEM prompt so every generated move carries the
   rigor without the ceremony. We are NOT AppKit, so AppKit-specific import
@@ -12,8 +12,9 @@ Design notes:
   Code session). Best-effort from the V2V reference + first principles; treat as
   the known-soft area to refine with real runs.
 """
+import os
 import re
-from . import llm
+from . import llm, config
 from .jsonx import loads_tolerant
 from .scope import WORKSHOP_SCOPE, VOICE, strip_em_dashes, clamp_idea
 from .models import BuildPlan, BuildStep, BuildRequest
@@ -29,7 +30,7 @@ def _schema_name(text: str) -> str:
 
 # Canonical dependency order for the steps we know how to guide. No Lakeflow —
 # a workshop day never stands up a live ingestion source.
-STEP_ORDER = ["data", "Genie", "Knowledge Assistant", "Lakebase", "Supervisor agent", "Databricks Apps"]
+STEP_ORDER = ["data", "Declarative Pipelines", "Lakebase", "Genie", "Databricks Apps"]
 
 # The data step is one of three workshop-realistic paths, keyed by data_mode.
 DATA_GUARDRAIL = {
@@ -49,7 +50,106 @@ DATA_GUARDRAIL = {
         "The user is pointing at a table that already exists. Confirm the exact catalog.schema.table "
         "name and that they can read it — do NOT create or alter it (assume read-only access). Verify a "
         "simple SELECT returns rows before building on it."),
+    "seeded": (
+        "A governed, workshop-ready dataset for this exact theme ALREADY EXISTS in Unity Catalog and the "
+        "participant has read access to it via their workshop group — do NOT regenerate it and do NOT copy it "
+        "into another schema. Point the build straight at the named tables: confirm a simple SELECT returns "
+        "rows, and skim the columns so every later step uses the REAL column names (they are given below). The "
+        "participant MAY still create their own schema (named below) to add a FEW supplementary synthetic tables "
+        "— but ONLY for something their specific use case needs that the seeded tables genuinely don't cover; "
+        "keep those few, realistic, and joined by real keys to the seeded data. A ready-made benchmark question "
+        "set for this theme also exists (named below) — use it to check Genie in the next step rather than "
+        "inventing your own. Any supplementary table you create goes ONLY in the participant's own schema "
+        "(named in the prompt), never inside the shared seeded schema; keep the two straight and always "
+        "fully-qualify each table with its correct schema when you reference it in a later step."),
 }
+
+# The facilitator (Akil) pre-seeded a governed, benchmark-ready dataset in the
+# `workshop` catalog, aligned 1:1 to the Costa survey themes, granted read to the
+# participant group. Most use cases map to one of these, so the harness points the
+# build at the matching schema (real, realistic, already benchmarked) instead of
+# having each person regenerate weaker data — and threads the matching evaluation.*
+# set in as a ready-made Genie benchmark and docs_corpus as the Knowledge Assistant
+# source. Participants keep CREATE_SCHEMA, so they can still add supplementary tables.
+SEEDED_CATALOG = "workshop"
+SEEDED_DATASETS = [
+    {
+        "label": "AP / finance operations",
+        "keywords": ["invoice", "purchase order", "supplier", "vendor", "payment", "accounts payable",
+                     "three-way", "duplicate invoice", "overdue", "procure", "supplier spend", "ap team",
+                     "ap clerk", "po match"],
+        "schema": "workshop.finance_ap",
+        "tables": ("dim_supplier (500 suppliers), fact_purchase_orders (50k POs), fact_invoices "
+                   "(80k invoices, with is_overdue / is_duplicate / days_late flags baked in), "
+                   "fact_payments (68k), dim_project"),
+        "eval": "workshop.evaluation.finance_ap_eval",
+        "docs_domain": "finance_ap",
+    },
+    {
+        "label": "commercial / revenue / store & machine performance",
+        "keywords": ["price", "pricing", "elasticity", "store", "machine", "express", "tier",
+                     "tiering", "revenue", "commercial", "basket", "footfall", "forecast",
+                     "competitor", "promotion", "discount", "sales per", "category"],
+        "schema": "workshop.retail_commercial",
+        "tables": ("dim_store (400 stores, with tier/region/format), dim_product (174) + "
+                   "product_elasticity (per-product elasticity), dim_costa_express_machine (1500), "
+                   "fact_transactions (450k), fact_store_daily (292k daily rows: net_sales, footfall, "
+                   "conversion_rate, labour_hours, sales_per_labour_hour), price_change_events, "
+                   "sales_forecast, competitor_sites, customer_reviews, dim_date, dim_customer"),
+        "eval": "workshop.evaluation.retail_commercial_eval",
+        "docs_domain": "retail_commercial",
+    },
+    {
+        "label": "HR / workforce analytics",
+        "keywords": ["employee", "headcount", "attrition", "turnover", "workforce", "retention",
+                     "hiring", "leaver", "staffing", "department", "people analytics"],
+        "schema": "workshop.hr_people",
+        "tables": ("dim_employee (5000), dim_department, fact_headcount_snapshot, "
+                   "fact_attrition_events (1131 leavers)"),
+        "eval": "workshop.evaluation.hr_people_eval",
+        "docs_domain": None,  # no shared docs for this theme — KA (if added) generates its own
+    },
+    {
+        "label": "AI adoption / ROI",
+        "keywords": ["ai roi", "ai adoption", "tool usage", "productivity", "copilot usage",
+                     "ai tool", "solution delivery", "seat utilization", "adoption rate"],
+        "schema": "workshop.ai_productivity",
+        "tables": ("dim_employee, dim_tool, fact_tool_usage (200k), fact_adoption_monthly, "
+                   "fact_productivity_feedback"),
+        "eval": "workshop.evaluation.ai_productivity_eval",
+        "docs_domain": None,  # no shared docs for this theme — KA (if added) generates its own
+    },
+]
+# The seeded catalog only exists in workspaces where a facilitator loaded it. Off unless SEEDED_DATA=on,
+# so a workspace without it never gets told to read tables that aren't there (it generates data instead).
+if os.environ.get("SEEDED_DATA", "off").lower() not in ("on", "1", "true"):
+    SEEDED_DATASETS = []
+# The shared document corpus (real PDFs in a Volume) that the Knowledge Assistant indexes.
+SEEDED_DOCS_VOLUME = "workshop.docs_corpus (a Volume of real PDFs at /Volumes/workshop/docs_corpus/raw_data/pdf/, with a doc_metadata table; filter by domain)"
+
+
+def _match_dataset(req: BuildRequest) -> dict | None:
+    """Best-fit pre-seeded dataset for this idea/PRD. The Sit-Down pins one per session (or 'none' for an idea
+    outside the workshop host's business); honour that. Otherwise fall back to keyword matching."""
+    pinned = (req.design_answers or {}).get("seeded_schema")
+    if pinned:
+        return next((d for d in SEEDED_DATASETS if d["schema"] == pinned), None)
+    return match_text(f"{req.idea} {req.prd_markdown} {req.project_name}")
+
+
+def keyword_hits(ds: dict, text: str) -> int:
+    """Whole-word/phrase hits only, so 'store' doesn't fire on 'restore' and 'spend' on 'spend time'."""
+    t = text.lower()
+    return sum(1 for kw in ds["keywords"] if re.search(r"(?<![a-z])" + re.escape(kw) + r"s?(?![a-z])", t))
+
+
+def match_text(text: str) -> dict | None:
+    best, best_score = None, 0
+    for ds in SEEDED_DATASETS:
+        score = keyword_hits(ds, text)
+        if score > best_score:
+            best, best_score = ds, score
+    return best if best_score >= 1 else None
 
 # The distilled, must-preserve guardrails per capability (fed to the model).
 # Per-capability build rigor cross-checked against Databricks Solution Builder's
@@ -61,79 +161,67 @@ GUARDRAILS = {
         "Data comes first. Notebook cells need the '# Databricks notebook source' header and "
         "'# COMMAND ----------' separators or cells silently merge."),
     "Genie": (
-        "A Genie space is the semantic layer over the tables. Creating the asset is NOT enough. Point "
-        "it at a few query-ready tables (not many raw ones); give each important column a short "
-        "description with its units and allowed values (the single biggest driver of answer accuracy); "
-        "define the idea's key numbers as reusable metric expressions; and write the space instructions "
-        "in the idea's real terms — what the numbers mean, how to format them — rather than generic "
-        "text. Then confirm it works by asking two or three of the actual questions this app is for and "
-        "checking the answers use the right tables and return sensible numbers. An empty/unconfigured "
-        "space looks created but is useless."),
-    "Knowledge Assistant": (
-        "Knowledge Assistant lets the app answer from documents/notes with no embedding pipeline to build. "
-        "Point it at the text source (a table column or docs) and kick off indexing. If the idea has no "
-        "obvious document source, GENERATE a small, focused set of realistic documents for it (roughly 6 to "
-        "12 short documents, e.g. SOPs, policies, past notes/tickets, product or FAQ pages) — name the "
-        "specific document types and how many in the prompt, and make their names, IDs and dates match the "
-        "tables exactly, so a document answer lines up with the data. This build includes a "
-        "document-answering piece. Keep the set focused rather than dumping everything in. "
-        "IMPORTANT: indexing runs "
-        "in the background and takes several minutes to tens of minutes; do NOT sit and poll waiting for it to "
-        "finish, and do NOT block the rest of the build on it. Kick it off, tell the user it's indexing in the "
-        "background (they can move on and check back), and treat 'a query returns a relevant passage' as a "
-        "later verification once indexing is READY, not a same-step confirm."),
+        "A Genie space is the natural-language layer over the tables, and creating the asset is NOT "
+        "enough — its accuracy comes from how you ground it. Point it at a few query-ready tables (not "
+        "many raw ones). Give each important column a short description with its units and allowed values "
+        "— this is the single biggest driver of answer accuracy. Write the space instructions in the "
+        "idea's real terms: what the key numbers mean, the business synonyms people use for them, how to "
+        "format them, and any grain or caveats — not generic text. If the app leans on any DERIVED status that "
+        "isn't a stored column (e.g. 'on hold', 'at risk', 'flagged', 'a mismatch'), spell it out in the space "
+        "instructions as a computed rule over the real columns (e.g. \"'on hold' means the invoice amount differs "
+        "from its matched PO by more than the 2% tolerance\") — otherwise Genie hunts for a literal status column "
+        "and answers wrong. Then make it genuinely GOOD, not just "
+        "present: write a handful (about 5 to 8) of benchmark questions phrased the way this app's real "
+        "users would ask, each with the answer you expect; ask them in the space, and wherever Genie is "
+        "wrong or picks the wrong table, tighten the column descriptions and instructions (often just "
+        "adding a synonym) and re-ask until it answers them correctly and repeatably. Push a little past "
+        "the obvious too — try a follow-up question and a differently-worded version of the same ask — "
+        "since that is how people actually use it. Keep this lightweight: a short benchmark set you can "
+        "eyeball, not a formal eval harness. Optional, only once it is answering well: you can export a "
+        "good answer's query from Genie as a Metric View to lock that definition in — do that AFTER Genie "
+        "is good, never as a prerequisite. An empty or unconfigured space looks created but is useless. "
+        "Point the space at the GOLD tables from the pipeline, not the bronze or silver ones."),
+    "Declarative Pipelines": (
+        "Build the data flow as a Lakeflow Declarative Pipeline with the medallion pattern: BRONZE tables land the raw "
+        "data as it is, SILVER tables clean, type and join it, GOLD tables are ready to use and are the ONLY tables "
+        "Genie and the app read. Any scoring, flagging, ranking or drafted suggestion the plan describes is "
+        "a rule computed in a gold table (a clear, explainable column such as a score, a flag and a reason), never an "
+        "AI agent. Keep it small: two to four gold tables, named for what they mean. Add a short comment on each table "
+        "saying what it holds, and data quality expectations on the key columns (e.g. ids not null). Run the pipeline "
+        "and check each gold table has sensible rows before moving on; a pipeline that 'succeeded' with empty gold "
+        "tables is not done."),
     "Lakebase": (
-        "Lakebase is managed Postgres for the app's writes/state (e.g. recording a decision). Keep it to a "
-        "few small operational tables for what the app records at runtime — it is not a place to copy the "
-        "analytical tables. Create the table you need; the app authenticates with a short-lived token "
-        "minted per connection (no password). Autoscaling Lakebase sleeps when idle, so the FIRST request "
-        "after a quiet period (like the morning of a demo) waits while it wakes: open the connection with a "
-        "generous timeout and retry the first attempt (e.g. a psycopg pool opened with wait=True and "
-        "timeout~30s, or a small retry loop), so a cold start shows briefly instead of erroring."),
-    "Supervisor agent": (
-        "The supervisor agent is a small tool-calling loop (not a framework): it calls the Foundation "
-        "Model API and routes to the tools you built (for example Genie for data questions and Lakebase to "
-        "record something, plus any others in the plan). Keep it to a "
-        "small number of tools (two or three) and give each a clear, distinct description so it routes by "
-        "the intent of the question without guessing. Confirm it works by asking one question that should "
-        "go to each tool and checking it picked the right one. Omit the temperature param (Sonnet rejects it)."),
+        "Lakebase is managed Postgres for what people decide at runtime (an approval, a change, a note). Create your "
+        "OWN Lakebase database/project for this build (named for your project) and provision it fresh; do NOT write to "
+        "a shared or pre-existing project (you likely lack the Postgres role there and the connection fails auth). "
+        "A new project auto-provisions a production branch with a ready primary endpoint. Create the one or two small "
+        "tables the plan needs (e.g. a decision log with who, what, when, the item id, the decision and any note), "
+        "keyed so they join back to the gold tables (same item ids), so the app can show each item's latest decision. "
+        "It is not a place to copy the analytical tables. Insert one test "
+        "row and read it back. The app (built next, in Genie App Builder) writes to these tables, so note the "
+        "database and table names for that step. Autoscaling Lakebase sleeps when idle, so the first request after a "
+        "quiet spell takes a few seconds."),
     "Databricks Apps": (
-        "The app hosts the UI. Build it as a React + Tailwind CSS front end with a FastAPI (Python) backend — "
-        "this exact stack, not Streamlit/Gradio/Dash. Hold a high design bar (see APP QUALITY below): it should "
-        "look like a product a team would use, and it should visibly use the pieces in the plan (an in-app "
-        "Genie ask box, the person's actions saved to Lakebase, and any other pieces the plan includes). "
-        "Hard-won truths: (1) a green/SUCCEEDED deploy is NOT a working app — "
-        "always open it in the browser and confirm it RENDERS and lays out correctly AND that its data "
-        "calls return real rows (not an empty or misaligned screen), watch /logz for startup errors. "
-        "(2) the built index.html MUST be a complete HTML5 document: a <!DOCTYPE html>, an <html> with a "
-        "<head> containing charset and viewport meta tags, and a <body> wrapping the root div. A bare "
-        "script+div with no doctype renders in quirks mode with a broken layout — confirm the built "
-        "index.html has the full shell. "
-        "(3) Deploy ONLY the built dist plus the backend, and do it with an ALLOWLIST, never a denylist. In "
-        "databricks.yml set `sync.include: [\"dist/**\", \"main.py\", \"requirements.txt\", \"app.yaml\"]`. When "
-        "include is set, ONLY those paths deploy — so dist/index.html always ships (it is under dist/**), while a "
-        "root-level index.html, the src/ sources, node_modules, package.json and the configs all stay out "
-        "automatically, with no list of things to remember to exclude. Do NOT instead reach for "
-        "`sync.exclude: [\"index.html\", ...]`: a bare index.html glob ALSO matches dist/index.html, so the built "
-        "page never ships and the app 500s on every page load — this is a real, repeated failure. `git init` the "
-        "app folder too (bundle deploy only honors .gitignore in a real git tree). A healthy deploy is ~15 files. "
-        "The allowlist also prevents the two classic crashes: node_modules shipping (deploy uploads thousands of "
-        "files and times out) and package.json shipping (the runtime runs `npm install` on compute and crashes). "
-        "Use requirements.txt (never a uv.lock — it can leak internal proxy URLs). "
-        "(4) The app.yaml command MUST use a LITERAL port 8000, e.g. [\"uvicorn\", \"main:app\", \"--host\", "
-        "\"0.0.0.0\", \"--port\", \"8000\"]. Databricks Apps execs the command directly with NO shell expansion, "
-        "so \"${DATABRICKS_APP_PORT}\" is passed verbatim and crashes the app ('not a valid integer'). Never put "
-        "a ${VAR} in the command args. "
-        "(5) The app runs as a SERVICE PRINCIPAL, not you — so anything it queries needs grants to THAT SP: "
-        "USE CATALOG + USE SCHEMA + SELECT on the data, and CAN USE on the SQL warehouse the Genie space runs "
-        "on. Without them a Genie/SQL call fails at runtime (the app deploys fine, then /api calls 500/502 with "
-        "a permissions/'FAILED' error). Grant the app's SP access to the data and warehouse, and verify a query "
-        "actually returns rows as the app, not just as you."),
+        "This step is NOT done in Genie Code. The app is built with Genie App Builder: in the workspace open Apps, "
+        "then the Build tab, choose an App Space, name the app and paste a natural-language prompt. It generates an "
+        "AppKit app with a live preview you refine with follow-up prompts, then deploy. (Genie App Builder is in Beta: "
+        "a workspace admin must enable 'Governed agentic app-building' under Previews, and you need CAN CREATE APP on "
+        "an App Space.) So the MOVE for this step is the prompt to paste into Genie App Builder, not into Genie Code. "
+        "Write it as a clear description of the app, never code: who it is for and the moment they open it; the first "
+        "screen and its ONE dominant element (matching the interaction model); each screen, what it shows and what "
+        "each button does; exactly which data it reads (name the fully qualified gold tables, the Genie space if "
+        "there is one) and what it writes (name the Lakebase database and table and the columns each "
+        "action records). Start simple: one or two screens. The concept should tell them to iterate in short cycles, "
+        "being specific about what to change. The verify is: the preview shows real rows from the gold tables, an "
+        "action writes a row they can see in Lakebase, and the deployed app opens from its URL. Remember state must "
+        "live in Lakebase or Unity Catalog, since the app scales to zero when idle."),
 }
 
 SYSTEM_PROMPT = f"""You are a senior Databricks Solutions Architect turning a designed blueprint into a
-short, confidence-building build plan for someone NEW to Databricks, working in Genie Code (the
-in-workspace AI coding agent). For each capability they chose, write ONE bite-sized step.
+short, confidence-building build plan for someone NEW to Databricks. Every step is done in Genie Code (the
+in-workspace AI coding agent) EXCEPT the Databricks Apps step, which is done in Genie App Builder (Apps >
+Build tab): its move is the natural-language prompt they paste there. For each component in the build,
+write ONE bite-sized step. There are no AI agents and no document Q&A in these builds.
 
 {WORKSHOP_SCOPE}
 
@@ -141,6 +229,9 @@ in-workspace AI coding agent). For each capability they chose, write ONE bite-si
 
 Each step has four parts, kept SHORT and plain:
 - concept: 2-3 sentences on what you're building and why it matters for THEIR idea. Teach, don't lecture.
+  The person asks the tool IN THEIR OWN WORDS; the move is only an example they can open if they need
+  help. So never write "paste this prompt" or "paste the move" in concept, teach or verify: say "ask
+  Genie Code to..." or "describe the app to Genie App Builder".
 - move: the actual prompt the person pastes into Genie Code. This is the most important field. It is
   NOT an instruction to the person ("open the file and do step 1") — it is a real, well-formed prompt
   written TO Genie Code, the way a strong engineer would prompt a coding agent. It must:
@@ -167,103 +258,73 @@ already saved in their workspace, where Genie Code can read it.
   read the plan file first (refer to it with the EXACT literal token __PROJECT_MD__ — the app swaps in
   the real path; never write "PROJECT.md" yourself), so it has the whole picture and knows this is a
   step-by-step build it will check with the person as it goes; (b) create the dedicated schema in the
-  catalog named below; (c) generate the sample data into that schema. Include the key SHAPE of the data
-  inline (the tables, the important columns, the realistic patterns, valid relationships) so it is
-  buildable even if the file read is imperfect — do not rely on the file alone.
-- EVERY LATER step's move is the NEXT message in that SAME conversation. Write it as a natural
-  continuation ("Next, …" / "Now, using the tables in <catalog>.<schema> …"), referencing the plan and
-  the work already done rather than re-introducing the project.
-- BUT each step must ALSO stand on its own if pasted into a fresh chat: always name the catalog, the
-  schema, and the specific tables the step depends on, so Genie Code can find the work even with no
-  memory of earlier messages. Continuation phrasing for flow, explicit names for robustness — both.
+  catalog named below; (c) generate the sample data into that schema; (d) create the data-generation
+  notebook and any files it writes INSIDE the project folder that holds __PROJECT_MD__ (the same folder as
+  the plan) — NOT the workspace root or the user's home, so all the build's artifacts stay together.
+  Include the key SHAPE of the data inline (the tables, the important columns, the realistic patterns,
+  valid relationships) so it is buildable even if the file read is imperfect — do not rely on the file alone.
+- EVERY step's move must RE-ANCHOR to the plan, not just step 1: open by pointing Genie Code at the plan
+  with the exact token __PROJECT_MD__ (e.g. "Check your plan at __PROJECT_MD__ for this step, then …").
+  Do NOT assume Genie Code still has the plan in context — the person may be in a fresh chat, and it does
+  not carry the plan or the open file automatically. After re-anchoring, write the rest as a natural
+  continuation ("… then, using the tables in <catalog>.<schema> …").
+- Each step must ALSO stand on its own if pasted into a fresh chat: besides re-anchoring to __PROJECT_MD__,
+  always name the catalog, the schema, and the specific tables the step depends on, so Genie Code can find
+  the work even with no memory of earlier messages.
 
 MULTI-USER ISOLATION (required — many people build in the same catalog at once):
 - All of a participant's work lives in ONE dedicated schema so builds don't collide. Use the catalog and
-  schema names given below. In a shared catalog, step 1 appends the person's own Databricks username to
-  the schema name to keep it unique. Every table goes in that schema with a clear, descriptive name.
+  schema name given below EXACTLY, in every step, character for character (it is already unique to this
+  build). Never add a username or any suffix in one step and not the others: one schema name, everywhere.
+  If that schema already exists and belongs to someone else, step 1 stops and asks the person. Every table
+  goes in that schema with a clear, descriptive name.
 - Write the fully-qualified location (<catalog>.<schema>) in the move text so the person sees exactly
   where their data lives.
 
-APP QUALITY & STACK (the finished app must impress, not look like a prototype):
-- Stack is fixed: a React + Tailwind CSS front end with a FastAPI (Python) backend, deployed as a Databricks
-  App. Prescribe exactly this in the app step. Do NOT use Streamlit, Gradio, or Dash. Compile Tailwind at
-  BUILD time (Vite + the tailwindcss plugin, emitting a real CSS file into dist/) — do NOT load Tailwind from
-  a browser/play CDN (@tailwindcss/browser, cdn.tailwindcss.com): that ships an in-browser compiler that is
-  slow, flashes unstyled content, and can be blocked by the app's content-security policy.
-- Build a BRIEFING, not a dashboard. The app opens on ONE clear finding or action — matching the plan's
-  "First screen" and interaction_model — then lets the person go to evidence, then to detail (answer ->
-  evidence -> detail). Never a blank canvas or a bare query box with nothing on it. Build it FOR the persona
-  in the plan's "Who it's for", for their one job.
-- IF the interaction_model is "agent_actions", build a SUPERVISE-THE-AGENT CONSOLE instead of a passive
-  briefing: the app opens on the actions the agent has already worked through and PROPOSES — each item
-  showing what the agent read, its judgement/confidence, and the drafted action — most consequential first.
-  The primary action is APPROVE or OVERRIDE per item; approving records (and, where in scope, performs) the
-  action, and every approve/override is written to Lakebase as a visible audit trail / activity log the
-  person can scroll. Here the Supervisor agent must actually DO the per-item work (reason across the data and
-  notes and propose an action), not merely answer ad-hoc questions, and Lakebase is the action ledger, not a
-  single saved flag. Respect the write boundary: if an action targets an external system the build can't call,
-  record the decided action and label it as recorded (not sent).
-- Make the PRIMARY ACTION obvious. The plan's "Primary action" (the thing they do 80% of the time) dominates
-  the entry screen — front and center, not buried behind a menu or a detail panel.
-- Findings in plain language, not raw tables. State each insight as a one-sentence observation a non-technical
-  person could say out loud ("Store 214 is trending behind similar stores this week"), with the numbers
-  supporting the sentence. Don't dump an unfiltered table as the answer.
-- Design bar (build to this, it is how the good apps look):
-  * Typography: one strong display/number font and one clean body font; use tabular numerals everywhere numbers
-    appear so they align as data (CSS font-variant-numeric: tabular-nums).
-  * Color: at most THREE semantic colors, each meaning one thing (e.g. risk / good / watch) and ALWAYS paired
-    with a label or icon, never color alone. No gradients, no "AI blue", no neon-on-dark.
-  * Light theme, daylight/projector-safe. Generous whitespace, consistent spacing, real hierarchy.
-  * Intentional states: loading is a skeleton that mirrors the final layout (not a spinner); empty states say
-    what's missing and the next step (not a blank panel).
-  * No AI slop: definitive language (no "may/might/could"), no fabricated ROI tiles, no ChatGPT-clone chat
-    chrome, no emoji-as-icons, no clip-art.
-- Fast base + responsive detail: render the main briefing from deterministic queries so it loads instantly;
-  reserve the Genie/agent call for drill-down follow-ups, not the cold entry point.
-- Integrate the pieces visibly: the app should surface what was built — an in-app Genie ask box, the actions
-  the person takes persisted to Lakebase, and whatever else the plan includes — so the finished app clearly
-  uses the whole architecture, not just one table.
-- Use the idea as the SEED, not a cage. Build a complete, genuinely useful app around it: sensible supporting
-  views, a couple of relevant metrics, thoughtful detail. Expand tastefully beyond the literal one-liner
-  rather than shipping the thinnest possible interpretation. Hold the ARCHITECTURE fixed (the pieces above are
-  all required), but let the app's features and polish breathe.
-
-COMMON FIRST-PASS BUGS TO AVOID (hard-won from real builds — fold the fix into the move):
-- A useEffect callback must return undefined or a cleanup FUNCTION, never a value. Writing
-  `useEffect(() => el.scrollIntoView({{behavior:"smooth"}}), deps)` returns a Promise in some browsers,
-  which React later tries to call as the cleanup -> "TypeError: n is not a function" and the UI crashes on
-  the next render. Always use a block body: `useEffect(() => {{ el.scrollIntoView(...); }}, deps)`.
-- With strict TypeScript (verbatimModuleSyntax / noUnusedLocals), use `import type` for type-only imports
-  and remove unused imports, or the build fails.
-- Serve the built SPA robustly: the backend must resolve dist/index.html relative to the app file (not the
-  process working directory, which varies), and only error on a genuinely missing file.
-- Parse responses defensively: an error response may not be JSON; guard `response.json()`.
-- Wrap every backend call to a Databricks service (Genie, the SQL warehouse, Lakebase, the model) in
-  try/except: on failure, log it and return a clean JSON error the UI can show (e.g. {{"error": "..."}}),
-  never let it bubble up as a raw 500. One transient blip should degrade a panel, not crash the app.
-
-VERIFY THE CORE ACTION BEFORE 'DONE' (the single most important check):
-- TWO things must BOTH pass after deploy, not just one. (a) The ROOT page must render: open the deployed
-  app's base URL and confirm it returns 200 with a full <!DOCTYPE html> document (a 500 or blank here means
-  the built dist/index.html did not ship — the sync.include allowlist above prevents this). (b) The app's ONE
-  primary action (ask a question, flag a store, record a decision) must be exercised end-to-end and return a
-  real 200 with real data. An app whose API works but whose root page 500s is NOT done, and neither is one
-  that renders but whose main action fails. Make BOTH the app step's verify condition.
+THE APP STEP (Genie App Builder, only when Databricks Apps is in the build). Its move is the prompt they paste
+into Genie App Builder, and that prompt is what makes the app good, so write it to this bar:
+- Build a BRIEFING, not a dashboard: the first screen opens on ONE clear finding or action matching the plan's
+  "First screen" and interaction_model (browse_act = a ranked shortlist to act on; monitor = an overview; ask = a
+  question box with a useful default answer already shown; explore = filters over a view; agent_actions = a
+  review queue of suggestions the pipeline drafted, each with Approve / Change and the reason), then lets the
+  person go to evidence, then detail. Never a blank canvas.
+- Make the PRIMARY ACTION obvious and say exactly what it writes: which Lakebase table, which columns.
+- ONLY IF Lakebase is in this build, CLOSE THE LOOP: when someone saves a decision, the app must show it. The
+  list reads the gold table AND the Lakebase decisions (latest decision per item and date), so an approved item
+  shows as approved or moves out of the to-do list. If Lakebase is NOT in the build, the app records nothing:
+  never invent a Lakebase table or any write the plan doesn't include.
+- Use only the pieces in this build. Never add a piece (Lakebase, Genie) in a step that the build doesn't list.
+  There is no separate dashboard: key numbers and trends are charts on an app screen.
+- Findings in plain language: each item gets a one-sentence observation a non-technical person could say out loud,
+  with the supporting numbers beside it, not a raw table dump.
+- Name the data precisely: the fully qualified gold tables to read, the Genie space to embed if the plan has one
+  (as a chat panel for the open questions the plan names).
+- Design: light theme, generous whitespace, one display font and one body font, tabular numerals for numbers,
+  at most three meaning-coded colours always paired with a label, a loading skeleton and a helpful empty state.
+  If the participant's organisation is the workshop host, ask for its brand colours; otherwise a clean neutral palette.
+  Genie App Builder only sees the prompt, so name the look in it: the visual direction from design.md that fits the
+  interaction model (Crisp Operational for lists to act on and monitoring, Warm Editorial for drafts and briefings,
+  Bold Heritage for leadership views) and its two fonts.
+- Keep it to one or two screens to start. The concept tells them to iterate in short cycles ("make the reason
+  line bolder", "add a filter by region") rather than rewriting the prompt.
+- Verify (the person checks in the preview, then after deploy): the first screen shows REAL rows from the gold
+  tables; the primary action writes a row they can see in Lakebase; any ask panel returns a real Genie answer;
+  the deployed app opens from its URL.
 
 Honor the provided guardrails for each capability — they are hard-won and must be reflected in the
 move or verify. Keep the whole thing readable by a beginner. No ceremony, no code.
 
 WHO READS WHAT (critical — this is where plans lose beginners):
-- The "move" is pasted straight into Genie Code, which is a coding agent and understands technical
-  detail — so a guardrail's engineering specifics (packaging files, notebook cell headers, model
-  parameters, log pages) belong ONLY inside the move, phrased as an instruction TO Genie Code, never
-  as something the user must understand.
+- The "move" is pasted straight into Genie Code (a coding agent that understands technical detail), or for
+  the app step into Genie App Builder (which wants a plain description of screens and data, not code). So a
+  guardrail's engineering specifics belong ONLY inside the move, never as something the user must understand.
 - The "concept", "verify", and "teach" are read by the PERSON, whose Databricks familiarity is
   stated in the request. If they are new to it: do NOT put raw jargon (uv.lock, "temperature",
-  /logz, "# COMMAND", Unity Catalog internals) in concept/verify/teach — say what it means in plain
+  /logz, "# COMMAND", MLflow tracing internals like @mlflow.trace / autolog / experiment id, Unity
+  Catalog internals) in concept/verify/teach — say what it means in plain
   words or leave it out. The person should never have to look up a term to follow a step.
-- The first step's concept should briefly reassure a newcomer how this works: they paste the move
-  into Genie Code, it does the technical work, they check the result. Don't assume they've used it.
+- The first step's concept should briefly reassure a newcomer how this works: they ask Genie Code in
+  their own words, it does the technical work, they check the result. Don't assume they've used it.
 
 Return ONLY one JSON object (no fence, no prose):
 {{ "steps": [ {{ "capability": "<name or 'data'>", "title": "<short imperative>",
@@ -280,7 +341,11 @@ def _ordered_targets(req: BuildRequest) -> list[str]:
 
 def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
     targets = _ordered_targets(req)
-    data_mode = req.design_answers.get("data_mode", "synthetic")
+    # A pre-seeded, governed dataset for this theme usually exists (facilitator-built,
+    # aligned to the survey). If the idea maps to one, point the build at it ("seeded"
+    # path) instead of regenerating data; otherwise fall back to generate-your-own.
+    ds = _match_dataset(req)
+    data_mode = "seeded" if ds else req.design_answers.get("data_mode", "synthetic")
     interaction = req.design_answers.get("interaction_model", "")
     schema = _schema_name(req.project_name or req.idea)
     # The catalog comes from workshop config (facilitator-set). When unset, tell Genie Code
@@ -294,6 +359,21 @@ def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
     # The generic data guardrail plus the path-specific one for this data_mode.
     guardrails = dict(GUARDRAILS)
     guardrails["data"] = f"{GUARDRAILS['data']} {DATA_GUARDRAIL.get(data_mode, DATA_GUARDRAIL['synthetic'])}"
+    # When a pre-seeded dataset matched, thread it through the dependent steps: the
+    # ready-made benchmark set into Genie, the shared docs Volume into Knowledge
+    # Assistant, and on-behalf-of-user (OBO) auth into the App (the app SP can't be
+    # granted access to the shared catalog by a participant, but the logged-in user has it).
+    if ds:
+        if "Genie" in guardrails:
+            guardrails["Genie"] += (
+                f" A READY-MADE benchmark set for this theme lives in {ds['eval']} (columns: question, "
+                f"expected_sql, expected_answer, expected_facts) — use THOSE questions as your benchmark "
+                f"instead of inventing your own, and tighten the space's column descriptions and instructions "
+                f"until Genie's answers match the expected ones repeatably.")
+        if "Databricks Apps" in guardrails:
+            guardrails["Databricks Apps"] += (
+                f" The app reads the shared seeded tables in {ds['schema']} (read-only) plus the participant's own gold "
+                f"tables; name both fully qualified in the App Builder prompt.")
     gl = "\n".join(f"- {t}: {guardrails.get(t, '')}" for t in targets)
     # The PRD is authoritative: the user may have refined the blueprint (changed the
     # whole idea) after describing it. Build from the plan they approved, not the first
@@ -308,17 +388,35 @@ def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
     return (
         f"{what}\n"
         f"Databricks familiarity: {req.expertise}\n"
-        f"Data mode: {data_mode}\n"
+        + (f"Participant's organisation context: {req.design_answers['participant_context']} (use their terms and "
+           f"currency; never assume the workshop host's company)\n" if req.design_answers.get("participant_context") else "")
+        + f"Data mode: {data_mode}\n"
         f"Interaction model: {interaction or 'not specified — infer it from the plan'} "
         f"(this sets the app's first screen and primary action: browse_act=ranked shortlist to act; "
-        f"monitor=dashboard/overview; ask=question box; explore=flexible drilling; "
-        f"agent_actions=a supervise-the-agent console: opens on the actions the agent has proposed, "
-        f"person approves/overrides each, every decision recorded to Lakebase as an audit trail).\n"
+        f"monitor=an overview screen of key numbers with charts; ask=question box; explore=flexible drilling; "
+        f"agent_actions=a review queue: opens on the suggestions the pipeline's rules drafted for each item, "
+        f"the person approves or overrides each, every decision recorded to Lakebase as an audit trail).\n"
         f"The plan names who it's for, the first screen, and the primary action — the app step must build "
         f"an app that opens on that primary action for that person, not a generic dashboard.\n"
         f"{catalog_line}"
-        f"Dedicated schema for this participant (isolate ALL their work here; the data step creates it, "
-        f"every later step references it): {schema}\n"
+        + (
+            f"PRE-SEEDED DATA — USE THIS, DO NOT REGENERATE: this use case maps to the workshop's ready-made "
+            f"'{ds['label']}' dataset. Point step 1 (and every later step) at {ds['schema']}. Tables: "
+            f"{ds['tables']}. The participant can SELECT these via their workshop group. Benchmark Genie against "
+            f"{ds['eval']}. Only create SUPPLEMENTARY tables their use case needs beyond these — do not duplicate "
+            f"the seeded tables.\n"
+            f"TWO SCHEMAS, DO NOT CONFUSE THEM — this is a strict naming rule for EVERY step's move:\n"
+            f"  1. SEEDED (shared, read-only): {ds['schema']} — always qualify seeded tables as "
+            f"`{ds['schema']}.<table>` (e.g. {ds['schema']}.fact_invoices). NEVER create a table here.\n"
+            f"  2. THE PARTICIPANT'S OWN (writable): {SEEDED_CATALOG}.{schema} — this is where step 1 creates any "
+            f"supplementary tables AND where Lakebase-adjacent app state lives. Always qualify the participant's "
+            f"own supplementary tables as `{SEEDED_CATALOG}.{schema}.<table>` (e.g. {SEEDED_CATALOG}.{schema}."
+            f"fact_receipts). NEVER write a supplementary table under the seeded schema name ({ds['schema']}) — "
+            f"a supplementary table lives ONLY in {SEEDED_CATALOG}.{schema}.\n"
+            if ds else
+            f"Dedicated schema for this participant (isolate ALL their work here; the data step creates it, "
+            f"every later step references it): {schema}\n")
+        +
         f"The full plan (this PRD plus the steps) is saved in the participant's workspace; step 1 must tell "
         f"Genie Code to read it first, referring to it with the exact literal token __PROJECT_MD__.\n"
         f"ORDER (produce exactly these steps, in this order): {targets}\n\n"
@@ -367,10 +465,17 @@ def build_plan(req: BuildRequest) -> BuildPlan:
             for i, s in enumerate(parsed.get("steps", []), 1):
                 # Sanitize the person-facing fields (VOICE forbids em-dashes; the model
                 # still leaks them). `move` is the paste-to-agent prompt, cleaned too.
+                cap = s.get("capability", "")
                 steps.append(BuildStep(
-                    n=i, title=strip_em_dashes(s.get("title", "")), capability=s.get("capability", ""),
+                    n=i, title=strip_em_dashes(s.get("title", "")), capability=cap,
+                    tool="app_builder" if cap == "Databricks Apps" else "genie_code",
                     concept=strip_em_dashes(s.get("concept", "")), move=strip_em_dashes(s.get("move", "")),
                     verify=strip_em_dashes(s.get("verify", "")), teach=strip_em_dashes(s.get("teach", ""))))
+            # Only the build's own pieces: a step for a component the build doesn't use is dropped, in code.
+            allowed = set(_ordered_targets(req))
+            steps = [st for st in steps if st.capability in allowed or not st.capability]
+            for i, st in enumerate(steps, 1):
+                st.n = i
             if steps:
                 return BuildPlan(steps=steps)
             raise ValueError("no steps")

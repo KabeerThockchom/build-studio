@@ -1,5 +1,8 @@
-// Mirror of server/models.py — the shared Blueprint contract.
-export type Band = "data" | "capability" | "agent" | "delivery";
+// Mirror of the server contracts (server/models.py, server/plan.py, server/components.py).
+
+// Diagram bands, left to right: where the data comes from, how it is shaped,
+// how it is served, and where people use it.
+export type Band = "data" | "pipeline" | "serve" | "delivery";
 
 export interface Node { id: string; band: Band; label: string; sub: string; }
 export interface FlowStep { n: number; title: string; sub: string; }
@@ -9,48 +12,51 @@ export interface DiagramSpec { nodes: Node[]; edges: [string, string][]; }
 export interface Blueprint {
   archetype: string;
   idea: string;
-  persona: string;
+  persona?: string;
   capabilities: string[];
   spec: DiagramSpec;
   flow: FlowStep[];
   prd_markdown: string;
   decisions: Decision[];
-  scope_in: string[];      // what we'll get done today
+  scope_in: string[];      // what gets done today
   scope_later: string[];   // honest "save for later"
-  refine_note: string;     // if a refine changed the architecture: what changed + ripple
+  app_screens?: string[];  // when the build has an app: one line per screen
+  refine_note: string;     // after a refine: what changed
+  components_changed?: { added: string[]; removed: string[]; notes: string[] };  // when refining: which pieces changed
 }
 
-export interface GenerateRequest {
-  idea: string;
-  persona?: string;
-  expertise?: string;
-  interests?: string[];
-  design_answers?: Record<string, string>;
-  capabilities?: string[];
-  adjust?: string;
-}
-
-// --- Design plan (SA-authored) ---
-export interface DesignOption { key: string; letter: string; label: string; sub: string; preview: string[]; }
-export interface DesignQuestion {
-  id: string; eyebrow: string; concept: string; title: string; lead: string;
-  options: DesignOption[]; other_placeholder: string; other_preview: string[];
-}
-
-// --- Idea stress-test (advisory) ---
-export interface IdeaCriterion { key: string; label: string; met: boolean; hint: string; }
-export interface IdeaCheck { strong: boolean; summary: string; criteria: IdeaCriterion[]; }
+// What each piece does in THIS build, written by the Sit-Down handoff.
 export interface CapabilityPick { name: string; selected: boolean; fits: string; }
-export interface DesignPlan {
-  read_back: string;
-  questions: DesignQuestion[];
-  capabilities: CapabilityPick[];
+export interface SitDownPlan { read_back: string; questions: unknown[]; capabilities: CapabilityPick[]; }
+
+// The background plan job (POST /api/plan/start, GET /api/plan/{id}).
+export type PlanStage = "drafting" | "checking" | "refining" | "done";
+export interface PlanJob {
+  id: string;
+  status: "running" | "done" | "error";
+  stage: PlanStage;
+  error?: string;
 }
 
 // --- Build phase ---
+export type BuildTool = "genie_code" | "app_builder";
 export interface BuildStep {
   n: number; title: string; capability: string;
   concept: string; move: string; verify: string; teach: string;
+  tool?: BuildTool;
 }
 export interface BuildPlan { steps: BuildStep[]; }
 
+// The finished Sit-Down, as handed to Build Studio (server/sitdown.py to_studio).
+export interface StudioHandoff {
+  phase?: string;
+  idea: string;
+  projectName: string;
+  answers: Record<string, string>;
+  answersOther?: Record<string, string>;
+  capabilities: string[];
+  plan: SitDownPlan;
+  planRequested?: boolean;
+  sitdown?: Record<string, unknown>;
+  spec?: DiagramSpec;          // the server-computed architecture (same as the plan's blueprint.spec)
+}

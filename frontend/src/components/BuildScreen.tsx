@@ -1,290 +1,200 @@
-import { useState, useEffect } from "react";
-import { Check, Copy, Sparkles, Lightbulb, ExternalLink, PartyPopper, ArrowRight, FolderCheck, HelpCircle, Compass } from "lucide-react";
-import type { BuildPlan, BuildStep } from "../lib/types";
-import { GeneratingPanel } from "./GeneratingPanel";
+import { useEffect, useState } from "react";
+import { Check, Copy, Lightbulb, ExternalLink, ArrowRight, ChevronLeft, FolderCheck, HelpCircle, Sparkles } from "lucide-react";
+import type { BuildPlan, BuildStep, BuildTool } from "../lib/types";
+import { APPS } from "../lib/constants";
+import "./sitdown/sitdown.css";
+import { charSVG } from "./sitdown/art";
 import { VideoEmbed } from "./VideoEmbed";
+import { Label, Title, Lead, Card, Go, Primary, ToolBadge } from "./ui";
+
+/* Build: one step at a time, each clear about WHERE you do it (Genie Code or Genie App Builder) and
+   WHAT you're doing and why. The participant writes the prompt in their own words; the example prompt
+   is there only if they ask for help (the workshop flow). One sub-step at a time: prompt -> look at what
+   it made (data step) -> confirm it worked. */
 
 interface Props {
   plan: BuildPlan | null;
   loading: boolean;
   stepIdx: number;
   done: number[];
-  publishedDir?: string | null;        // workspace folder the project doc was written to
-  publishedDeepLink?: string | null;   // clickable URL straight to PROJECT.md
+  publishedDir?: string | null;
+  publishedDeepLink?: string | null;
+  entered: boolean;
+  onEnter: () => void;
   onStep: (i: number) => void;
   onComplete: (n: number) => void;
   onBack: () => void;
 }
 
-// First sentence of a step's concept, for the one-line roadmap summaries on the overview.
+// Which tool builds a step: Genie App Builder for the app, Genie Code for everything else.
+export const stepTool = (s: BuildStep): BuildTool => s.tool || (s.capability === APPS ? "app_builder" : "genie_code");
 const firstSentence = (t: string) => (t || "").match(/^.*?[.!?](\s|$)/)?.[0].trim() || (t || "");
 
-export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publishedDeepLink, onStep, onComplete, onBack }: Props) {
-  // After everything's done we show a real completion screen; "review" drops back in.
+export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publishedDeepLink, entered, onEnter, onStep, onComplete, onBack }: Props) {
   const [reviewing, setReviewing] = useState(false);
-  // Whether the user has chosen to leave the intro and start step 1. We never auto-advance
-  // into the steps — that used to cut off the Genie Code video the moment the plan was ready.
-  // Skip the gate for someone already mid-build (returning to this screen).
-  const [entered, setEntered] = useState(() => done.length > 0);
+  useEffect(() => { document.querySelector("main")?.scrollTo({ top: 0 }); }, [stepIdx, entered]);
 
-  // Intro phase: the build is still generating OR it's ready and waiting for the user.
-  // The video sits BELOW the status and stays mounted across both, so it keeps playing
-  // until the user themselves clicks "Start building" — their decision, not ours.
-  if (!entered) {
+  if (!entered || !plan) {
     const ready = !loading && !!plan;
+    const hasApp = !!plan?.steps.some((s) => stepTool(s) === "app_builder");
     return (
-      <div className="rise max-w-[760px]">
-        <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Build · overview</div>
-        <h2 className="mb-4 text-[29px] font-extrabold leading-tight text-navy">
-          {ready ? "Here's your build, step by step." : "Planning your build…"}
-        </h2>
+      <div className="rise mx-auto max-w-[820px]">
+        <Label>Build</Label>
+        <Title className="mt-1">{ready ? "Here's your build, step by step." : "Writing your build steps…"}</Title>
         {!ready && (
-          <GeneratingPanel
-            intervalMs={11000}
-            steps={["Reading your approved plan",
-                    "Writing your project spec for Genie Code",
-                    "Baking in the build practices",
-                    "Still working, hang tight, almost there"]}
-            note="Writing the full project spec Genie Code will build from: the plan, the steps, and the practices to follow. This can take up to a minute."
-            quiz={{ q: "Where does the actual building happen?",
-                    options: ["Inside this setup app", "On your local laptop", "In Genie Code, in your Databricks workspace"],
-                    answer: 2, why: "This app writes the plan and the prompts. Genie Code, in your Databricks workspace, does the building." }} />
+          <Card className="mt-6 px-5 py-5">
+            <div className="flex items-center gap-2 text-[15px] font-semibold text-navy">
+              <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green opacity-60" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green" /></span>
+              Turning your plan into steps
+            </div>
+            <p className="mt-1 text-[14px] leading-snug text-navy-3">One step per piece, in build order, each with what you're doing, why, and how you'll know it worked. Up to a minute.</p>
+            <div className="relative mt-3 h-1 overflow-hidden rounded-full bg-oat-2"><span className="sweep" /></div>
+          </Card>
         )}
         {ready && plan && (
           <>
-            <p className="mb-5 max-w-[62ch] text-[16px] leading-relaxed text-navy-2">
-              You'll build your app one step at a time in Genie Code. Here's the whole path, and the two things to
-              set up before step 1.
-            </p>
-
-            {/* One-time setup: open the plan + open Genie Code. This used to nag every step. */}
-            <div className="mb-5 rounded-2xl border-[1.5px] border-green bg-green-soft px-5 py-4">
-              <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-green-ink">Set up first (once)</div>
-              <ol className="flex flex-col gap-3">
-                <li className="flex items-start gap-3">
-                  <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-green text-white text-[11px] font-bold">1</span>
-                  <div className="text-[14px] leading-snug text-navy">
-                    <b>Open your plan and skim it</b>, so you know what you're building. It's the full spec Genie Code will follow.
-                    {publishedDeepLink && (
-                      <a href={publishedDeepLink} target="_blank" rel="noreferrer"
-                        className="ml-1 inline-flex items-center gap-1 font-semibold text-green-ink underline decoration-green/40 hover:decoration-green">
-                        <ExternalLink className="h-3.5 w-3.5" /> Open PROJECT.md
-                      </a>
-                    )}
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-green text-white text-[11px] font-bold">2</span>
-                  <div className="text-[14px] leading-snug text-navy">
-                    <b>Open Genie Code in your workspace</b> and start one chat. Keep it open the whole way. You'll send each step there in order.
-                  </div>
-                </li>
+            <Lead className="mt-2 max-w-[60ch]">
+              {hasApp ? "The data and the pieces in Genie Code, then the app in Genie App Builder." : "All of it in Genie Code, one step at a time."} Set up once, then follow the steps in order.
+            </Lead>
+            <Card className="mt-6 px-5 py-4">
+              <div className="text-[15px] font-semibold text-navy">Set up once</div>
+              <ol className="mt-3 flex flex-col gap-3">
+                <SetupItem n={1}>
+                  <b className="font-semibold">Open your plan</b> and skim it so you know what you're building. Every step points back to it.
+                  {publishedDeepLink && <a href={publishedDeepLink} target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-1 font-semibold text-green-ink underline decoration-green/40"><ExternalLink className="h-3.5 w-3.5" />Open PROJECT.md</a>}
+                </SetupItem>
+                <SetupItem n={2}><b className="font-semibold">Open Genie Code</b> in your workspace and start one chat. Keep it open the whole way.</SetupItem>
+                {hasApp && <SetupItem n={3}><b className="font-semibold">Check Genie App Builder is on.</b> The app step uses it (Apps, then the Build tab). It's in Beta, so the workspace preview needs to be enabled; ask your facilitator if you don't see the Build tab.</SetupItem>}
               </ol>
-            </div>
-
-            {/* Roadmap: the steps + what each accomplishes. */}
-            <div className="mb-6 rounded-2xl border border-line bg-white px-5 py-4">
-              <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-navy-3">The {plan.steps.length} steps</div>
-              <ol className="flex flex-col gap-3">
-                {plan.steps.map((s) => (
-                  <li key={s.n} className="flex items-start gap-3">
-                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-oat-2 text-[11px] font-bold text-navy-2">{s.n}</span>
-                    <div>
-                      <div className="text-[14.5px] font-bold text-navy">{s.title}</div>
-                      <div className="text-[13px] leading-snug text-navy-3">{firstSentence(s.concept)}</div>
+            </Card>
+            <Card className="mt-3 px-5 py-4">
+              <div className="text-[15px] font-semibold text-navy">The {plan.steps.length} steps</div>
+              <ol className="mt-3 flex flex-col">
+                {plan.steps.map((s, i) => (
+                  <li key={s.n} className={`flex items-start gap-3 py-3 ${i ? "border-t border-line" : ""}`}>
+                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-oat-2 text-[12px] font-semibold text-navy-2">{s.n}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2"><span className="text-[15px] font-semibold text-navy">{s.title}</span><ToolBadge tool={stepTool(s)} /></div>
+                      <div className="mt-0.5 text-[14px] leading-snug text-navy-3">{firstSentence(s.concept)}</div>
                     </div>
                   </li>
                 ))}
               </ol>
+            </Card>
+            <div className="mt-6 flex items-center justify-between">
+              <button onClick={onBack} className="flex items-center gap-1 text-[15px] text-navy-3 hover:text-navy"><ChevronLeft className="h-4 w-4" /> Your plan</button>
+              <Go onClick={onEnter}>Start step 1 <ArrowRight className="h-4 w-4" /></Go>
             </div>
-
-            <button onClick={() => setEntered(true)}
-              className="tl-glow inline-flex items-center gap-2 rounded-xl bg-green px-7 py-3.5 text-[15.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-green-l">
-              Start building. Go to step 1 →
-            </button>
           </>
         )}
-
-        {/* Meet Genie Code — sits below the status and stays MOUNTED across both the
-            planning and ready states, so it keeps playing until the user starts step 1. */}
-        <div className="mt-8 max-w-[640px] border-t border-line pt-6">
-          <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-navy-3">Meet Genie Code</div>
-          <VideoEmbed id="heouBA5U1bE" title="Intro to Genie Code"
-            sub="The AI coding agent you'll build with. You describe what you want in plain words; it writes and runs the work in your workspace." />
+        <div className="mt-10 max-w-[640px] border-t border-line pt-6">
+          <Label>New to Genie Code? Two minutes</Label>
+          <div className="mt-2"><VideoEmbed id="heouBA5U1bE" title="Intro to Genie Code" sub="The AI coding agent you'll build with. You describe what you want in plain words; it writes and runs the work in your workspace." /></div>
         </div>
       </div>
     );
   }
 
-  if (!plan) return null;  // safety: entered is only reachable with a plan present
   const steps = plan.steps;
   const step = steps[stepIdx];
-  if (!step) return null;  // defensive: guards against a transient stepIdx/plan desync
+  if (!step) return null;
   const allDone = done.length >= steps.length;
-
-  // Everything built — a real finish, not an inline emoji.
-  if (allDone && !reviewing) {
-    return <CompletionScreen steps={steps}
-      onReview={() => { setReviewing(true); onStep(0); }} onBack={onBack} />;
-  }
+  if (allDone && !reviewing) return <CompletionScreen steps={steps} onReview={() => { setReviewing(true); onStep(0); }} onBack={onBack} />;
 
   const isDone = done.includes(step.n);
-  const isData = step.capability === "data" || step.n === 1;
-  const completeStep = () => { onComplete(step.n); if (stepIdx < steps.length - 1) onStep(stepIdx + 1); };
+  const tool = stepTool(step);
+  const complete = () => { onComplete(step.n); if (stepIdx < steps.length - 1) onStep(stepIdx + 1); };
 
   return (
-    <div className="rise mx-auto max-w-[760px]">
-      <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">
-        Build · step {stepIdx + 1} of {steps.length}
+    <div className="rise mx-auto max-w-[820px]">
+      {/* progress through the steps */}
+      <div className="flex items-center gap-3">
+        <div className="flex flex-1 gap-1">
+          {steps.map((s, i) => (
+            <button key={s.n} onClick={() => onStep(i)} aria-label={`Step ${s.n}`}
+              className={`h-1.5 flex-1 rounded-full transition-colors ${done.includes(s.n) ? "bg-green" : i === stepIdx ? "bg-navy" : "bg-line-2 hover:bg-navy-3"}`} />
+          ))}
+        </div>
+        <Label>Step {stepIdx + 1} of {steps.length} · {done.length} done</Label>
       </div>
 
-      {/* step pills */}
-      <div className="mb-6 flex flex-wrap gap-1.5">
-        {steps.map((s, i) => {
-          const d = done.includes(s.n), cur = i === stepIdx;
-          return (
-            <button key={s.n} onClick={() => onStep(i)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-colors
-                ${cur ? "bg-navy text-white" : d ? "bg-green-soft text-green-ink" : "bg-white text-navy-2 border border-line"}`}>
-              <span className="grid h-4 w-4 place-items-center rounded-full text-[9px]"
-                style={{ background: d ? "#00A870" : cur ? "rgba(255,255,255,.2)" : "#EEEDE9", color: d || cur ? "#fff" : "#5A8A9A" }}>
-                {d ? "✓" : s.n}
-              </span>
-              {s.title.length > 22 ? s.title.slice(0, 20) + "…" : s.title}
-            </button>
-          );
-        })}
-      </div>
-
-      {publishedDir && <ProjectSavedNote dir={publishedDir} deepLink={publishedDeepLink} compact />}
-
+      <div className="mt-6 flex items-center gap-2"><ToolBadge tool={tool} size="md" /></div>
+      <Title className="mt-2">{step.title}</Title>
       {stepIdx === 0 && (
-        <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-line bg-oat/60 px-4 py-3">
+        <div className="mt-4 flex max-w-[66ch] items-start gap-2.5 rounded-xl border border-line bg-white px-4 py-3">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-green" />
-          <div className="text-[13.5px] leading-snug text-navy-2">
-            <b className="text-navy">How this works:</b> with your plan open and one Genie Code chat going, each
-            step is the same rhythm: prompt Genie Code in your own words, then confirm the result before the
-            next one. Genie Code does the technical part. You don't write any code.
+          <div className="text-[14px] leading-snug text-navy-2">
+            <b className="font-semibold text-navy">How this works:</b> every step has the same rhythm. Ask in your own words,
+            then check the result before moving on. The tool does the technical part; you don't write any code.
           </div>
         </div>
       )}
-
-      <h2 className="mb-1.5 text-[27px] font-extrabold leading-[1.12] tracking-[-0.02em] text-navy">{step.title}</h2>
-
-      <section className="mt-4 rounded-2xl border border-line bg-white px-6 py-5">
-        <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-navy-3">What you're doing &amp; why</div>
-        <p className="text-[15.5px] leading-relaxed text-navy-2">{step.concept}</p>
+      <Card className="mt-4 px-5 py-4">
+        <div className="text-[12px] font-medium text-navy-3">What you're doing and why</div>
+        <p className="mt-1.5 max-w-[66ch] text-[16px] leading-relaxed text-navy-2">{step.concept}</p>
         {step.teach && (
-          <div className="mt-3 flex items-start gap-2 rounded-xl border border-dashed border-amber/40 bg-[#fffdf7] px-3.5 py-2.5">
-            <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber" />
-            <div className="text-[13px] leading-snug text-navy-2">{step.teach}</div>
+          <div className="mt-3 flex max-w-[66ch] items-start gap-2 rounded-lg border border-dashed border-[#ecd9a8] bg-[#fffbf3] px-3.5 py-2.5">
+            <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-[#9a5b00]" />
+            <div className="text-[14px] leading-snug text-navy-2">{step.teach}</div>
           </div>
         )}
-      </section>
+      </Card>
 
-      {/* The sub-step walker: open the plan -> prompt in your own words -> (explore, for the
-          data step) -> confirm. One sub-step at a time (progressive disclosure). */}
-      <StepWalker key={step.n} step={step} isData={isData} isDone={isDone}
-        publishedDir={publishedDir} onCompleteStep={completeStep} />
+      <StepCard key={step.n} step={step} tool={tool} isDone={isDone} publishedDir={publishedDir} onComplete={complete} />
 
-      <div className="mt-8 flex items-center justify-between">
-        <button onClick={stepIdx === 0 ? onBack : () => onStep(stepIdx - 1)}
-          className="text-[14px] font-semibold text-navy-3 hover:text-navy">← {stepIdx === 0 ? "Blueprint" : "Previous"}</button>
-        {isDone && stepIdx < steps.length - 1 && (
-          <button onClick={() => onStep(stepIdx + 1)}
-            className="rounded-xl bg-green px-6 py-3 text-[15px] font-bold text-white hover:bg-green-l">Next step →</button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// A real finish line — a recap of what they stood up and honest next steps, instead
-// of an inline emoji you could hit without doing anything.
-function CompletionScreen({ steps, onReview, onBack }: { steps: BuildStep[]; onReview: () => void; onBack: () => void }) {
-  const NEXT = [
-    "Open your app and use it the way the people it's for would.",
-    "Show it to a colleague. It's the fastest way to find what to improve.",
-    "Keep going in Genie Code: ask it for one change at a time, the same way you built it.",
-    "When you're ready, swap the sample data for your real tables.",
-  ];
-  return (
-    <div className="rise max-w-[760px]">
-      <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Build · complete</div>
-      <div className="flex items-center gap-3">
-        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-green-soft text-green"><PartyPopper className="h-6 w-6" /></span>
-        <h2 className="text-[32px] font-extrabold leading-[1.05] tracking-[-0.025em] text-navy">You built it.</h2>
-      </div>
-      <p className="mt-4 max-w-[58ch] text-[16.5px] leading-relaxed text-navy-2">
-        You went from an idea to a working build, one step at a time. Here's what you stood up today.
-      </p>
-
-      <div className="mt-6 rounded-2xl border border-line bg-white px-6 py-5">
-        <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-navy-3">What you built</div>
-        <ul className="flex flex-col gap-2.5">
-          {steps.map((s) => (
-            <li key={s.n} className="flex items-start gap-2.5 text-[14.5px] leading-snug text-navy">
-              <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-green text-white text-[10px]">✓</span>
-              {s.title}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-line bg-oat/50 px-6 py-5">
-        <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-green-ink">
-          <ArrowRight className="h-4 w-4" /> Where to go next
+      {publishedDir && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white px-4 py-2.5">
+          <FolderCheck className="h-4 w-4 shrink-0 text-green" />
+          <div className="min-w-0 flex-1 text-[13px] text-navy-2">Your full plan is saved: <code className="break-all text-[12px] text-navy-3">{publishedDir}/PROJECT.md</code></div>
+          {publishedDeepLink && <a href={publishedDeepLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-navy-2 hover:text-navy"><ExternalLink className="h-3.5 w-3.5" />Open</a>}
         </div>
-        <ul className="flex flex-col gap-2">
-          {NEXT.map((n, i) => (
-            <li key={i} className="flex items-start gap-2 text-[14px] leading-snug text-navy-2">
-              <span className="mt-[7px] h-[6px] w-[6px] shrink-0 rounded-full bg-green" />{n}
-            </li>
-          ))}
-        </ul>
-      </div>
+      )}
 
-      <div className="mt-8 flex items-center justify-between">
-        <button onClick={onBack} className="text-[14px] font-semibold text-navy-3 hover:text-navy">← Back to blueprint</button>
-        <button onClick={onReview}
-          className="rounded-xl border border-line bg-white px-6 py-3 text-[15px] font-bold text-navy-2 hover:border-green hover:text-green-ink">Review the steps</button>
+      <div className="sticky bottom-0 z-10 -mx-2 mt-8 flex items-center justify-between border-t border-line bg-oat px-2 py-4 shadow-[0_-14px_22px_-18px_rgba(27,49,57,.35)]">
+        <button onClick={stepIdx === 0 ? onBack : () => onStep(stepIdx - 1)} className="flex items-center gap-1 text-[15px] text-navy-3 hover:text-navy">
+          <ChevronLeft className="h-4 w-4" /> {stepIdx === 0 ? "Your plan" : "Previous step"}
+        </button>
+        {isDone && stepIdx < steps.length - 1 && <Primary onClick={() => onStep(stepIdx + 1)}>Next step <ArrowRight className="h-4 w-4" /></Primary>}
       </div>
     </div>
   );
 }
 
-// The per-step sub-step walker (main column, no right pane). Progressive disclosure:
-// open the plan -> prompt Genie Code in your own words (help reveal) -> explore (data step
-// only) -> confirm it worked. One sub-step at a time. Learning already happened in the
-// Learn phase, so there's no per-step learning module here anymore.
-const SUB_LABELS: Record<string, string> = {
-  prompt: "Prompt Genie Code", explore: "Explore what it made", confirm: "Confirm it worked",
-};
+const SetupItem = ({ n, children }: { n: number; children: React.ReactNode }) => (
+  <li className="flex items-start gap-3">
+    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-green text-[12px] font-semibold text-white">{n}</span>
+    <div className="text-[15px] leading-snug text-navy">{children}</div>
+  </li>
+);
 
-function StepWalker({ step, isData, isDone, publishedDir, onCompleteStep }:
-  { step: BuildStep; isData: boolean; isDone: boolean;
-    publishedDir?: string | null; onCompleteStep: () => void }) {
-  const subs = ["prompt", ...(isData ? ["explore"] : []), "confirm"];
+// One step's "how", one sub-step at a time (progressive disclosure, as in the workshop):
+//   Genie Code:       prompt in your own words -> look at what it made (data step) -> confirm
+//   Genie App Builder: open it -> describe the app in your own words -> refine in short cycles -> confirm
+// The example prompt is behind "I need help" so people write the words themselves.
+type Sub = "open" | "prompt" | "explore" | "refine" | "confirm";
+function StepCard({ step, tool, isDone, publishedDir, onComplete }: { step: BuildStep; tool: BuildTool; isDone: boolean; publishedDir?: string | null; onComplete: () => void }) {
+  const app = tool === "app_builder";
+  const isData = step.capability === "data" || step.n === 1;
+  const subs: Sub[] = app ? ["open", "prompt", "refine", "confirm"] : ["prompt", ...(isData ? ["explore" as Sub] : []), "confirm"];
+  const LABEL: Record<Sub, string> = {
+    open: "Open Genie App Builder", prompt: app ? "Describe your app in your own words" : "Ask Genie Code in your own words",
+    explore: "Look at what it made", refine: "Refine it in short cycles", confirm: "Confirm it worked",
+  };
   const [idx, setIdx] = useState(0);
-  const [showHelp, setShowHelp] = useState(false);
+  const [help, setHelp] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [rows, setRows] = useState("");
-  useEffect(() => { setIdx(0); setShowHelp(false); setCopied(false); setRows(""); }, [step.n]);
-
+  useEffect(() => { setIdx(0); setHelp(false); setCopied(false); }, [step.n]);
   const prdRef = publishedDir ? `${publishedDir}/PROJECT.md` : "PROJECT.md in your project folder";
-  const pasteText = step.move.replace(/__PROJECT_MD__/g, prdRef);
-  const copy = () => { navigator.clipboard?.writeText(pasteText); setCopied(true); setTimeout(() => setCopied(false), 1400); };
-  const goal = step.title.replace(/\.$/, "").toLowerCase();
-  const advance = () => setIdx((i) => i + 1);
+  const move = step.move.replace(/__PROJECT_MD__/g, prdRef);
+  const copy = () => { navigator.clipboard?.writeText(move); setCopied(true); setTimeout(() => setCopied(false), 1400); };
+  const goal = step.title.replace(/\.$/, "");
+  const next = () => setIdx((i) => i + 1);
 
-  // Revisiting an already-completed step: a calm summary, not the interactive walker.
   if (isDone) {
     return (
-      <div className="mt-5 rounded-2xl border-[1.5px] border-green bg-green-soft px-5 py-4">
-        <div className="flex items-center gap-2 text-[14px] font-bold text-navy">
-          <Check className="h-4 w-4 text-green" /> You marked this step done.
-        </div>
-        <div className="mt-1.5 text-[13.5px] leading-snug text-navy-2"><b>It worked when:</b> {step.verify}</div>
+      <div className="mt-5 rounded-xl border-[1.5px] border-green bg-green-soft px-5 py-4">
+        <div className="flex items-center gap-2 text-[15px] font-semibold text-navy"><Check className="h-4 w-4 text-green" /> You marked this step done.</div>
+        <div className="mt-1.5 text-[14px] leading-snug text-navy-2"><b className="font-semibold">It worked when:</b> {step.verify}</div>
       </div>
     );
   }
@@ -292,63 +202,65 @@ function StepWalker({ step, isData, isDone, publishedDir, onCompleteStep }:
   return (
     <div className="mt-5 flex flex-col gap-2.5">
       {subs.map((key, i) => {
-        const done = i < idx;
-        if (i > idx) {  // not revealed yet
-          return (
-            <div key={key} className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-4 py-2.5 opacity-45">
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 border-line-2 text-[10px] font-bold text-navy-3">{i + 1}</span>
-              <span className="text-[13.5px] font-semibold text-navy-3">{SUB_LABELS[key]}</span>
-            </div>
-          );
-        }
+        if (i > idx) return (
+          <div key={key} className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-4 py-2.5 opacity-50">
+            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 border-line-2 text-[10px] font-semibold text-navy-3">{i + 1}</span>
+            <span className="text-[14px] font-medium text-navy-3">{LABEL[key]}</span>
+          </div>
+        );
+        const past = i < idx;
         return (
-          <div key={key} className={`rounded-xl border-[1.5px] px-4 py-3.5 ${done ? "border-line bg-white" : "border-green bg-green-soft/60"}`}>
-            <div className="flex items-center gap-2.5">
-              <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${done ? "bg-green text-white" : "border-2 border-green text-green-ink"}`}>
-                {done ? <Check className="h-3 w-3" /> : i + 1}
+          <div key={key} className={`rounded-xl border-[1.5px] px-4 py-3.5 ${past ? "border-line bg-white" : app ? "border-[#b6d6e2] bg-[#f3f9fb]" : "border-green/50 bg-green-soft/50"}`}>
+            <button className="flex w-full items-center gap-2.5 text-left" onClick={() => past && setIdx(i)}>
+              <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-semibold ${past ? "bg-green text-white" : "border-2 border-green text-green-ink"}`}>
+                {past ? <Check className="h-3 w-3" /> : i + 1}
               </span>
-              <span className={`text-[13.5px] font-bold ${done ? "text-navy-3" : "text-navy"}`}>{SUB_LABELS[key]}</span>
-            </div>
+              <span className={`text-[14.5px] font-semibold ${past ? "text-navy-3" : "text-navy"}`}>{LABEL[key]}</span>
+            </button>
             {i === idx && (
-              <div className="mt-2.5 pl-[30px]">
-                {key === "prompt" && (
-                  <>
-                    <p className="text-[14px] leading-relaxed text-navy-2">
-                      In your Genie Code chat, ask it in your own words to <b className="text-navy">{goal}</b>. It has the whole plan, so a plain request works. You don't need the exact wording.
-                    </p>
-                    {!showHelp ? (
-                      <button onClick={() => setShowHelp(true)} className="mt-2.5 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-green-ink hover:text-green">
-                        <HelpCircle className="h-3.5 w-3.5" /> I need help prompting Genie Code
+              <div className="mt-2.5 pl-[30px] text-[14.5px] leading-relaxed text-navy-2">
+                {key === "open" && <>
+                  In your workspace, open <b className="font-semibold text-navy">Apps</b>, then the <b className="font-semibold text-navy">Build</b> tab, and choose your <b className="font-semibold text-navy">App Space</b> (or create one) so the app sits next to your data.
+                  <div className="mt-2 rounded-lg border border-dashed border-[#ecd9a8] bg-[#fffbf3] px-3 py-2 text-[13.5px]">Genie App Builder is in Beta, so the workspace preview needs to be on. No Build tab? Ask your facilitator.</div>
+                  <Next onClick={next}>It's open</Next>
+                </>}
+                {key === "prompt" && <>
+                  {app ? <>
+                    Tell it, in your own words, what app to build. Cover four things: <b className="font-semibold text-navy">who opens it and when</b>, <b className="font-semibold text-navy">what the first screen shows</b>, <b className="font-semibold text-navy">what each button does</b>, and <b className="font-semibold text-navy">which tables it reads and saves to</b>. Your plan has all of it; start with one or two screens.
+                  </> : <>
+                    In your Genie Code chat, ask it in your own words to <b className="font-semibold text-navy">{goal.charAt(0).toLowerCase() + goal.slice(1)}</b>. Point it at your plan each time (say "follow my plan in PROJECT.md"), so it has the details. Your exact wording doesn't matter; the plan carries the specifics.
+                  </>}
+                  {!help ? (
+                    <button onClick={() => setHelp(true)} className="mt-2.5 flex items-center gap-1.5 text-[13.5px] font-semibold text-green-ink hover:text-green">
+                      <HelpCircle className="h-4 w-4" /> {app ? "I need help describing the app" : "I need help prompting Genie Code"}
+                    </button>
+                  ) : (
+                    <div className="relative mt-2.5 rounded-xl border-[1.5px] border-dashed border-green/50 bg-white px-4 py-3">
+                      <button onClick={copy} className="absolute right-3 top-2.5 inline-flex items-center gap-1 rounded-md bg-oat px-2 py-1 text-[12px] font-semibold text-navy-2 hover:text-navy">
+                        {copied ? <><Check className="h-3.5 w-3.5 text-green" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}
                       </button>
-                    ) : (
-                      <div className="relative mt-2.5 rounded-xl border-[1.5px] border-dashed border-green/50 bg-white px-3.5 py-3">
-                        <button onClick={copy} className="absolute right-3 top-2.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.05em] text-navy-3 hover:text-green-ink">
-                          {copied ? <><Check className="h-3 w-3" /> Copied</> : <><Copy className="h-3 w-3" /> Copy</>}
-                        </button>
-                        <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-green-ink">Example prompt (yours to reword)</div>
-                        <div className="font-mono text-[12px] leading-relaxed text-navy whitespace-pre-wrap">{pasteText}</div>
-                      </div>
-                    )}
-                    <div className="mt-3"><button onClick={advance} className="rounded-lg bg-navy px-4 py-2 text-[13px] font-bold text-white hover:bg-navy-2">I prompted it →</button></div>
-                  </>
-                )}
-                {key === "explore" && (
-                  <>
-                    <p className="text-[14px] leading-relaxed text-navy-2">
-                      Go to the catalog in your workspace, find your schema, and look at what got created. See how the tables connect and what a single row means. It makes your next prompts sharper.
-                    </p>
-                    <label className="mt-3 block text-[13px] font-semibold text-navy">How many rows are in your data? <span className="font-normal text-navy-3">(just a quick look, we don't check it)</span></label>
-                    <input value={rows} onChange={(e) => setRows(e.target.value)} inputMode="numeric" placeholder="e.g. 5,000"
-                      className="mt-1.5 w-40 rounded-lg border-[1.5px] border-line px-3 py-1.5 text-[14px] text-navy outline-none focus:border-green focus:ring-[3px] focus:ring-green-soft" />
-                    <div className="mt-3"><button onClick={advance} className="rounded-lg bg-navy px-4 py-2 text-[13px] font-bold text-white hover:bg-navy-2">Done exploring →</button></div>
-                  </>
-                )}
-                {key === "confirm" && (
-                  <>
-                    <div className="flex items-start gap-2 text-[14px] leading-snug text-navy"><Check className="mt-0.5 h-4 w-4 shrink-0 text-green" /><span><b>You'll know it worked when:</b> {step.verify}</span></div>
-                    <div className="mt-3"><button onClick={onCompleteStep} className="rounded-lg bg-green px-5 py-2.5 text-[14px] font-bold text-white hover:bg-green-l">Yes, that worked ✓</button></div>
-                  </>
-                )}
+                      <div className="text-[12px] font-medium text-green-ink">Example prompt (yours to reword)</div>
+                      <div className={`mt-1.5 whitespace-pre-wrap pr-16 leading-relaxed text-navy ${app ? "text-[14px]" : "font-mono text-[13px]"}`}>{move}</div>
+                    </div>
+                  )}
+                  <Next onClick={next}>{app ? "I described it" : "I asked it"}</Next>
+                </>}
+                {key === "explore" && <>
+                  Open the catalog, find your schema, and look at the tables it made. What does one row mean, and how do the tables connect? It makes your next prompts sharper.
+                  <Next onClick={next}>Done looking</Next>
+                </>}
+                {key === "refine" && <>
+                  <ul className="flex flex-col gap-1.5">
+                    <li>Look at the preview. Ask for one change at a time, check it, then the next.</li>
+                    <li>Be specific: what it opens on, what each row shows, what each button does.</li>
+                    <li>Name the tables it reads and the Lakebase table it saves to, exactly as in your plan.</li>
+                  </ul>
+                  <Next onClick={next}>It looks right</Next>
+                </>}
+                {key === "confirm" && <>
+                  <div className="flex items-start gap-2 text-navy"><Check className="mt-1 h-4 w-4 shrink-0 text-green" /><span><b className="font-semibold">You'll know it worked when:</b> {step.verify}</span></div>
+                  <button onClick={onComplete} className="mt-3 rounded-lg bg-green px-5 py-2.5 text-[14px] font-semibold text-white hover:opacity-90">Yes, that worked</button>
+                </>}
               </div>
             )}
           </div>
@@ -357,41 +269,58 @@ function StepWalker({ step, isData, isDone, publishedDir, onCompleteStep }:
     </div>
   );
 }
-
-// A quiet reference note: the full project spec is also saved to the workspace, so a
-// participant can reopen it (and it survives if the app dies). This is NOT the build path —
-// the steps are — so there's no "build it all" prompt here, just a link to the saved spec.
-function ProjectSavedNote({ dir, deepLink, compact }: { dir: string; deepLink?: string | null; compact?: boolean }) {
-  if (compact) {
-    return (
-      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white px-4 py-2.5">
-        <FolderCheck className="h-4 w-4 shrink-0 text-green" />
-        <div className="min-w-0 flex-1 text-[12.5px] text-navy-2">
-          Your full project spec is saved: <code className="break-all text-[11.5px] text-navy-3">{dir}/PROJECT.md</code>
-        </div>
-        {deepLink && (
-          <a href={deepLink} target="_blank" rel="noreferrer"
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12px] font-semibold text-navy-2 hover:border-green hover:text-green-ink">
-            <ExternalLink className="h-3.5 w-3.5" /> Open
-          </a>
-        )}
-      </div>
-    );
-  }
+const Next = ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) => (
+  <div className="mt-3"><button onClick={onClick} className="inline-flex items-center gap-1.5 rounded-lg bg-navy px-4 py-2 text-[13.5px] font-semibold text-white hover:opacity-90">{children} <ArrowRight className="h-3.5 w-3.5" /></button></div>
+);
+// A real finish line: what they stood up, who helped, and what's next.
+function CompletionScreen({ steps, onReview, onBack }: { steps: BuildStep[]; onReview: () => void; onBack: () => void }) {
+  const NEXT = [
+    "Open your app and use it the way the people it's for would.",
+    "Show it to a colleague. It's the fastest way to find what to improve.",
+    "Keep going one change at a time, the same way you built it.",
+    "When you're ready, swap the sample data for your real tables.",
+  ];
+  const bits = Array.from({ length: 26 }, (_, i) => i);
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white px-5 py-3.5">
-      <FolderCheck className="h-4 w-4 shrink-0 text-green" />
-      <div className="min-w-0 flex-1 text-[13px] leading-snug text-navy-2">
-        Your full project spec is saved in your workspace, so you can reopen it any time.
-        <code className="ml-1 break-all text-[11.5px] text-navy-3">{dir}/PROJECT.md</code>
+    <div className="rise mx-auto max-w-[820px]">
+      <div className="relative overflow-hidden rounded-xl border border-green/40 bg-green-soft px-6 py-7">
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          {bits.map((i) => <span key={i} className="confetti" style={{ left: `${(i * 37) % 100}%`, background: ["#00A870", "#2E7D9A", "#F59E0B", "#5A8A9A"][i % 4], animationDelay: `${(i % 8) * 70}ms` }} />)}
+        </div>
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <Label className="text-green-ink">Build complete</Label>
+            <h1 className="mt-1 text-[36px] font-semibold leading-[1.1] tracking-[-0.02em] text-navy">You built it.</h1>
+            <p className="mt-2 max-w-[48ch] text-[16px] leading-relaxed text-navy-2">From an idea to a working build, one step at a time.</p>
+          </div>
+          <div className="sd sd-inline flex items-end gap-2" aria-hidden>
+            {["store_manager", "finance", "data_engineer"].map((pid, i) => (
+              <div key={pid} style={{ animation: `rise .5s ${300 + i * 120}ms both` }} dangerouslySetInnerHTML={{ __html: charSVG(pid, 54, "won") }} />
+            ))}
+          </div>
+        </div>
       </div>
-      {deepLink && (
-        <a href={deepLink} target="_blank" rel="noreferrer"
-          className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold text-navy-2 hover:border-green hover:text-green-ink">
-          <ExternalLink className="h-3.5 w-3.5" /> Open your project
-        </a>
-      )}
+      <Card className="mt-4 px-5 py-4">
+        <div className="text-[15px] font-semibold text-navy">What you built</div>
+        <ul className="mt-3 flex flex-col gap-2.5">
+          {steps.map((s) => (
+            <li key={s.n} className="flex flex-wrap items-center gap-2.5 text-[15px] text-navy">
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-green text-white"><Check className="h-3 w-3" /></span>
+              {s.title}<ToolBadge tool={stepTool(s)} />
+            </li>
+          ))}
+        </ul>
+      </Card>
+      <Card className="mt-3 px-5 py-4">
+        <div className="text-[15px] font-semibold text-navy">Where to go next</div>
+        <ul className="mt-2 flex flex-col gap-2">
+          {NEXT.map((n, i) => <li key={i} className="flex items-start gap-2 text-[15px] leading-snug text-navy-2"><span className="mt-[8px] h-[5px] w-[5px] shrink-0 rounded-full bg-green" />{n}</li>)}
+        </ul>
+      </Card>
+      <div className="mt-6 flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-1 text-[15px] text-navy-3 hover:text-navy"><ChevronLeft className="h-4 w-4" /> Your plan</button>
+        <Primary onClick={onReview}>Review the steps</Primary>
+      </div>
     </div>
   );
 }
-

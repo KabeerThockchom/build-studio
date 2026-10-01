@@ -15,8 +15,7 @@ from .. import sessions, admin, workshop, config, llm
 
 router = APIRouter()
 
-PHASE_LABEL = {"overview": "Overview", "shape": "Shape", "teach": "Learning", "design": "Design",
-               "assemble": "Assemble", "blueprint": "Blueprint", "build": "Build"}
+PHASE_LABEL = {"overview": "Overview", "sitdown": "Sit-Down", "learn": "Learn", "plan": "Plan", "build": "Build"}
 
 
 def _guard(req: Request):
@@ -39,12 +38,14 @@ def _idle_min(updated_at: str | None) -> float | None:
 
 def _progress(state: dict) -> dict:
     """Human-readable where-are-they from the raw session state."""
-    phase = state.get("phase", "shape")
+    phase = state.get("phase", "overview")
     label = PHASE_LABEL.get(phase, phase)
     detail = ""
-    if phase == "design":
-        qs = (state.get("plan") or {}).get("questions") or []
-        detail = f"question {state.get('designIdx', 0) + 1}" + (f" of {len(qs)}" if qs else "")
+    if phase == "sitdown":
+        p = state.get("sdProgress") or {}
+        detail = f"{p.get('covered', 0)} of 7 covered" + (f", {p['stage']}" if p.get("stage") else "")
+    elif phase == "plan":
+        detail = (state.get("planJob") or {}).get("stage") or ""
     elif phase == "build":
         bp = state.get("buildPlan") or {}
         steps = bp.get("steps") or []
@@ -66,6 +67,8 @@ def roster(request: Request):
         return g
     out = []
     for s in sessions.list_sessions():
+        if (s["state"] or {}).get("v") != 2:
+            continue                            # sessions from the earlier Build Studio flow aren't live workshops
         prog = _progress(s["state"])
         idle = _idle_min(s["updated_at"])
         # "stuck": sitting mid-build for a while, or idle a long time anywhere.

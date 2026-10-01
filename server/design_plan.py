@@ -22,17 +22,11 @@ CAP_BLURB = {
     "Databricks Apps": "hosts the interface people open",
 }
 
-# The three workshop-realistic data paths. The SA must ask ONE question whose id is
-# "data_mode" and whose option keys are exactly these — the rest of the app keys off them.
-DATA_MODE_GUIDANCE = """One of your questions MUST be about where the data comes from. Give it id
-"data_mode" and use EXACTLY these three option keys (phrase the labels/subs for their idea):
-- "synthetic": we generate realistic sample data that fits their idea (no data needed from them)
-- "upload": they have a spreadsheet / CSV / file we turn into a Unity Catalog table together
-- "existing": they point at a table that already exists in the workspace (may be read-only)
-Do NOT offer "connect a live source / ingest a new pipeline" — that is out of scope for one day."""
+# Data is always synthetic in a workshop (every participant builds on generated sample data),
+# so there is no "where does the data come from" question — see the SYSTEM_PROMPT note below.
 
-# The interaction model shapes most of the app's layout and its primary action, so it is a
-# REQUIRED question. Fixed option keys the rest of the app keys off, like data_mode.
+# The interaction model shapes most of the app's layout and its primary action, so it is THE
+# required question (the only one). Fixed option keys the rest of the app keys off.
 INTERACTION_MODEL_GUIDANCE = """One of your questions MUST be about how the person interacts with the
 build. Give it id "interaction_model". Offer the 2-3 of these fixed option keys that genuinely fit THEIR
 idea (never invent new keys; phrase the labels/subs/previews for their subject matter):
@@ -48,7 +42,7 @@ This sets the app's entry screen and primary action, so ground the options in th
 
 SYSTEM_PROMPT = f"""You are a senior Databricks Solutions Architect guiding a workshop
 participant. They have just described, in their own words, something they want to build.
-Your job is to plan the short design conversation: ask the 2-4 questions that most shape
+Your job is to plan the short design conversation: ask the 1-3 questions that most shape
 what they should build, and pre-select which Databricks capabilities fit their idea.
 
 You speak plainly and warmly, like a good SA who respects the person's time. You do NOT
@@ -61,20 +55,22 @@ assume their build is an app, or an agent, or anything — you read THEIR idea a
 The ONLY capabilities you may pre-select from (never invent others):
 {chr(10).join(f'- {c}: {CAP_BLURB[c]}' for c in CAPABILITIES)}
 
-Pre-select CONSERVATIVELY — only mark selected:true for pieces the idea clearly needs. A workshop
-build shouldn't accumulate pieces the person never asked for. Guidance:
-- Genie and Databricks Apps are the usual core for an interactive build; select them when they fit.
-- Do NOT auto-select Lakebase unless the idea implies recording/saving something between sessions
-  (a decision log, saved state, a queue). "Just look at data" does not need it.
-- Do NOT auto-select a Supervisor agent unless the idea genuinely needs to route across MULTIPLE
-  tools. A single-purpose build (one dashboard, one Q&A) does not.
-- Do NOT auto-select Knowledge Assistant unless there are documents/notes/text to answer from.
-- If the idea reads like a dashboard/report rather than a chat, reflect that — don't assume a chat agent.
-  And when you DO select Genie for a dashboard/report build, write its "fits" as powering the numbers
-  and charts behind the scenes — NOT "ask follow-up questions" or "chat," which contradicts a person
-  who wants a dashboard. Match the "fits" language to how they said they want to interact.
-For anything you leave unselected, set a short "fits" saying when they'd add it. The person can always
-turn pieces on in the next step; start them with the honest minimum, not the maximum.
+The architecture is PRESCRIBED: every build uses Genie, a Supervisor agent, Lakebase, and Databricks
+Apps — always. So mark those four selected:true, and for each write a "fits" that is ONE positive line
+saying what THAT piece does for THIS idea, grounded in the real subject matter (e.g. for an invoice
+build: Lakebase records each approve/override decision as the audit trail; the Supervisor agent reads
+each invoice, matches it, and drafts a recommendation; Genie answers questions over the invoice data).
+NEVER write a "not needed", "optional", or "you'd add it later" rationale for these four — they are
+always in the build, and this text is shown to the participant as the piece's role in the architecture,
+so a "not needed" line directly contradicts what they then build.
+- If the idea reads like a dashboard/report rather than a chat, reflect that in the "fits" — don't
+  assume a chat agent. When it's a dashboard/report build, write Genie's "fits" as powering the numbers
+  and charts behind the scenes, NOT "ask follow-up questions" or "chat." For the Supervisor agent on a
+  single-purpose build, frame its "fits" as doing the one repeatable job (reading, matching, drafting,
+  ranking), not "routing across many tools." Match the "fits" language to how they said they'll interact.
+- Knowledge Assistant is the ONLY optional piece: mark it selected:true (with a positive "fits") only if
+  the idea has documents/notes/text to answer from; otherwise mark it selected:false with a short "fits"
+  saying when they'd add it.
 
 Generate ALL of the design questions, every one tailored to THIS specific idea. Do not use
 generic templated questions — a question a smart SA wouldn't bother asking for this idea should
@@ -88,15 +84,15 @@ duplicate it):
 - how the result is delivered (an app they open, a dashboard, just answers)
 - the scope/shape specific to their idea
 Do NOT ask about things outside Databricks' scope. Do NOT ask about data freshness / live-vs-batch
-— a workshop day works off static data, so that choice does not apply.
-
-{DATA_MODE_GUIDANCE}
+— a workshop day works off static data, so that choice does not apply. Do NOT ask where the data comes
+from: every workshop build runs on realistic SYNTHETIC sample data we generate to fit their idea, so
+treat that as settled and never make it a question.
 
 {INTERACTION_MODEL_GUIDANCE}
 
-The FIRST question should be the required "interaction_model" question (phrased for THIS idea). Also
-include the required "data_mode" question. Beyond those two, add 0-2 tailored questions only if they
-genuinely matter for this idea (audience specifics, scope). Total 2-4 questions, fewer is better — never pad.
+The FIRST question should be the required "interaction_model" question (phrased for THIS idea). Beyond
+that, add 0-2 tailored questions only if they genuinely matter for this idea (audience specifics, scope).
+Total 1-3 questions, fewer is better — never pad.
 
 Return ONLY one JSON object (no markdown fence, no prose) with this exact shape:
 {{
@@ -105,7 +101,7 @@ Return ONLY one JSON object (no markdown fence, no prose) with this exact shape:
     {{
       "id": "<slug>",
       "concept": "<the design dimension this question is, in 1-2 plain words the participant can
-                   anchor on: e.g. 'Audience', 'Interaction model', 'Data & tools', 'Scope'>",
+                   anchor on: e.g. 'Audience', 'Interaction model', 'Scope'>",
       "title": "<the question, plain language>",
       "lead": "<one sentence on why this matters for their build>",
       "options": [
@@ -115,7 +111,7 @@ Return ONLY one JSON object (no markdown fence, no prose) with this exact shape:
         // 2 to 3 options per question
       ]
     }}
-    // 2 to 4 questions
+    // 1 to 3 questions
   ],
   "capabilities": [
     {{ "name": "<one of the allowed capabilities>", "selected": true|false,
@@ -243,7 +239,7 @@ def fallback_plan(idea: str = "") -> DesignPlan:
         read_back=read_back,
         questions=[
             DesignQuestion(
-                id="interaction_model", eyebrow="Design · 1 of 2", concept="Interaction model",
+                id="interaction_model", eyebrow="Design · 1 of 1", concept="Interaction model",
                 title="How will people use this most?",
                 lead="This sets what the app opens on and the one thing they do most.",
                 options=[
@@ -275,29 +271,6 @@ def fallback_plan(idea: str = "") -> DesignPlan:
                 ],
                 other_preview=["We'll adapt to how you describe using it.",
                                "The rest of the design flexes to match.", "Most tailored."]),
-            DesignQuestion(
-                id="data_mode", eyebrow="Design · 2 of 2", concept="Data & tools",
-                title="Where does the data come from?",
-                lead="This sets your very first build step — and we keep it to what fits a workshop day.",
-                options=[
-                    DesignOption(key="synthetic", letter="A", label="Make realistic sample data",
-                                 sub="We generate tables that fit your idea — nothing needed from you.",
-                                 preview=["A synthetic dataset shaped to your idea, in Unity Catalog.",
-                                          "You skip data wrangling and get to the interesting parts.",
-                                          "No setup risk, but the data is made up. Swap in real tables later."]),
-                    DesignOption(key="upload", letter="B", label="I have a spreadsheet or file",
-                                 sub="A CSV/Excel we turn into a Unity Catalog table together.",
-                                 preview=["We walk you through loading your file into a table.",
-                                          "Your build runs on your own numbers from the start.",
-                                          "A little setup, and the file needs to be reasonably clean."]),
-                    DesignOption(key="existing", letter="C", label="Point at a table that already exists",
-                                 sub="Read from a Unity Catalog table you already have.",
-                                 preview=["Your build reads a real table you already have.",
-                                          "Nothing to generate; reflects your actual business.",
-                                          "Most realistic; read-only is fine — we won't need to change it."]),
-                ],
-                other_preview=["We'll adapt the first step to however your data arrives.",
-                               "Sample, a file you upload, or an existing table.", "We'll confirm specifics first."]),
         ],
         capabilities=[
             CapabilityPick(name="Genie", selected=True, fits="ask your data in plain English"),

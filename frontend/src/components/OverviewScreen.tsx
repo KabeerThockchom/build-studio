@@ -1,59 +1,67 @@
-import { Lightbulb, MessageSquare, Boxes, Map, Hammer, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import "./sitdown/sitdown.css";
+import { charSVG } from "./sitdown/art";
+import { Label, Lead } from "./ui";
 
-/* The upfront roadmap — grounds a newcomer in the whole journey before diving into
-   specifics (Akil's ask): "give the holistic picture, then dive into each module."
-   Five phases, each with a one-line why-it-matters, then jump into the material. */
+/* The upfront roadmap: a short, inviting start. The whole journey in four stages, and the
+   colleagues you'll meet in the Sit-Down (their roles adapt to your idea). */
 
-const PHASES = [
-  { n: 1, icon: Lightbulb, name: "Shape", why: "Start with the problem in your own words. The clearer your intent, the better everything downstream." },
-  { n: 2, icon: MessageSquare, name: "Design", why: "Answer a few questions tailored to your idea. This is where your plan, the PRD, takes shape." },
-  { n: 3, icon: Boxes, name: "Assemble", why: "Pick the Databricks pieces that fit: ask your data, an app to open, a place to record decisions." },
-  { n: 4, icon: Map, name: "Blueprint", why: "See the whole build on one page: the plan, and how the parts connect, before you build it." },
-  { n: 5, icon: Hammer, name: "Build", why: "Build it for real in Genie Code, one bite-sized move at a time. Not a wall of prompts." },
+const STAGES = [
+  { n: 1, name: "Sit down with your SA", why: "Talk your idea through until it's sharp and scoped for a day." },
+  { n: 2, name: "Learn the pieces", why: "Only the Databricks pieces your build uses, and their job in it." },
+  { n: 3, name: "Your plan", why: "Architecture and PRD on one page, drafted while you learn." },
+  { n: 4, name: "Build it", why: "Step by step in Genie Code, and the app in Genie App Builder." },
+];
+const CAST = [
+  { pid: "finance", name: "Marcus" }, { pid: "store_manager", name: "Jo" }, { pid: "data_engineer", name: "Arjun" },
+  { pid: "governance", name: "Amara" }, { pid: "platform", name: "Tom" }, { pid: "regional_ops", name: "Sam" },
 ];
 
 export function OverviewScreen({ onStart }: { onStart: () => void }) {
   return (
-    <div className="rise mx-auto max-w-[880px] py-4">
-      <div className="mb-3 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Your workshop today</div>
-      <h1 className="max-w-[18ch] text-[40px] font-extrabold leading-[1.05] tracking-[-0.03em] text-navy">
-        How do you build an end-to-end AI app?
+    <div className="rise mx-auto max-w-[920px] py-2">
+      <Label>Build Studio</Label>
+      <h1 className="mt-2 max-w-[18ch] text-[40px] font-semibold leading-[1.08] tracking-[-0.02em] text-navy">
+        Bring an idea. Leave with something real.
       </h1>
-      <p className="mt-5 max-w-[58ch] text-[17px] leading-relaxed text-navy-2">
-        You'll go from a plain idea to a working app you built yourself, in five steps. Here's the
-        whole path first — then we'll take it one step at a time, so you always know where you are
-        and why each part matters.
-      </p>
-      <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-navy-3">
-        These five steps aren't just for today — they're a repeatable framework. The same path works
-        for any idea you bring back to your team.
-      </p>
+      <Lead className="mt-4 max-w-[54ch]">
+        It starts with a conversation, not a form. Your Solutions Architect helps you sharpen the idea, then you build it, one step at a time.
+      </Lead>
 
-      <div className="mt-9 flex flex-col gap-3">
-        {PHASES.map((p, i) => {
-          const Icon = p.icon;
-          return (
-            <div key={p.name} className="flex items-center gap-4">
-              <div className="flex items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4 flex-1">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-green-soft text-[14px] font-extrabold text-green-ink">{p.n}</span>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-oat text-navy-2"><Icon className="h-5 w-5" strokeWidth={2} /></span>
-                <div className="min-w-0">
-                  <b className="text-[16px] font-extrabold tracking-[-0.01em] text-navy">{p.name}</b>
-                  <p className="mt-0.5 text-[13.5px] leading-snug text-navy-2">{p.why}</p>
-                </div>
-              </div>
-              {i < PHASES.length - 1 && <ArrowRight className="hidden h-4 w-4 shrink-0 text-line-2 sm:block" />}
+      <ol className="mt-9 grid grid-cols-1 gap-2.5 sm:grid-cols-4">
+        {STAGES.map((s, i) => (
+          <li key={s.n} className="relative rounded-xl border border-line bg-white px-4 py-4">
+            <div className="flex items-center gap-2">
+              <span className={`grid h-6 w-6 place-items-center rounded-full text-[12px] font-semibold ${i === 0 ? "bg-green text-white" : "bg-oat-2 text-navy-2"}`}>{s.n}</span>
+              {i === 0 && <span className="text-[12px] font-medium text-green-ink">You start here</span>}
             </div>
-          );
-        })}
+            <div className="mt-3 text-[15px] font-semibold text-navy">{s.name}</div>
+            <p className="mt-1 text-[13.5px] leading-snug text-navy-3">{s.why}</p>
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-8 flex flex-wrap items-center gap-6 rounded-xl border border-line bg-white px-5 py-4">
+        <div className="min-w-[200px] flex-1">
+          <div className="text-[15px] font-semibold text-navy">Colleagues will weigh in</div>
+          <p className="mt-1 text-[13.5px] leading-snug text-navy-3">They join the Sit-Down to challenge, ask, or cheer. Their roles adapt to your idea.</p>
+        </div>
+        <div className="sd sd-inline flex items-end gap-3" aria-hidden>
+          {CAST.map((c, i) => (
+            <div key={c.pid} className="flex flex-col items-center gap-1" style={{ animation: `rise .5s ${i * 70}ms cubic-bezier(.2,.7,.2,1) both` }}>
+              <div dangerouslySetInnerHTML={{ __html: charSVG(c.pid, 46, i % 3 === 0 ? "won" : "warming") }} />
+              <span className="text-[12px] font-medium text-navy-3">{c.name}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="mt-9 flex items-center gap-4">
+      <div className="mt-9 flex flex-wrap items-center gap-4">
         <button onClick={onStart}
-          className="flex items-center gap-2 rounded-2xl bg-green px-8 py-4 text-[16.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-green-l">
-          Start with your idea <ArrowRight className="h-5 w-5" />
+          className="inline-flex items-center gap-2 rounded-xl bg-green px-7 py-4 text-[16px] font-semibold text-white shadow-[0_12px_28px_-14px_rgba(0,168,112,.8)] transition hover:-translate-y-px hover:bg-green-ink">
+          Pull up a chair <ArrowRight className="h-5 w-5" />
         </button>
-        <span className="text-[13px] text-navy-3">Takes about an hour. You'll leave with something real.</span>
+        <span className="text-[13.5px] text-navy-3">About an hour, end to end. Nothing to set up first.</span>
       </div>
     </div>
   );

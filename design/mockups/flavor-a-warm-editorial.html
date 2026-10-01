@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Costa Store Copilot — Warm Editorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Young+Serif&display=swap">
+<style>
+  :root {
+    --maroon: #730723;
+    --maroon-deep: #59071c;
+    --gold: #a9772b;
+    --cream: #faf4ea;
+    --cream-2: #f1e6d2;
+    --surface: #fffdf8;
+    --ink: #2a1216;
+    --ink-2: #75574f;
+    --ink-3: #9c8279;
+    --line: #e8dcc8;
+    --good: #3f7d55;
+    --warn: #b4571f;
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background:
+      radial-gradient(120% 80% at 100% 0%, #f5ead6 0%, transparent 55%),
+      var(--cream);
+    color: var(--ink);
+    font-family: "Hanken Grotesk", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  ::selection { background: color-mix(in oklab, var(--maroon) 20%, transparent); }
+  a { color: inherit; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: clamp(20px, 4vw, 40px) clamp(18px, 4vw, 40px) 80px; }
+
+  /* header */
+  header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+  .brand { display: flex; align-items: center; gap: var(--space-3); }
+  .logo { width: 46px; height: 46px; border-radius: 13px; overflow: hidden; box-shadow: 0 6px 18px rgba(89,7,28,.22); flex: none; }
+  .logo img { width: 100%; height: 100%; display: block; }
+  .brand .name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+  .brand .sub { font-size: 12.5px; color: var(--ink-2); }
+  .whoami { display: flex; align-items: center; gap: var(--space-3); font-size: 13px; color: var(--ink-2); }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--maroon); color: var(--cream);
+    display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+
+  /* hero */
+  .hero { margin-top: clamp(32px, 6vw, 60px); max-width: min(760px, 100%); }
+  .kicker { font-size: 12.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  h1 { font-family: "Young Serif", serif; font-weight: 400; color: var(--maroon);
+    font-size: clamp(34px, 6vw, 58px); line-height: 1.05; letter-spacing: -.01em; margin: var(--space-3) 0 0;
+    text-wrap: balance; max-width: 15ch; }
+  .hero p { margin: var(--space-4) 0 0; font-size: 17px; color: var(--ink-2); max-width: 44ch; }
+
+  /* ask */
+  .ask { margin-top: var(--space-7); display: flex; gap: var(--space-3); align-items: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+    box-shadow: 0 10px 30px rgba(89,7,28,.06); max-width: 720px; }
+  .ask svg { width: 20px; height: 20px; color: var(--ink-3); flex: none; }
+  .ask input { flex: 1; border: 0; background: transparent; font: inherit; font-size: 16px; color: var(--ink); outline: none; }
+  .ask input::placeholder { color: var(--ink-3); }
+  .ask button { border: 0; background: var(--maroon); color: var(--cream); font: inherit; font-weight: 700; font-size: 14.5px;
+    padding: 12px 22px; border-radius: 12px; cursor: pointer; transition: transform .18s cubic-bezier(.2,.7,.3,1), background .18s; }
+  .ask button:hover { background: var(--maroon-deep); transform: translateY(-1px); }
+  .ask button:focus-visible, .flag:focus-visible, .ask input:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+  /* conversation */
+  .thread { margin-top: var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); max-width: 760px; }
+  .said { align-self: flex-start; background: var(--cream-2); color: var(--ink); padding: 12px 18px; border-radius: 16px 16px 16px 6px;
+    font-size: 15px; max-width: 90%; }
+  .answer { background: var(--surface); border: 1px solid var(--line); border-radius: 6px 20px 20px 20px; padding: var(--space-5) var(--space-5) var(--space-4);
+    box-shadow: 0 14px 36px rgba(89,7,28,.07); }
+  .answer .who { display: flex; align-items: center; gap: var(--space-2); font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--gold); font-weight: 700; margin-bottom: var(--space-3); }
+  .answer .who .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+  .answer p { margin: 0; font-size: 17px; line-height: 1.55; }
+  .answer p b { color: var(--maroon); font-weight: 700; }
+  .trace { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+  .trace span { font-size: 12px; color: var(--ink-2); background: color-mix(in oklab, var(--maroon) 5%, var(--surface));
+    border: 1px solid var(--line); padding: 5px 11px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
+  .trace span i { width: 5px; height: 5px; border-radius: 50%; background: var(--maroon); }
+
+  /* stores */
+  .section-h { margin: var(--space-8) 0 var(--space-4); display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); }
+  .section-h h2 { font-family: "Young Serif", serif; font-weight: 400; font-size: 26px; color: var(--ink); margin: 0; }
+  .section-h .meta { font-size: 13px; color: var(--ink-3); }
+  .stores { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--space-4); }
+  .store { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: var(--space-5);
+    display: flex; flex-direction: column; gap: var(--space-3); }
+  .store.lead { background: var(--maroon); border-color: var(--maroon); color: var(--cream); }
+  .store .loc { font-weight: 700; font-size: 16px; letter-spacing: -.01em; }
+  .store .fig { font-family: "Young Serif", serif; font-size: 40px; line-height: 1; color: var(--maroon); }
+  .store.lead .fig { color: var(--cream); }
+  .store .unit { font-size: 12.5px; color: var(--ink-2); }
+  .store.lead .unit { color: color-mix(in oklab, var(--cream) 80%, var(--maroon)); }
+  .delta { font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+  .delta.down { color: var(--warn); }
+  .store.lead .delta.down { color: #f0c9a6; }
+  .store .foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; }
+  .flag { border: 0; font: inherit; font-weight: 700; font-size: 13.5px; padding: 9px 16px; border-radius: 10px; cursor: pointer;
+    background: var(--cream); color: var(--maroon); transition: transform .18s cubic-bezier(.2,.7,.3,1); }
+  .store.lead .flag { background: var(--cream); color: var(--maroon); }
+  .flag:hover { transform: translateY(-1px); }
+  .flag[data-done="1"] { background: color-mix(in oklab, var(--good) 16%, var(--cream)); color: var(--good); cursor: default; }
+  .store.lead .flag[data-done="1"] { background: color-mix(in oklab, var(--good) 30%, var(--cream)); }
+
+  .rise { animation: rise .6s cubic-bezier(.2,.7,.3,1) both; }
+  .d1 { animation-delay: .05s; } .d2 { animation-delay: .12s; } .d3 { animation-delay: .19s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .rise { animation: none; } * { transition: none !important; } }
+
+  .tag { position: fixed; left: 14px; bottom: 12px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-3); background: var(--surface); border: 1px solid var(--line); padding: 5px 11px; border-radius: 999px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="rise">
+      <div class="brand">
+        <span class="logo"><img src="costa.png" alt="Costa Coffee"></span>
+        <span>
+          <span class="name">Store Copilot</span><br>
+          <span class="sub">Costa Coffee · Retail Operations</span>
+        </span>
+      </div>
+      <div class="whoami"><span class="avatar">PR</span><span>Priya, Area Manager</span></div>
+    </header>
+
+    <section class="hero rise d1">
+      <span class="kicker">Tuesday, 9 September</span>
+      <h1>Good morning. Here is your patch today.</h1>
+      <p>Ask about any store, product, or region. The copilot reads your live numbers and can act on what it finds.</p>
+    </section>
+
+    <div class="ask rise d2">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input value="Which stores are behind on flat whites this week, and flag the worst one for a visit?" aria-label="Ask the copilot">
+      <button type="button">Ask</button>
+    </div>
+
+    <div class="thread">
+      <div class="said rise d2">Which stores are behind on flat whites this week, and flag the worst one for a visit?</div>
+      <div class="answer rise d3">
+        <div class="who"><span class="dot"></span> Copilot</div>
+        <p>Three stores are behind target this week: <b>Manchester Piccadilly</b> is down 14%, <b>Leeds Trinity</b> down 9%, and <b>Glasgow Buchanan</b> down 6%. Manchester Piccadilly is the furthest behind, so I have flagged it for a visit and left a note for the store lead.</p>
+        <div class="trace">
+          <span><i></i> Read weekly sales from Genie</span>
+          <span><i></i> Compared to target</span>
+          <span><i></i> Saved the visit flag to Lakebase</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-h">
+      <h2>Stores to watch</h2>
+      <span class="meta">Flat whites per day · vs. weekly target</span>
+    </div>
+    <div class="stores">
+      <div class="store lead rise d1">
+        <span class="loc">Manchester Piccadilly</span>
+        <div><span class="fig">182</span> <span class="unit">/ day</span></div>
+        <span class="delta down">▼ 14% vs target</span>
+        <div class="foot"><span class="unit">Worst this week</span><button class="flag" type="button">Flag for visit</button></div>
+      </div>
+      <div class="store rise d2">
+        <span class="loc">Leeds Trinity</span>
+        <div><span class="fig">214</span> <span class="unit">/ day</span></div>
+        <span class="delta down">▼ 9% vs target</span>
+        <div class="foot"><span class="unit">Watch</span><button class="flag" type="button">Flag for visit</button></div>
+      </div>
+      <div class="store rise d3">
+        <span class="loc">Glasgow Buchanan</span>
+        <div><span class="fig">231</span> <span class="unit">/ day</span></div>
+        <span class="delta down">▼ 6% vs target</span>
+        <div class="foot"><span class="unit">Watch</span><button class="flag" type="button">Flag for visit</button></div>
+      </div>
+    </div>
+  </div>
+
+  <span class="tag">Flavor A · Warm Editorial</span>
+  <script>
+    document.querySelectorAll(".flag").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (b.dataset.done === "1") return;
+        b.dataset.done = "1"; b.textContent = "Visit flagged";
+      });
+    });
+  </script>
+</body>
+</html>

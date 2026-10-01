@@ -43,5 +43,5 @@ def text_of(content) -> str:
 def complete(messages: list, max_tokens: int = 2048) -> str:
     """Single non-streaming completion, returns text. No temperature (Sonnet 5)."""
     resp = client().chat.completions.create(
-        model=config.SERVING_ENDPOINT, messages=messages, max_tokens=max_tokens)
+        model=config.get_serving_endpoint(), messages=messages, max_tokens=max_tokens)
     return text_of(resp.choices[0].message.content)

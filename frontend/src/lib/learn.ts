@@ -1,144 +1,190 @@
-/* Learning-during-waits content. Build steps run in Genie Code for minutes at a time;
-   this fills that wait with something that makes the concept stick (Akil's ask).
+/* Learn content for the five components a build can use. Learn is dynamic: a build only
+   teaches the components its Sit-Down scope actually needs, in the order given, followed by
+   a quick check with one question per component.
 
-   Hybrid content model: hand-curated evergreen concept cards keyed by capability
-   (the "what/why" a newcomer wouldn't get from the step alone) + a quick check.
-   The step itself already carries idea-specific "concept/verify/teach" from the SA;
-   this is the durable background knowledge.
-
-   `links` are curated per concept. Verify / swap for your preferred videos before a
-   workshop — a facilitator can tailor these. Kept small and high-confidence. */
+   Each card: what the piece is (tagline), a plain go-deeper, a quiz with plausible
+   distractors (answer positions vary on purpose) and one or two docs links. How the piece is
+   used in THIS build comes from the Sit-Down handoff (plan.capabilities[].fits). */
+import { PIPELINES, GENIE, LAKEBASE, APPS, COMPONENT_ORDER } from "./constants";
 
 export interface LearnQuiz {
   q: string;
   options: string[];
-  answer: number;   // index of correct option
+  answer: number;   // index of the correct option
   why: string;
 }
 export interface LearnLink { label: string; url: string; kind: "docs" | "watch"; }
 export interface ConceptCard {
   title: string;
-  tagline: string;  // one plain line: what this piece IS, for the card face
-  deeper: string;   // 2-3 sentence go-deeper, plain language
-  demo?: "genie-chat";  // an inline product-style mini-demo to render (visual grounding)
-  // A short product walkthrough video. IDs are TODO — see the morning notes for which
-  // product lines need capture. When set, the Learn panel renders it; when absent, nothing
-  // breaks (concept + demo + quiz carry the learning).
-  video?: { id: string; title: string; sub?: string };
-  quiz: LearnQuiz;
+  short: string;    // short label for the rail
+  tagline: string;  // one plain line: what this piece IS
+  deeper: string;   // 2-3 sentences, plain language
+  demo?: "genie-chat" | "medallion" | "app-builder" | "decision-log";
+  // A short verified YouTube walkthrough (rendered with VideoEmbed). Leave unset rather
+  // than guess an id: a missing video renders nothing.
+  video?: { id: string; title: string; sub?: string; short?: boolean };
+  quiz: LearnQuiz;       // the headline question for this piece
+  more: LearnQuiz[];     // extra questions, used to fill the 5-question quick check
   links: LearnLink[];
 }
 
-// The end-of-Assemble quiz: one question per locked capability, pitched at the same
-// difficulty as the post-Shape primer quiz (plausible distractors, a real decision to
-// reason through — not leading-the-witness). Answer positions are varied on purpose.
-export const FINAL_QUIZ: Record<string, LearnQuiz> = {
-  Genie: {
-    q: "Your Genie space keeps using the wrong column when someone asks about revenue. What most likely fixes it?",
-    options: ["Give each column a clear description (meaning, units, allowed values) and define revenue as a metric", "Delete the space and create it again", "Switch the app to a different foundation model"],
-    answer: 0,
-    why: "Genie answers from the setup you give it. Clear column descriptions and defined metrics are what let it pick the right field.",
+export const CONCEPTS: Record<string, ConceptCard> = {
+  [PIPELINES]: {
+    title: "Declarative Pipelines",
+    short: "Declarative Pipelines",
+    tagline: "Turn raw data into clean, ready-to-use tables, one layer at a time.",
+    deeper:
+      "With Lakeflow Declarative Pipelines you describe what each table should contain and Databricks works out how to build and refresh it. " +
+      "Data moves through layers: bronze keeps it as it arrived, silver cleans and joins it, and gold is shaped for the people and tools that use it. " +
+      "Any rule your build needs, like scoring, flagging or ranking items, lives in the gold layer so everything reads the same answer.",
+    demo: "medallion",
+    // TODO(facilitator): no verified walkthrough video for Declarative Pipelines yet. Add one here when chosen.
+    quiz: {
+      q: "Your build needs a ranked list of items to act on each morning. Where should the ranking rule live?",
+      options: [
+        "In the gold layer of the pipeline, so every tool reads the same ranked table",
+        "Inside the app, recalculated each time someone opens a screen",
+        "In the bronze layer, next to the raw data as it arrived",
+      ],
+      answer: 0,
+      why: "Gold is the shared, ready-to-use layer. Put the rule there and Genie and the app see the same ranking.",
+    },
+    more: [
+      { q: "Your source data has duplicate rows and missing values. Which layer cleans that up?",
+        options: ["Bronze, so the raw copy is already clean", "Silver, where data is cleaned and joined", "Gold, right before people read it"],
+        answer: 1, why: "Bronze keeps exactly what arrived so you can always re-run. Silver is where cleaning and joining happen, so gold starts from data you can trust." },
+      { q: "You change a scoring rule in the pipeline. What happens to the gold table?",
+        options: ["Nothing until someone rebuilds it by hand", "It's deleted and you start again", "The pipeline refreshes it with the new rule, and everything downstream reads the update"],
+        answer: 2, why: "Declarative Pipelines manage the refresh for you. Change the rule, run the pipeline, and every reader sees the same new answer." },
+    ],
+    links: [
+      { label: "Declarative Pipelines docs", url: "https://docs.databricks.com/aws/en/dlt/", kind: "docs" },
+      { label: "The medallion architecture", url: "https://docs.databricks.com/aws/en/lakehouse/medallion", kind: "docs" },
+    ],
   },
-  "Knowledge Assistant": {
-    q: "You point Knowledge Assistant at 200 documents and a demo starts in two minutes. What's the safe move?",
-    options: ["Sit and refresh until indexing finishes", "Cut the documents to zero so it indexes instantly", "Kick off indexing, keep building other pieces, and check answers once it's ready"],
-    answer: 2,
-    why: "Indexing runs in the background for minutes. Start it, keep moving, and verify answers once it's ready rather than blocking on it.",
+  [GENIE]: {
+    title: "Genie",
+    short: "Genie",
+    tagline: "Ask your data questions in plain English and get a real answer.",
+    deeper:
+      "A Genie space sits on top of your gold tables. People type a question the way they would ask a colleague, and Genie writes the query, runs it and shows the answer. " +
+      "You teach it your vocabulary with instructions and example questions, so it picks the right column every time.",
+    demo: "genie-chat",
+    video: { id: "7eSOvPsSjgU", title: "Building a Genie Agent with Genie Code", sub: "How the space you'll build comes together.", short: true },
+    quiz: {
+      q: "Your Genie space keeps using the wrong column when someone asks about a key term. What most likely fixes it?",
+      options: [
+        "Ask the same question again with more words",
+        "Add an instruction or example question to the space that defines the term",
+        "Give everyone admin access to the underlying tables",
+      ],
+      answer: 1,
+      why: "Genie learns your terms from the instructions and example questions on the space. Define it once and it is fixed for everyone.",
+    },
+    more: [
+      { q: "Which tables should your Genie space point at?",
+        options: ["The gold tables your pipeline builds", "The raw bronze tables, so nothing is hidden", "Every table in the catalog, to be safe"],
+        answer: 0, why: "Gold tables are clean and shaped for questions. Pointing Genie at raw or unrelated tables makes its answers slower and less reliable." },
+      { q: "Genie answers one question wrongly. What's the most useful next step?",
+        options: ["Delete the space and start again", "Tell people to stop using Genie for now", "Add that question as an example with the right answer"],
+        answer: 2, why: "Example questions with the right answer teach the space. Each one you add makes the next similar question come out right." },
+    ],
+    links: [{ label: "Genie docs", url: "https://docs.databricks.com/aws/en/genie/", kind: "docs" }],
   },
-  "Supervisor agent": {
-    q: "A question that should go to Genie gets answered from your documents instead. Most likely cause?",
-    options: ["The foundation model is broken", "The tool descriptions aren't distinct enough for it to route by intent", "Lakebase has run out of space"],
-    answer: 1,
-    why: "The supervisor routes by each tool's description. Vague or overlapping descriptions make it pick the wrong one.",
+  [LAKEBASE]: {
+    title: "Lakebase",
+    short: "Lakebase",
+    tagline: "A Postgres database that records what people decide.",
+    demo: "decision-log",
+    deeper:
+      "Analytics tables are great for reading lots of history, but an app also needs to save small things the moment they happen: an approval, a change, a note. " +
+      "Lakebase is a managed Postgres database inside your Databricks workspace for exactly that, governed alongside the rest of your data.",
+    video: { id: "ed2WJ5YayQ4", title: "What is Lakebase", sub: "The fast database your app writes to.", short: true },
+    quiz: {
+      q: "Someone approves a suggestion in your app. Where should that decision be saved?",
+      options: [
+        "Back into the gold table the pipeline builds",
+        "As a new row in a Lakebase table",
+        "In the browser, so it loads faster next time",
+      ],
+      answer: 1,
+      why: "Pipelines rebuild gold tables from the source, so a write there would be overwritten. Lakebase is where the app records what people do.",
+    },
+    more: [
+      { q: "A manager wants a list of every decision made this week. Where does it come from?",
+        options: ["The app's browser history", "The Genie space's chat log", "The Lakebase table the app writes each decision to"],
+        answer: 2, why: "Every approve or change is a row in Lakebase, so you can list them, report on them, and later feed them back into the pipeline." },
+      { q: "Why does the app show saved decisions back in its list?",
+        options: ["So people can see what's been handled and nothing gets done twice", "Because Lakebase deletes rows nobody looks at", "It doesn't need to; saving is enough"],
+        answer: 0, why: "Closing the loop is what makes the app trustworthy: you act, it records it, and the list shows it was handled." },
+    ],
+    links: [{ label: "Lakebase docs", url: "https://docs.databricks.com/aws/en/oltp/", kind: "docs" }],
   },
-  Lakebase: {
-    q: "Where should the app store the approve / reject decisions people click, and why?",
-    options: ["In the main data tables, overwriting the original rows", "Nowhere, recompute them from the raw data every time", "In Lakebase, because it's a fast database for what the app records as people use it"],
-    answer: 2,
-    why: "What people do as they use the app belongs in Lakebase, the app's live database. Your original tables stay a clean source of truth.",
-  },
-  "Databricks Apps": {
-    q: "Your deploy shows SUCCEEDED, but a colleague sees a blank screen. What do you check first?",
-    options: ["Nothing, SUCCEEDED means it works for everyone", "Open the URL yourself and watch the logs; confirm its data calls return real rows", "Redeploy a few more times and hope it clears"],
-    answer: 1,
-    why: "A green deploy isn't a working app. Open it, watch the logs, and confirm the data calls actually return rows.",
+  [APPS]: {
+    title: "Databricks Apps",
+    short: "Databricks Apps",
+    tagline: "The screen people open, built with Genie App Builder.",
+    deeper:
+      "A Databricks App is a web app that runs inside your workspace, so it uses the same sign-in and the same governed data. " +
+      "In this build you create it with Genie App Builder: open Apps, go to the Build tab, pick an App Space and describe the screens in plain language. " +
+      "It builds the app with AppKit and you refine it in short cycles. Genie App Builder is in Beta, so the preview needs to be turned on in your workspace.",
+    demo: "app-builder",
+    video: { id: "_nMgCvsCcns", title: "Vibe-coding an AI app", sub: "The idea behind what you're about to build.", short: true },
+    quiz: {
+      q: "How will you create the app screen in this build?",
+      options: [
+        "Write the React and Python code by hand in Genie Code",
+        "Ask Genie to turn its answers into an app",
+        "Describe the screens to Genie App Builder from the Apps Build tab",
+      ],
+      answer: 2,
+      why: "Genie App Builder turns a plain-language description of your screens into a working app in an App Space. You iterate by asking for one change at a time.",
+    },
+    more: [
+      { q: "Your first prompt in Genie App Builder got close but not right. What next?",
+        options: ["Rewrite the whole prompt and start over", "Ask for one specific change, check it, then the next", "Accept it as is and refine it another day"],
+        answer: 1, why: "Short cycles work best. One clear change at a time keeps what works and fixes what doesn't." },
+      { q: "Where does the app get the list on its first screen?",
+        options: ["Numbers typed into the prompt", "A file uploaded to the app", "The gold table your pipeline builds"],
+        answer: 2, why: "The app reads the same governed gold table everything else reads, so its list stays current and matches what Genie says." },
+    ],
+    links: [
+      { label: "Databricks Apps docs", url: "https://docs.databricks.com/aws/en/dev-tools/databricks-apps/", kind: "docs" },
+      { label: "Genie App Builder docs", url: "https://docs.databricks.com/aws/en/dev-tools/databricks-apps/genie-app-builder", kind: "docs" },
+    ],
   },
 };
 
-// Keyed by BuildStep.capability ("data", "Genie", "Knowledge Assistant",
-// "Lakebase", "Supervisor agent", "Databricks Apps").
-export const CONCEPTS: Record<string, ConceptCard> = {
-  data: {
-    title: "Where your data lives",
-    tagline: "Your tables, governed by Unity Catalog.",
-    deeper: "Everything you build sits on tables in Unity Catalog, Databricks' governed home for data, so permissions and lineage come for free. In a workshop we generate small, realistic sample tables so you can get to the interesting part fast, then swap in real tables later.",
-    quiz: {
-      q: "Why start a workshop build on generated sample data?",
-      options: ["Sample data is more accurate than a company's real data", "It's the only kind of data Databricks can read", "You skip data wrangling and start building now, then swap in real tables later"],
-      answer: 2,
-      why: "Sample data lets you build the interesting parts right away. You swap in real tables once the shape works.",
-    },
-    links: [{ label: "Unity Catalog basics", url: "https://docs.databricks.com/aws/en/data-governance/unity-catalog/", kind: "docs" }],
-  },
-  Genie: {
-    title: "What a Genie space really is",
-    tagline: "Ask your data questions in plain English.",
-    demo: "genie-chat",
-    deeper: "A Genie space sits on top of your tables and learns what each column means, so someone can ask a plain-English question and get a real answer back. Creating the space isn't enough. It has to be set up with the tables, how they connect, and a couple of example questions, or it looks ready but can't answer anything.",
-    quiz: {
-      q: "You created a Genie space but it can't answer questions. Most likely why?",
-      options: ["It has no tables, joins, or example questions set up yet", "Genie is down for everyone", "You have to write the SQL by hand first"],
-      answer: 0,
-      why: "An empty space looks created but can't do anything. It needs tables, how they join, and a couple of example questions.",
-    },
-    links: [{ label: "AI/BI Genie", url: "https://docs.databricks.com/aws/en/genie/", kind: "docs" }],
-  },
-  "Knowledge Assistant": {
-    title: "Answering from documents",
-    tagline: "Answers from your documents and notes.",
-    deeper: "Knowledge Assistant lets your app answer from documents and notes with no embedding pipeline to build. You point it at a text source and it indexes it. One thing to know: indexing runs in the background and can take several minutes, so kick it off and move on rather than waiting on it.",
-    quiz: {
-      q: "You point Knowledge Assistant at your documents. What should you expect?",
-      options: ["It answers the moment you point it at them", "It indexes them in the background for a few minutes before it can answer well", "You have to build an embedding pipeline yourself first"],
-      answer: 1,
-      why: "Indexing runs in the background. Kick it off, keep building, and check answers once it's ready.",
-    },
-    links: [],
-  },
-  Lakebase: {
-    title: "Where your app remembers things",
-    tagline: "A fast place for your app to save what people do.",
-    deeper: "Lakebase is a fast database that sits right next to your data. It's where your app saves what people do, like a decision they marked or an item they flagged, so it sticks between visits. Your app signs in to it automatically, so there's no password to manage.",
-    quiz: {
-      q: "What is Lakebase for in your app?",
-      options: ["Training a machine learning model", "Drawing the charts on the screen", "Saving what people do, like a decision they made, so it sticks between visits"],
-      answer: 2,
-      why: "Lakebase is fast Postgres for app state. What you record there sticks.",
-    },
-    links: [],
-  },
-  "Supervisor agent": {
-    title: "What the agent actually does",
-    tagline: "Sends each question to the right piece.",
-    deeper: "The supervisor is the traffic cop of your app. When a question comes in, it decides which piece should handle it: Genie for the data, Knowledge Assistant for documents, Lakebase to save something. It's not a heavy framework. The skill is giving each piece a clear description so it picks the right one without guessing.",
-    quiz: {
-      q: "What is the supervisor agent's job?",
-      options: ["Picking the right tool for each question and replying", "Replacing Genie and Knowledge Assistant entirely", "Storing the app's data"],
-      answer: 0,
-      why: "It's a router. It picks the right piece (Genie, Knowledge Assistant, or Lakebase) for each question and responds.",
-    },
-    links: [{ label: "Agent framework", url: "https://docs.databricks.com/aws/en/generative-ai/agent-framework/", kind: "docs" }],
-  },
-  "Databricks Apps": {
-    title: "The app people actually open",
-    tagline: "The interface people open and use.",
-    deeper: "Databricks Apps hosts the interface your users open, running in your workspace and already governed. One hard-won truth: a green 'SUCCEEDED' deploy does not mean a working app. Always open the URL and confirm it loads, and glance at the logs if it doesn't.",
-    quiz: {
-      q: "Your app deploy shows SUCCEEDED. Are you done?",
-      options: ["Yes, SUCCEEDED means it's working", "No, you always have to deploy a second time", "No, open the URL and confirm it loads with real data"],
-      answer: 2,
-      why: "A green deploy isn't a working app. Always open it in the browser and confirm it loads with real data.",
-    },
-    links: [{ label: "Databricks Apps", url: "https://docs.databricks.com/aws/en/dev-tools/databricks-apps/", kind: "docs" }],
-  },
-};
+// General questions about how the pieces fit together, used after every component is covered.
+export const GENERAL_QUIZ: LearnQuiz[] = [
+  { q: "Why do Genie and the app both read the gold tables?",
+    options: ["Gold tables are the only ones they're allowed to open", "So everyone sees the same cleaned answer, from one place", "Gold tables are the cheapest to store"],
+    answer: 1, why: "One shared, cleaned source means a number on an app screen and an answer from Genie always agree." },
+  { q: "Your build runs on generated data today. What changes when you move to real data?",
+    options: ["You point the pipeline at the real tables; everything else keeps reading gold", "You rebuild every piece from scratch", "Nothing can change once it's built"],
+    answer: 0, why: "The pipeline is the only piece that touches the source. Swap its input and everything downstream keeps working." },
+  { q: "What is Genie App Builder for in this build?",
+    options: ["Training a model on your data", "Writing the pipeline's cleaning rules", "Turning a plain-language description of your screens into a working app"],
+    answer: 2, why: "Genie Code builds the data pieces; Genie App Builder builds the screen people open, from a description of what it should show and do." },
+];
+
+export interface QuizItem extends LearnQuiz { cap: string | null; }
+// The quick check: always 5 questions, tailored to the build. Every component in the build is
+// covered first (its headline question), then the general ones, then each piece's extras.
+export function quizFor(capabilities: string[], n = 5): QuizItem[] {
+  const caps = learnComponents(capabilities);
+  const out: QuizItem[] = caps.map((c) => ({ cap: c, ...CONCEPTS[c].quiz }));
+  for (const g of GENERAL_QUIZ) if (out.length < n) out.push({ cap: null, ...g });
+  for (let round = 0; out.length < n && round < 3; round++)
+    for (const c of caps) if (out.length < n && CONCEPTS[c].more[round]) out.push({ cap: c, ...CONCEPTS[c].more[round] });
+  return out.slice(0, n);
+}
+
+// The components a build teaches, in the order given, limited to ones we have content for.
+export function learnComponents(capabilities: string[]): string[] {
+  const known = (capabilities || []).filter((c) => CONCEPTS[c]);
+  return known.length ? known : COMPONENT_ORDER.filter((c) => c === PIPELINES || c === GENIE);
+}
+
+// Learn beats: 0 = the architecture overview, 1..n = one per component, n+1 = the quick check.
+export const learnBeatCount = (capabilities: string[]) => learnComponents(capabilities).length + 2;
