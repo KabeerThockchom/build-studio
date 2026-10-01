@@ -302,6 +302,9 @@ into Genie App Builder, and that prompt is what makes the app good, so write it 
 - Design: light theme, generous whitespace, one display font and one body font, tabular numerals for numbers,
   at most three meaning-coded colours always paired with a label, a loading skeleton and a helpful empty state.
   If the participant's organisation is the workshop host, ask for its brand colours; otherwise a clean neutral palette.
+  Genie App Builder only sees the prompt, so name the look in it: the visual direction from design.md that fits the
+  interaction model (Crisp Operational for lists to act on and monitoring, Warm Editorial for drafts and briefings,
+  Bold Heritage for leadership views) and its two fonts.
 - Keep it to one or two screens to start. The concept tells them to iterate in short cycles ("make the reason
   line bolder", "add a filter by region") rather than rewriting the prompt.
 - Verify (the person checks in the preview, then after deploy): the first screen shows REAL rows from the gold

@@ -171,43 +171,77 @@ def _recommend_flavor(interaction_model: str) -> str:
             "ask": "A", "explore": "C"}.get((interaction_model or "").strip(), "B")
 
 
-def _design_md(*, idea: str, interaction_model: str) -> str:
+# For builds that aren't for the workshop host: the same three directions, in a neutral palette.
+_NEUTRAL_FLAVORS = {
+    "A": ("Warm Editorial", "Young Serif (display) + Hanken Grotesk (body). Conversational and human, reads like a "
+          "morning briefing. Warm off-white paper, deep ink headings, one warm accent. Best for apps that explain "
+          "and recommend."),
+    "B": ("Crisp Operational", "Schibsted Grotesk (display) + Public Sans (body). Clean console clarity, dense but "
+          "calm. White surfaces on a soft grey-cream ground, ink + one green for 'done', a tight grid. Best for review "
+          "lists, approve or override screens and monitoring."),
+    "C": ("Bold Heritage", "Zilla Slab (display) + Figtree (body). Confident and premium, richer contrast, more "
+          "editorial weight. Best for leadership views and storytelling."),
+}
+
+
+def _design_md(*, idea: str, interaction_model: str, brand: bool = False) -> str:
+    """The visual brief. brand=True is the Costa workshop pack (palette + logo); otherwise the same three
+    directions in a neutral palette, so every app still looks designed, not default."""
+    flavors = _FLAVORS if brand else _NEUTRAL_FLAVORS
     rec = _recommend_flavor(interaction_model)
-    rec_name = _FLAVORS[rec][0]
-    out = [
-        "# Design & brand spec — Costa", "",
-        "This app is for Costa, so it must look like a Costa product. Below is the brand foundation to keep, "
-        "then three worked **flavors** as reference directions. **Pick ONE flavor as your starting point, then "
-        "adapt it to this app's real screens** — don't clone a mockup, and don't make every app identical; vary "
-        "tastefully within the brand. Deviate only if the app truly calls for it, and stay on-brand.", "",
-        "## Brand foundation (always)",
-        f"- **Logo**: `{LOGO_NAME}` is in this project folder (512×512 PNG). Package it INTO the app — copy it "
-        "into the frontend's static assets (e.g. Vite `public/`) so it ships inside `dist/`, and use it in the "
-        "header and as the favicon. Do NOT hotlink an external URL (the app's CSP will block it).",
-        "- **Primary brand color**: Costa maroon `#730723` (deep burgundy) — the anchor. Header, primary "
-        "actions, key emphasis. Use `#59071c` for hover/depth.",
-        "- **Page ground**: warm cream (`#faf4ea` / `#f6f3ee`), never pure `#ffffff` as the canvas. Cards sit "
-        "on the cream as white/lighter-cream surfaces.",
-        "- **Positive / approved**: green `#3f7d55`. **Secondary / heritage accent**: gold `#b57f36` (sparingly). "
-        "**Text/ink**: warm near-black `#211318`.",
+    rec_name = flavors[rec][0]
+    if brand:
+        out = [
+            "# Design & brand spec — Costa", "",
+            "This app is for Costa, so it must look like a Costa product. Below is the brand foundation to keep, "
+            "then three worked **flavors** as reference directions. **Pick ONE flavor as your starting point, then "
+            "adapt it to this app's real screens** — don't clone a mockup, and don't make every app identical; vary "
+            "tastefully within the brand. Deviate only if the app truly calls for it, and stay on-brand.", "",
+            "## Brand foundation (always)",
+            f"- **Logo**: `{LOGO_NAME}` is in this project folder (512×512 PNG). Package it INTO the app — copy it "
+            "into the frontend's static assets (e.g. Vite `public/`) so it ships inside `dist/`, and use it in the "
+            "header and as the favicon. Do NOT hotlink an external URL (the app's CSP will block it).",
+            "- **Primary brand color**: Costa maroon `#730723` (deep burgundy) — the anchor. Header, primary "
+            "actions, key emphasis. Use `#59071c` for hover/depth.",
+            "- **Page ground**: warm cream (`#faf4ea` / `#f6f3ee`), never pure `#ffffff` as the canvas. Cards sit "
+            "on the cream as white/lighter-cream surfaces.",
+            "- **Positive / approved**: green `#3f7d55`. **Secondary / heritage accent**: gold `#b57f36` (sparingly). "
+            "**Text/ink**: warm near-black `#211318`.",
+        ]
+    else:
+        out = [
+            "# Design spec", "",
+            "How this app should look. Below is the foundation every screen keeps, then three worked **directions**. "
+            "**Pick ONE as your starting point, then adapt it to this app's real screens.** Don't clone a mockup and "
+            "don't settle for the default look.", "",
+            "## Foundation (always)",
+            "- **Palette**: a soft off-white page ground (not pure `#ffffff`), white cards, deep ink text (`#1b3139`), "
+            "one primary colour for actions, green (`#00a870`) only for done or approved.",
+            "- **If the people using it have brand colours**, use them as the primary colour and keep the rest neutral.",
+        ]
+    out += [
         "- Hold the product bar: at most three semantic colors, each ALWAYS paired with a label or icon (never "
         "color alone); tabular numerals for every figure (`font-variant-numeric: tabular-nums`); generous "
-        "whitespace; light theme; no gradients, no 'AI blue', no neon.", "",
-        "## The three flavors (reference — pick one, then adapt)",
+        "whitespace; light theme; no gradients, no 'AI blue', no neon.",
+        "- **First screen** opens on the one thing the person came to do (the list to act on, the draft to edit), "
+        "with a loading skeleton and a helpful empty state. Never a blank canvas or a raw table dump.", "",
+        "## The three " + ("flavors" if brand else "directions") + " (reference: pick one, then adapt)",
     ]
     for k in ("A", "B", "C"):
-        nm, desc = _FLAVORS[k]
-        star = "  **← recommended for this app**" if k == rec else ""
-        out.append(f"- **Flavor {k} — {nm}**{star}: {desc}")
+        nm, desc = flavors[k]
+        star = " (recommended for this app)" if k == rec else ""
+        out.append(f"- **{'Flavor' if brand else 'Direction'} {k}: {nm}**{star}. {desc}")
     out += [
         "",
-        f"**Recommended starting point: Flavor {rec} ({rec_name})** — it fits how people will use this app. "
-        "Adapt its type and layout to your actual screens; keep the brand foundation above intact.", "",
+        f"**Recommended starting point: {rec_name}**: it fits how people will use this app. Adapt its type and "
+        "layout to your actual screens" + ("; keep the brand foundation above intact." if brand else "."), "",
         "## Fonts",
-        "Every flavor's fonts are on Google Fonts — load the two for your chosen flavor with a `<link>` and give "
-        "each a real fallback stack (e.g. `\"Public Sans\", system-ui, sans-serif`). One display face for "
-        "headings/numbers, one body face for text. Compile CSS at build time (Vite + Tailwind), never a browser "
-        "CDN.", "",
+        "Every direction's fonts are on Google Fonts: one display face for headings and numbers, one body face for "
+        "text, each with a real fallback stack (e.g. `\"Public Sans\", system-ui, sans-serif`).", "",
+        "## Using this with Genie App Builder",
+        f"Genie App Builder only sees what you tell it, so put the look in your description: name the direction "
+        f"(\"{rec_name}\"), its two fonts, the palette above, and the first-screen rule. Then refine the look in "
+        "short follow-ups (\"make the headings the display font\", \"use the green only for approved\").", "",
         "_This is the visual brief. The functional plan (what to build) is in PROJECT.md._", "",
     ]
     return "\n".join(out)
@@ -256,14 +290,13 @@ def publish_assets(*, idea: str, prd_markdown: str, capabilities: list[str],
     # a failure here never blocks the build (the plan still stands).
     files_written = [DOC_NAME]
     try:
-        # The Costa brand pack only applies when this deployment runs a Costa workshop (WORKSHOP_HOST).
+        # design.md ships with every build; the Costa brand pack (palette + logo) only for a Costa workshop.
         from .sitdown import DEFAULT_CONTEXT
         costa = "costa" in DEFAULT_CONTEXT.get("org", "").lower()
-        if costa:
-            design = _design_md(idea=idea, interaction_model=(design_answers or {}).get("interaction_model", ""))
-            w.workspace.upload(f"{target}/design.md", io.BytesIO(design.encode("utf-8")),
-                               format=ImportFormat.RAW, overwrite=True)
-            files_written.append("design.md")
+        design = _design_md(idea=idea, interaction_model=(design_answers or {}).get("interaction_model", ""), brand=costa)
+        w.workspace.upload(f"{target}/design.md", io.BytesIO(design.encode("utf-8")),
+                           format=ImportFormat.RAW, overwrite=True)
+        files_written.append("design.md")
         logo_src = _logo_path()
         if costa and os.path.exists(logo_src):
             with open(logo_src, "rb") as fh:
