@@ -466,6 +466,11 @@ def build_plan(req: BuildRequest) -> BuildPlan:
                     tool="app_builder" if cap == "Databricks Apps" else "genie_code",
                     concept=strip_em_dashes(s.get("concept", "")), move=strip_em_dashes(s.get("move", "")),
                     verify=strip_em_dashes(s.get("verify", "")), teach=strip_em_dashes(s.get("teach", ""))))
+            # Only the build's own pieces: a step for a component the build doesn't use is dropped, in code.
+            allowed = set(_ordered_targets(req))
+            steps = [st for st in steps if st.capability in allowed or not st.capability]
+            for i, st in enumerate(steps, 1):
+                st.n = i
             if steps:
                 return BuildPlan(steps=steps)
             raise ValueError("no steps")

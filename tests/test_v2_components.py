@@ -106,3 +106,16 @@ def test_handoff_never_sends_negative_fits_for_included_components():
     f = {c["name"]: c["fits"] for c in out["plan"]["capabilities"]}
     assert f[C.APPS] == C.COMPONENTS[C.APPS]["one_liner"]
     assert f[C.PIPELINES] == "scores each item"
+
+
+def test_build_plan_drops_steps_outside_the_build(monkeypatch):
+    from server import build_plan as bp
+    from server.models import BuildRequest
+    fake = ('{"steps": [{"capability": "data", "title": "Data", "concept": "c", "move": "m", "verify": "v"},'
+            '{"capability": "Genie", "title": "Genie", "concept": "c", "move": "m", "verify": "v"},'
+            '{"capability": "Databricks Apps", "title": "App", "concept": "c", "move": "m", "verify": "v"}]}')
+    monkeypatch.setattr(bp.llm, "complete", lambda *a, **k: fake)
+    monkeypatch.setattr(bp.config, "get_serving_endpoint", lambda: "x", raising=False)
+    plan = bp.build_plan(BuildRequest(idea="i", capabilities=["Declarative Pipelines", "Genie"], design_answers={}))
+    assert [s.capability for s in plan.steps] == ["data", "Genie"]
+    assert [s.n for s in plan.steps] == [1, 2]
