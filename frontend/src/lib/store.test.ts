@@ -24,6 +24,9 @@ describe("the journey", () => {
     expect(s.capabilities).toEqual(studio.capabilities);
     expect(s.plan?.capabilities[0].fits).toMatch(/crews/);
     expect(s.sdProgress.done).toBe(true);
+    expect(s.spec).toBeNull();
+    const withSpec = reducer(initialState, { t: "handoff", studio: { ...studio, spec: { nodes: [{ id: "data", band: "data", label: "x", sub: "" }], edges: [] } } });
+    expect(withSpec.spec?.nodes[0].id).toBe("data");
     expect(s.learnIdx).toBe(0);
   });
 
@@ -49,6 +52,17 @@ describe("the journey", () => {
     expect(s.blueprint?.prd_markdown).toBe("## Summary");
     expect(s.planJob?.status).toBe("done");
     expect(s.buildPlan).toBeNull();
+  });
+
+  it("a refine plan updates capabilities and spec when the blueprint has refine_note", () => {
+    const s0: StudioState = { ...initialState, capabilities: ["Genie"], plan: { read_back: "", questions: [], capabilities: [{ name: "Genie", selected: true, fits: "answers questions" }] }, spec: { nodes: [], edges: [] } };
+    const newSpec = { nodes: [{ id: "new", band: "data" as const, label: "data", sub: "" }], edges: [] };
+    const bp = { prd_markdown: "## Summary", refine_note: "Added Lakebase", capabilities: ["Genie", "Lakebase"], spec: newSpec } as any;
+    const s = reducer(s0, { t: "planDone", bp });
+    expect(s.blueprint?.refine_note).toBe("Added Lakebase");
+    expect(s.capabilities).toEqual(["Genie", "Lakebase"]);
+    expect(s.spec).toEqual(newSpec);
+    expect(s.plan?.capabilities[1].name).toBe("Lakebase");
   });
 
   it("a plan error is recorded on the job", () => {

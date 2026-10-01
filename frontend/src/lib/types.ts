@@ -22,6 +22,7 @@ export interface Blueprint {
   scope_later: string[];   // honest "save for later"
   app_screens?: string[];  // when the build has an app: one line per screen
   refine_note: string;     // after a refine: what changed
+  components_changed?: { added: string[]; removed: string[]; notes: string[] };  // when refining: which pieces changed
 }
 
 // What each piece does in THIS build, written by the Sit-Down handoff.
@@ -57,4 +58,5 @@ export interface StudioHandoff {
   plan: SitDownPlan;
   planRequested?: boolean;
   sitdown?: Record<string, unknown>;
+  spec?: DiagramSpec;          // the server-computed architecture (same as the plan's blueprint.spec)
 }

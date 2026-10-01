@@ -1,5 +1,5 @@
 import { useReducer } from "react";
-import type { Blueprint, BuildPlan, PlanJob, SitDownPlan, StudioHandoff } from "./types";
+import type { Blueprint, BuildPlan, DiagramSpec, PlanJob, SitDownPlan, StudioHandoff } from "./types";
 
 // The journey: overview -> sitdown -> learn -> plan -> build.
 //   sitdown: the conversational SA sharpens the idea (its own session, see components/sitdown)
@@ -19,6 +19,7 @@ export interface StudioState {
   answers: Record<string, string>;     // the Sit-Down's brief, scope lanes, data plan, risks (to_studio)
   capabilities: string[];              // the components this build uses, in order
   plan: SitDownPlan | null;            // per-component "fits" for THIS build
+  spec: DiagramSpec | null;            // the architecture, from the server at handoff (Learn and Plan share it)
   sitdown: unknown | null;             // the saved Sit-Down session (turns, brief, server session)
   sdProgress: SitDownProgress;
   learnIdx: number;                    // current Learn beat
@@ -43,6 +44,7 @@ export const initialState: StudioState = {
   answers: {},
   capabilities: [],
   plan: null,
+  spec: null,
   sitdown: null,
   sdProgress: { stage: "", covered: 0, started: false, done: false },
   learnIdx: 0,
@@ -82,7 +84,7 @@ export type Action =
 export function persistable(s: StudioState) {
   return {
     phase: s.phase, idea: s.idea, projectName: s.projectName, answers: s.answers,
-    capabilities: s.capabilities, plan: s.plan, sitdown: s.sitdown, sdProgress: s.sdProgress,
+    capabilities: s.capabilities, plan: s.plan, spec: s.spec, sitdown: s.sitdown, sdProgress: s.sdProgress,
     learnIdx: s.learnIdx, learnMax: s.learnMax, planJob: s.planJob, blueprint: s.blueprint,
     buildPlan: s.buildPlan, buildEntered: s.buildEntered, buildStepIdx: s.buildStepIdx, buildDone: s.buildDone,
     publishedDir: s.publishedDir, publishedHost: s.publishedHost, publishedDeepLink: s.publishedDeepLink,
@@ -104,6 +106,7 @@ export function reducer(s: StudioState, a: Action): StudioState {
         answers: a.studio.answers || {},
         capabilities: Array.isArray(a.studio.capabilities) ? a.studio.capabilities : [],
         plan: a.studio.plan || null,
+        spec: a.studio.spec && Array.isArray(a.studio.spec.nodes) ? a.studio.spec : null,
         sdProgress: { ...s.sdProgress, done: true },
         learnIdx: 0, learnMax: 0,
         planJob: null, blueprint: null, planError: null,
@@ -115,10 +118,31 @@ export function reducer(s: StudioState, a: Action): StudioState {
     case "learnIdx": return { ...s, learnIdx: a.i, learnMax: Math.max(s.learnMax, a.i) };
     case "planJob": return { ...s, planJob: a.job, planError: null };
     // A finished (or refined) plan invalidates the build plan made from the previous one.
-    case "planDone":
-      return { ...s, blueprint: a.bp, planJob: s.planJob ? { ...s.planJob, status: "done", stage: "done" } : null,
+    // On refine (blueprint has refine_note), adopt the new capabilities and spec from the blueprint.
+    case "planDone": {
+      let newCaps = s.capabilities, newSpec = s.spec, newPlan = s.plan;
+      // If this is a refine (blueprint has refine_note) and capabilities changed, update studio state
+      if (a.bp.refine_note && a.bp.capabilities && Array.isArray(a.bp.capabilities)) {
+        const capsChanged = JSON.stringify(newCaps) !== JSON.stringify(a.bp.capabilities);
+        if (capsChanged && newPlan?.capabilities) {
+          newCaps = a.bp.capabilities;
+          // Update plan.capabilities with new pieces (keeping existing fits where they match)
+          newPlan = {
+            ...newPlan,
+            capabilities: a.bp.capabilities.map((c) => ({
+              name: c,
+              selected: true,
+              fits: newPlan!.capabilities.find((pc) => pc.name === c)?.fits || "",
+            })),
+          };
+        }
+      }
+      if (a.bp.refine_note && a.bp.spec) newSpec = a.bp.spec;
+      return { ...s, blueprint: a.bp, capabilities: newCaps, spec: newSpec, plan: newPlan,
+        planJob: s.planJob ? { ...s.planJob, status: "done", stage: "done" } : null,
         planError: null, buildPlan: null, buildEntered: false, buildStepIdx: 0, buildDone: [],
         publishedDir: null, publishedHost: null, publishedDeepLink: null };
+    }
     case "planErr":
       return { ...s, planError: a.e, planJob: s.planJob ? { ...s.planJob, status: "error", error: a.e } : null };
     case "buildStart": return { ...s, buildLoading: true };
