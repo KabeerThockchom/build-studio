@@ -1,0 +1,39 @@
+Build Studio v2 is live
+
+Same link as before: https://build-studio-7405615677967120.0.azure.databricksapps.com
+
+Build Studio takes someone from a rough idea to a working build on Databricks in about a day. v2 rebuilds the front half of the journey around a conversation with an SA, and makes every build's architecture fit the idea instead of a fixed template.
+
+The journey is now: Overview, Sit-Down, Learn, Plan, Build.
+
+WHAT'S NEW
+
+The Sit-Down
+- You talk your idea through with an AI Solutions Architect. It asks one question at a time, offers concrete answers you can click (or you type your own), and writes a brief as you go.
+- A panel of colleagues (data engineer, finance, someone on the front line, governance and others) drops in with challenges, questions and ideas of their own. Their roles fit your industry, whatever it is.
+- Every section of the brief is rated, and an overall grade climbs as the idea gets sharper.
+- It offers three genuinely different ways to build the idea, then three packages that fit in a day (Lean, Recommended, Bold), and ends with a recap of your plan before you build.
+- Need a starting point? An idea gallery on the first screen has 27 example ideas across retail, travel and hospitality, and quick-service restaurants.
+
+Architecture that fits the idea
+- Every build uses only the pieces it needs from four: Declarative Pipelines (bronze, silver, gold), Lakebase, Genie and a Databricks App.
+- The app is always the one place people use it. Genie is only included when people will ask open questions, and then it sits inside the app as a chat panel. Lakebase is only included when the app needs to record decisions.
+- No Supervisor agent, Knowledge Assistant or separate dashboard any more.
+
+Learn
+- Covers only the pieces in your build, each with its job in your build, three short points and a walkthrough video where we have one. Ends with a five-question check.
+
+Plan
+- A full PRD and architecture, drafted in the background while you learn, then checked against what you said in the Sit-Down and tightened.
+- Ask for changes in plain words. Changes can add or remove a piece (for example, "I want people to be able to ask it questions" adds Genie), and the plan shows exactly what changed.
+
+Build
+- Step by step, each clear about where you do it: Genie Code for the data, pipelines, Genie and Lakebase, and Genie App Builder for the app.
+- You write the prompts in your own words. An example prompt is there if you need help.
+
+BEFORE YOU RUN A WORKSHOP
+- Genie App Builder is in Beta. A workspace admin needs to turn on "Governed agentic app-building" under Previews, and participants need CAN CREATE APP on an App Space.
+- Builds generate their own sample data by default.
+- Sessions from the earlier version of Build Studio won't resume in v2. Start a new one.
+
+Feedback and anything that looks off: reply in this thread.
