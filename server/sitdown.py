@@ -40,23 +40,16 @@ SKETCHES = {
     "dashboard": "tiles and a chart giving the whole picture at a glance",
     "ask_answer": "a plain-English question box with the answer below it",
     "explore_table": "filters over a table you drill through in your own direction",
-    "approve_queue": "cards an agent drafted, each with approve or override and its reasoning",
+    "approve_queue": "cards the system drafted, each with approve or override and the reason behind it",
     "none": "no preset sketch fits this one",
 }
 # Scope is rule-based, not model-priced. The model only maps features onto these known
 # building blocks; we own the effort of each block, so packages are consistent every time.
 EFFORT = {"quick": 1, "half": 2, "big": 3}          # units of a workshop day
 DAY_CAPACITY = 6                                     # a comfortable one-day build
-BLOCKS = {
-    "synthetic_table": ("quick", "a small generated table in your own schema"),
-    "genie_space": ("quick", "plain-English questions over the data"),
-    "dashboard": ("quick", "a dashboard of the key numbers"),
-    "decision_log": ("quick", "a Lakebase table recording each approve or change"),
-    "app_screen": ("half", "one screen in the app people open"),
-    "knowledge_assistant": ("half", "answers from documents"),
-    "agent": ("big", "an agent that does a repeatable judge-and-draft job"),
-    "not_today": (None, "needs a trained model, image recognition, or a live system connection"),
-}
+# Building blocks now come from the v2 component catalog (no agents, no document Q&A).
+from .components import BLOCKS as _CBLOCKS, block_of  # noqa: E402
+BLOCKS = {k: (v[0], v[1]) for k, v in _CBLOCKS.items()}
 BUDGET = DAY_CAPACITY  # legacy name kept for the bench
 OPEN_CAP = "B-"
 
@@ -243,8 +236,10 @@ Reply with ONLY this JSON object:
 def shapes_messages(state: dict, ds: dict | None) -> list:
     user = f"""SESSION STATE: {compact(state)}
 
-Offer three genuinely different ways to build THIS idea in one day (e.g. a narrow tool, an
-agent that does the work for approval, a monitoring view), each true to the north_star.
+Offer three genuinely different ways to build THIS idea in one day (e.g. a narrow tool, a
+review queue where the system drafts a suggestion for each item and the person approves it, a
+monitoring view), each true to the north_star. No AI agents or document Q&A: the pieces are
+Declarative Pipelines, Genie, AI/BI Dashboards, Lakebase and a Databricks App.
 For each, pick the rough UI sketch that best fits its first screen, from these keys ONLY:
 {{sketch_list}}
 Pick "none" if no sketch genuinely fits; do not force one.
@@ -317,7 +312,8 @@ Reply with ONLY this JSON object (reaction FIRST so it can show while the rest l
   "parked": ["<=8 words", ...],
   "data_plan": {{"seeded": ["<table>", ...], "generate": ["<table: purpose>", ...]}},
   "fits": {{"Genie": "<=14 words: what Genie does in THIS build",
-           "Supervisor agent": "<=14 words: the one repeatable job it does here",
+           "Declarative Pipelines": "<=14 words: what it cleans, joins or scores here",
+           "AI/BI Dashboards": "<=14 words: what the dashboard shows here",
            "Lakebase": "<=14 words: what it records here",
            "Databricks Apps": "<=14 words: the screen people open"}}}}"""
     return [{"role": "system", "content": system_prompt(ds)}, {"role": "user", "content": user}]
@@ -556,17 +552,17 @@ def to_studio(state: dict, rb: dict) -> dict:
         "watch-outs (plan around these)": "; ".join(rb.get("gaps") or []),
     }
     answers = {k: v for k, v in answers.items() if v}
+    from .components import components_for, COMPONENTS
     fits = rb.get("fits") or {}
-    caps = [{"name": n, "selected": True, "fits": fits.get(n, "")} for n in
-            ("Genie", "Supervisor agent", "Lakebase", "Databricks Apps")]
-    if any(f.get("block") == "knowledge_assistant" and f.get("lane") == "today" for f in feats):
-        caps.append({"name": "Knowledge Assistant", "selected": True, "fits": "answers from your documents"})
+    comps = components_for(feats)
+    caps = [{"name": n, "selected": True, "fits": fits.get(n) or COMPONENTS[n]["one_liner"]} for n in comps]
     return {
         "phase": "learn",
         "idea": idea,
         "projectName": shape.get("name", ""),
         "answers": answers,
         "answersOther": {},
+        "capabilities": comps,
         "plan": {"read_back": rb.get("reaction", ""), "questions": [], "capabilities": caps},
         "planRequested": True,
         "sitdown": {"grades": rb.get("grades") or state.get("grades"), "decisions": state.get("decisions"),

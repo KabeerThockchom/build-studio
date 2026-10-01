@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Build Studio", lifespan=lifespan)
 
-from server.routes import health, blueprint, design, session, build, admin, publish, idea, sitdown  # noqa: E402
+from server.routes import health, blueprint, design, session, build, admin, publish, idea, sitdown, plan  # noqa: E402
 app.include_router(health.router, prefix="/api")
 app.include_router(blueprint.router, prefix="/api")
 app.include_router(design.router, prefix="/api")
@@ -33,6 +33,7 @@ app.include_router(admin.router, prefix="/api")
 app.include_router(publish.router, prefix="/api")
 app.include_router(idea.router, prefix="/api")
 app.include_router(sitdown.router, prefix="/api")
+app.include_router(plan.router, prefix="/api")
 
 # Standalone Sit-Down test page (pre-React integration): /sitdown
 _sitdown_page = os.path.join(os.path.dirname(__file__), "server", "static", "sitdown.html")

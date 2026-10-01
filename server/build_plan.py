@@ -2,8 +2,8 @@
 (concept -> the move -> verify) for the capabilities in the blueprint.
 
 Design notes:
-- Ordered by dependency: data -> Genie -> Knowledge Assistant -> Lakebase ->
-  Supervisor agent -> Databricks App.
+- Ordered by dependency: data -> Declarative Pipelines -> Lakebase -> Genie -> AI/BI Dashboards ->
+  Databricks App (the app step is done in Genie App Builder, not Genie Code).
 - The guardrails are the load-bearing, hard-won lessons distilled from V2V (see
   the research): they go in the SYSTEM prompt so every generated move carries the
   rigor without the ceremony. We are NOT AppKit, so AppKit-specific import
@@ -29,7 +29,7 @@ def _schema_name(text: str) -> str:
 
 # Canonical dependency order for the steps we know how to guide. No Lakeflow —
 # a workshop day never stands up a live ingestion source.
-STEP_ORDER = ["data", "Genie", "Knowledge Assistant", "Lakebase", "Supervisor agent", "Databricks Apps"]
+STEP_ORDER = ["data", "Declarative Pipelines", "Lakebase", "Genie", "AI/BI Dashboards", "Databricks Apps"]
 
 # The data step is one of three workshop-realistic paths, keyed by data_mode.
 DATA_GUARDRAIL = {
@@ -172,97 +172,53 @@ GUARDRAILS = {
         "eyeball, not a formal eval harness. Optional, only once it is answering well: you can export a "
         "good answer's query from Genie as a Metric View to lock that definition in — do that AFTER Genie "
         "is good, never as a prerequisite. An empty or unconfigured space looks created but is useless. "
-        "The app surfaces this space as a live FREE-TEXT ask box that calls the Genie Conversation API for "
-        "arbitrary questions — it must actually call Genie, never re-implement the answer as a fixed SQL query."),
-    "Knowledge Assistant": (
-        "Knowledge Assistant lets the app answer from documents/notes with no embedding pipeline to build. "
-        "Point it at the text source (a table column or docs) and kick off indexing. If the idea has no "
-        "obvious document source, GENERATE a small, focused set of realistic documents for it (roughly 6 to "
-        "12 short documents, e.g. SOPs, policies, past notes/tickets, product or FAQ pages) — name the "
-        "specific document types and how many in the prompt, and make their names, IDs and dates match the "
-        "tables exactly, so a document answer lines up with the data. This build includes a "
-        "document-answering piece. Keep the set focused rather than dumping everything in. "
-        "IMPORTANT: indexing runs "
-        "in the background and takes several minutes to tens of minutes; do NOT sit and poll waiting for it to "
-        "finish, and do NOT block the rest of the build on it. Kick it off, tell the user it's indexing in the "
-        "background (they can move on and check back), and treat 'a query returns a relevant passage' as a "
-        "later verification once indexing is READY, not a same-step confirm."),
+        "Point the space at the GOLD tables from the pipeline, not the bronze or silver ones."),
+    "Declarative Pipelines": (
+        "Build the data flow as a Lakeflow Declarative Pipeline with the medallion pattern: BRONZE tables land the raw "
+        "data as it is, SILVER tables clean, type and join it, GOLD tables are ready to use and are the ONLY tables "
+        "Genie, dashboards and the app read. Any scoring, flagging, ranking or drafted suggestion the plan describes is "
+        "a rule computed in a gold table (a clear, explainable column such as a score, a flag and a reason), never an "
+        "AI agent. Keep it small: two to four gold tables, named for what they mean. Add a short comment on each table "
+        "saying what it holds, and data quality expectations on the key columns (e.g. ids not null). Run the pipeline "
+        "and check each gold table has sensible rows before moving on; a pipeline that 'succeeded' with empty gold "
+        "tables is not done."),
+    "AI/BI Dashboards": (
+        "Create an AI/BI dashboard over the GOLD tables that answers the plan's success measure at a glance: a few "
+        "counters for the headline numbers (with the target alongside the actual), one trend over time, and one "
+        "breakdown by the dimension that matters (site, region, product, team). Title every widget in the "
+        "participant's own terms. Keep it to one page. Publish it and open it to confirm every widget shows real "
+        "numbers, not empty tiles. If a Genie space exists, it can be linked from the dashboard for follow-up questions."),
     "Lakebase": (
-        "Lakebase is managed Postgres for the app's writes/state (e.g. recording a decision). Create your OWN "
-        "dedicated Lakebase database/project for this build (name it for your project) and provision it fresh — "
-        "do NOT assume you can write to a shared or pre-existing Lakebase project: on a shared instance you "
-        "likely lack the Postgres role / manage permission and the connection fails auth. A new project "
-        "auto-provisions a production branch with a ready primary endpoint. Keep it to a "
-        "few small operational tables for what the app records at runtime — it is not a place to copy the "
-        "analytical tables. Create the table you need; the app authenticates with a short-lived token "
-        "minted per connection (no password). Autoscaling Lakebase sleeps when idle, so the FIRST request "
-        "after a quiet period (like the morning of a demo) waits while it wakes: open the connection with a "
-        "generous timeout and retry the first attempt (e.g. a psycopg pool opened with wait=True and "
-        "timeout~30s, or a small retry loop), so a cold start shows briefly instead of erroring."),
-    "Supervisor agent": (
-        "The supervisor agent is a small tool-calling loop (not a framework, and NOT the OpenAI Agents SDK): "
-        "it calls the Foundation Model API and routes to the tools you built (for example Genie for data "
-        "questions and Lakebase to record something, plus any others in the plan). Keep it to a small number "
-        "of tools (two or three); each tool is a plain Python function whose DOCSTRING is its description — "
-        "write a clear, distinct one-line docstring per tool, because that text is what the model routes on, "
-        "so it picks by the intent of the question without guessing. Instrument it with MLflow tracing so "
-        "every question is observable: call the model through the OpenAI-compatible Databricks client (the "
-        "`openai`/`databricks-openai` client pointed at the FM endpoint, still a plain loop) and turn on "
-        "`mlflow.openai.autolog()`, which captures the model and tool-calling calls automatically; also "
-        "decorate the loop's entry function and each tool with `@mlflow.trace` so the full span tree — the "
-        "question, the routing decision, which tool ran, its latency and result, the final answer — is "
-        "recorded. Tracing needs a Databricks MLflow experiment the app can write to: create one and grant "
-        "the app's service principal CAN_EDIT on it (same pattern as the data/warehouse grants; the app-level "
-        "env wiring is in the Databricks Apps step). Confirm it works by asking one question that should go to "
-        "each tool, checking it picked the right one, AND opening the experiment's traces to see each call as "
-        "a span (a faked tool shows up as a missing span — this is how you catch a piece that was skipped). "
-        "Omit the temperature param (some models reject it)."),
+        "Lakebase is managed Postgres for what people decide at runtime (an approval, a change, a note). Create your "
+        "OWN Lakebase database/project for this build (named for your project) and provision it fresh; do NOT write to "
+        "a shared or pre-existing project (you likely lack the Postgres role there and the connection fails auth). "
+        "A new project auto-provisions a production branch with a ready primary endpoint. Create the one or two small "
+        "tables the plan needs (e.g. a decision log with who, what, when, the item id, the decision and any note), "
+        "keyed so they join back to the gold tables. It is not a place to copy the analytical tables. Insert one test "
+        "row and read it back. The app (built next, in Genie App Builder) writes to these tables, so note the "
+        "database and table names for that step. Autoscaling Lakebase sleeps when idle, so the first request after a "
+        "quiet spell takes a few seconds."),
     "Databricks Apps": (
-        "The app hosts the UI. Build it as a React + Tailwind CSS front end with a FastAPI (Python) backend — "
-        "this exact stack, not Streamlit/Gradio/Dash. Follow the brand brief in `design.md` in the project folder "
-        "(the Costa palette, the `costa.png` logo to package into dist/, and three reference design flavors — pick "
-        "one and adapt it to this app); and if the app misbehaves (won't deploy, renders but shows no data, Genie "
-        "or Lakebase errors), consult `troubleshooting.md` in the same folder before improvising. Hold a high "
-        "design bar (see APP QUALITY below): it should "
-        "look like a product a team would use, and it should visibly use the pieces in the plan (an in-app "
-        "Genie ask box, the person's actions saved to Lakebase, and any other pieces the plan includes). "
-        "Hard-won truths: (1) a green/SUCCEEDED deploy is NOT a working app — "
-        "always open it in the browser and confirm it RENDERS and lays out correctly AND that its data "
-        "calls return real rows (not an empty or misaligned screen), watch /logz for startup errors. "
-        "(2) the built index.html MUST be a complete HTML5 document: a <!DOCTYPE html>, an <html> with a "
-        "<head> containing charset and viewport meta tags, and a <body> wrapping the root div. A bare "
-        "script+div with no doctype renders in quirks mode with a broken layout — confirm the built "
-        "index.html has the full shell. "
-        "(3) Deploy ONLY the built dist plus the backend, and do it with an ALLOWLIST, never a denylist. In "
-        "databricks.yml set `sync.include: [\"dist/**\", \"main.py\", \"requirements.txt\", \"app.yaml\"]`. When "
-        "include is set, ONLY those paths deploy — so dist/index.html always ships (it is under dist/**), while a "
-        "root-level index.html, the src/ sources, node_modules, package.json and the configs all stay out "
-        "automatically, with no list of things to remember to exclude. Do NOT instead reach for "
-        "`sync.exclude: [\"index.html\", ...]`: a bare index.html glob ALSO matches dist/index.html, so the built "
-        "page never ships and the app 500s on every page load — this is a real, repeated failure. `git init` the "
-        "app folder too (bundle deploy only honors .gitignore in a real git tree). A healthy deploy is ~15 files. "
-        "The allowlist also prevents the two classic crashes: node_modules shipping (deploy uploads thousands of "
-        "files and times out) and package.json shipping (the runtime runs `npm install` on compute and crashes). "
-        "Use requirements.txt (never a uv.lock — it can leak internal proxy URLs). "
-        "(4) The app.yaml command MUST use a LITERAL port 8000, e.g. [\"uvicorn\", \"main:app\", \"--host\", "
-        "\"0.0.0.0\", \"--port\", \"8000\"]. Databricks Apps execs the command directly with NO shell expansion, "
-        "so \"${DATABRICKS_APP_PORT}\" is passed verbatim and crashes the app ('not a valid integer'). Never put "
-        "a ${VAR} in the command args. "
-        "(5) The app runs as a SERVICE PRINCIPAL, not you — so anything it queries needs grants to THAT SP: "
-        "USE CATALOG + USE SCHEMA + SELECT on the data, and CAN USE on the SQL warehouse the Genie space runs "
-        "on. Without them a Genie/SQL call fails at runtime (the app deploys fine, then /api calls 500/502 with "
-        "a permissions/'FAILED' error). Grant the app's SP access to the data and warehouse, and verify a query "
-        "actually returns rows as the app, not just as you. "
-        "(6) If the app runs the supervisor agent, wire its MLflow tracing at the app level: add `mlflow` to "
-        "requirements.txt and set `MLFLOW_TRACKING_URI=databricks` and `MLFLOW_EXPERIMENT_ID=<experiment id>` as "
-        "env in app.yaml (an env value, not in the command args — never a ${VAR} in the command). Make trace "
-        "init resilient: a tracing or missing-experiment failure must degrade to untraced, never 500 a request. "
-        "The experiment itself and the SP grant on it are set up in the supervisor agent step."),
+        "This step is NOT done in Genie Code. The app is built with Genie App Builder: in the workspace open Apps, "
+        "then the Build tab, choose an App Space, name the app and paste a natural-language prompt. It generates an "
+        "AppKit app with a live preview you refine with follow-up prompts, then deploy. (Genie App Builder is in Beta: "
+        "a workspace admin must enable 'Governed agentic app-building' under Previews, and you need CAN CREATE APP on "
+        "an App Space.) So the MOVE for this step is the prompt to paste into Genie App Builder, not into Genie Code. "
+        "Write it as a clear description of the app, never code: who it is for and the moment they open it; the first "
+        "screen and its ONE dominant element (matching the interaction model); each screen, what it shows and what "
+        "each button does; exactly which data it reads (name the fully qualified gold tables, the Genie space and the "
+        "dashboard if they exist) and what it writes (name the Lakebase database and table and the columns each "
+        "action records). Start simple: one or two screens. The concept should tell them to iterate in short cycles, "
+        "being specific about what to change. The verify is: the preview shows real rows from the gold tables, an "
+        "action writes a row they can see in Lakebase, and the deployed app opens from its URL. Remember state must "
+        "live in Lakebase or Unity Catalog, since the app scales to zero when idle."),
 }
 
 SYSTEM_PROMPT = f"""You are a senior Databricks Solutions Architect turning a designed blueprint into a
-short, confidence-building build plan for someone NEW to Databricks, working in Genie Code (the
-in-workspace AI coding agent). For each capability they chose, write ONE bite-sized step.
+short, confidence-building build plan for someone NEW to Databricks. Every step is done in Genie Code (the
+in-workspace AI coding agent) EXCEPT the Databricks Apps step, which is done in Genie App Builder (Apps >
+Build tab): its move is the natural-language prompt they paste there. For each component in the build,
+write ONE bite-sized step. There are no AI agents and no document Q&A in these builds.
 
 {WORKSHOP_SCOPE}
 
@@ -317,103 +273,34 @@ MULTI-USER ISOLATION (required — many people build in the same catalog at once
 - Write the fully-qualified location (<catalog>.<schema>) in the move text so the person sees exactly
   where their data lives.
 
-APP QUALITY & STACK (the finished app must impress, not look like a prototype):
-- Stack is fixed: a React + Tailwind CSS front end with a FastAPI (Python) backend, deployed as a Databricks
-  App. Prescribe exactly this in the app step. Do NOT use Streamlit, Gradio, or Dash. Compile Tailwind at
-  BUILD time (Vite + the tailwindcss plugin, emitting a real CSS file into dist/) — do NOT load Tailwind from
-  a browser/play CDN (@tailwindcss/browser, cdn.tailwindcss.com): that ships an in-browser compiler that is
-  slow, flashes unstyled content, and can be blocked by the app's content-security policy.
-- Build a BRIEFING, not a dashboard. The app opens on ONE clear finding or action — matching the plan's
-  "First screen" and interaction_model — then lets the person go to evidence, then to detail (answer ->
-  evidence -> detail). Never a blank canvas or a bare query box with nothing on it. Build it FOR the persona
-  in the plan's "Who it's for", for their one job.
-- IF the interaction_model is "agent_actions", build a SUPERVISE-THE-AGENT CONSOLE instead of a passive
-  briefing: the app opens on the actions the agent has already worked through and PROPOSES — each item
-  showing what the agent read, its judgement/confidence, and the drafted action — most consequential first.
-  The primary action is APPROVE or OVERRIDE per item; approving records (and, where in scope, performs) the
-  action, and every approve/override is written to Lakebase as a visible audit trail / activity log the
-  person can scroll. Here the Supervisor agent must actually DO the per-item work (reason across the data and
-  notes and propose an action), not merely answer ad-hoc questions, and Lakebase is the action ledger, not a
-  single saved flag. Respect the write boundary: if an action targets an external system the build can't call,
-  record the decided action and label it as recorded (not sent).
-- Make the PRIMARY ACTION obvious. The plan's "Primary action" (the thing they do 80% of the time) dominates
-  the entry screen — front and center, not buried behind a menu or a detail panel.
-- Findings in plain language, not raw tables. State each insight as a one-sentence observation a non-technical
-  person could say out loud ("Store 214 is trending behind similar stores this week"), with the numbers
-  supporting the sentence. Don't dump an unfiltered table as the answer.
-- Design bar (build to this, it is how the good apps look):
-  * Typography: one strong display/number font and one clean body font; use tabular numerals everywhere numbers
-    appear so they align as data (CSS font-variant-numeric: tabular-nums).
-  * Color: at most THREE semantic colors, each meaning one thing (e.g. risk / good / watch) and ALWAYS paired
-    with a label or icon, never color alone. No gradients, no "AI blue", no neon-on-dark.
-  * Light theme, daylight/projector-safe. Generous whitespace, consistent spacing, real hierarchy.
-  * Intentional states: loading is a skeleton that mirrors the final layout (not a spinner); empty states say
-    what's missing and the next step (not a blank panel).
-  * No AI slop: definitive language (no "may/might/could"), no fabricated ROI tiles, no ChatGPT-clone chat
-    chrome, no emoji-as-icons, no clip-art.
-- Fast base + responsive detail: render the main briefing from deterministic queries so it loads instantly;
-  reserve the Genie/agent call for drill-down follow-ups, not the cold entry point.
-- Integrate the pieces FOR REAL, not for show — this is the most common shortcut to avoid:
-  * Every build runs a Genie flow — this is fixed architecture, not optional. The app MUST include a genuine
-    FREE-TEXT ask box (the person types ANY question in their own words) wired to the Genie Conversation API:
-    start a conversation against the space and return its answer. It MUST call Genie. Do NOT fake it with a
-    hardcoded SQL string formatted into a sentence, and do NOT reduce it to one canned/templated question — a
-    fixed question is exactly what gets hardcoded, and an instant answer is the tell that Genie was never
-    called. If the app has only one fixed insight, that belongs in the deterministic briefing; the ask box is
-    for the open-ended questions Genie exists to answer.
-  * Anything the app records (a decision, a flag, a note, an approval) MUST persist to the Lakebase Postgres
-    table via the attached database resource. Do NOT write it to a Unity Catalog table via the warehouse
-    instead — that is not what Lakebase is for, and it means the piece was skipped.
-  * The finished app must visibly use the whole architecture the plan lists, not just the one deterministic
-    table behind the briefing.
-- Use the idea as the SEED, not a cage. Build a complete, genuinely useful app around it: sensible supporting
-  views, a couple of relevant metrics, thoughtful detail. Expand tastefully beyond the literal one-liner
-  rather than shipping the thinnest possible interpretation. Hold the ARCHITECTURE fixed (the pieces above are
-  all required), but let the app's features and polish breathe.
-
-COMMON FIRST-PASS BUGS TO AVOID (hard-won from real builds — fold the fix into the move):
-- A useEffect callback must return undefined or a cleanup FUNCTION, never a value. Writing
-  `useEffect(() => el.scrollIntoView({{behavior:"smooth"}}), deps)` returns a Promise in some browsers,
-  which React later tries to call as the cleanup -> "TypeError: n is not a function" and the UI crashes on
-  the next render. Always use a block body: `useEffect(() => {{ el.scrollIntoView(...); }}, deps)`.
-- With strict TypeScript (verbatimModuleSyntax / noUnusedLocals), use `import type` for type-only imports
-  and remove unused imports, or the build fails.
-- Serve the built SPA robustly: the backend must resolve dist/index.html relative to the app file (not the
-  process working directory, which varies), and only error on a genuinely missing file.
-- Parse responses defensively: an error response may not be JSON; guard `response.json()`.
-- Wrap every backend call to a Databricks service (Genie, the SQL warehouse, Lakebase, the model) in
-  try/except: on failure, log it and return a clean JSON error the UI can show (e.g. {{"error": "..."}}),
-  never let it bubble up as a raw 500. One transient blip should degrade a panel, not crash the app.
-- To query the warehouse from the backend, use the databricks-sdk WorkspaceClient's statement execution
-  (`w.statement_execution.execute_statement(warehouse_id=..., statement=...)`) — it resolves the host for
-  you. If you hand-build an HTTP request instead, the URL MUST include the `https://` scheme: a bare
-  hostname raises "Request URL is missing an 'http://' or 'https://' protocol" and 500s the endpoint.
-  Get the warehouse id from the attached app resource / env, not by auto-discovery (the SP may see none).
-- A root page that returns 200 is NOT a verified app: the deployed app is behind SSO, so its data
-  endpoints can only be exercised by a logged-in user in the browser. After deploy, the person must OPEN
-  the app and confirm the primary list/queue loads REAL rows — an empty list means the data path (auth,
-  warehouse, or URL) is broken even though the page renders.
-
-VERIFY THE CORE ACTION BEFORE 'DONE' (the single most important check):
-- TWO things must BOTH pass after deploy, not just one. (a) The ROOT page must render: open the deployed
-  app's base URL and confirm it returns 200 with a full <!DOCTYPE html> document (a 500 or blank here means
-  the built dist/index.html did not ship — the sync.include allowlist above prevents this). (b) The app's ONE
-  primary action (ask a question, flag a store, record a decision) must be exercised end-to-end and return a
-  real 200 with real data. An app whose API works but whose root page 500s is NOT done, and neither is one
-  that renders but whose main action fails. Make BOTH the app step's verify condition.
-- Also verify the pieces are wired FOR REAL, not faked: if there is an ask box, confirm it actually calls
-  Genie (a real conversation with real latency, not an instant hardcoded string); if the plan records
-  anything, confirm a real row lands in the Lakebase Postgres table (not a Unity Catalog table). A piece that
-  only appears to be used does not count as done.
+THE APP STEP (Genie App Builder, only when Databricks Apps is in the build). Its move is the prompt they paste
+into Genie App Builder, and that prompt is what makes the app good, so write it to this bar:
+- Build a BRIEFING, not a dashboard: the first screen opens on ONE clear finding or action matching the plan's
+  "First screen" and interaction_model (browse_act = a ranked shortlist to act on; monitor = an overview; ask = a
+  question box with a useful default answer already shown; explore = filters over a view; agent_actions = a
+  review queue of suggestions the pipeline drafted, each with Approve / Change and the reason), then lets the
+  person go to evidence, then detail. Never a blank canvas.
+- Make the PRIMARY ACTION obvious and say exactly what it writes: which Lakebase table, which columns.
+- Findings in plain language: each item gets a one-sentence observation a non-technical person could say out loud,
+  with the supporting numbers beside it, not a raw table dump.
+- Name the data precisely: the fully qualified gold tables to read, the Genie space to embed if the plan has one
+  (as a free-text ask panel), the dashboard to link if there is one.
+- Design: light theme, generous whitespace, one display font and one body font, tabular numerals for numbers,
+  at most three meaning-coded colours always paired with a label, a loading skeleton and a helpful empty state.
+  If the participant's organisation is the workshop host, ask for its brand colours; otherwise a clean neutral palette.
+- Keep it to one or two screens to start. The concept tells them to iterate in short cycles ("make the reason
+  line bolder", "add a filter by region") rather than rewriting the prompt.
+- Verify (the person checks in the preview, then after deploy): the first screen shows REAL rows from the gold
+  tables; the primary action writes a row they can see in Lakebase; any ask panel returns a real Genie answer;
+  the deployed app opens from its URL.
 
 Honor the provided guardrails for each capability — they are hard-won and must be reflected in the
 move or verify. Keep the whole thing readable by a beginner. No ceremony, no code.
 
 WHO READS WHAT (critical — this is where plans lose beginners):
-- The "move" is pasted straight into Genie Code, which is a coding agent and understands technical
-  detail — so a guardrail's engineering specifics (packaging files, notebook cell headers, model
-  parameters, log pages) belong ONLY inside the move, phrased as an instruction TO Genie Code, never
-  as something the user must understand.
+- The "move" is pasted straight into Genie Code (a coding agent that understands technical detail), or for
+  the app step into Genie App Builder (which wants a plain description of screens and data, not code). So a
+  guardrail's engineering specifics belong ONLY inside the move, never as something the user must understand.
 - The "concept", "verify", and "teach" are read by the PERSON, whose Databricks familiarity is
   stated in the request. If they are new to it: do NOT put raw jargon (uv.lock, "temperature",
   /logz, "# COMMAND", MLflow tracing internals like @mlflow.trace / autolog / experiment id, Unity
@@ -466,23 +353,10 @@ def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
                 f"expected_sql, expected_answer, expected_facts) — use THOSE questions as your benchmark "
                 f"instead of inventing your own, and tighten the space's column descriptions and instructions "
                 f"until Genie's answers match the expected ones repeatably.")
-        if "Knowledge Assistant" in guardrails and ds.get("docs_domain"):
-            guardrails["Knowledge Assistant"] += (
-                f" A shared document corpus already exists for this theme — do NOT generate documents. Point the "
-                f"assistant at {SEEDED_DOCS_VOLUME}, filtered to domain='{ds['docs_domain']}', and index those.")
         if "Databricks Apps" in guardrails:
             guardrails["Databricks Apps"] += (
-                f" DATA ACCESS FOR THIS APP (this SUPERSEDES the 'grant the service principal USE CATALOG/SELECT' "
-                f"guidance in point (5) for the SHARED data): the app reads {ds['schema']}, a shared dataset the "
-                f"app's service principal CANNOT be granted access to by a participant (catalog USE is owner-only). "
-                f"Use ON-BEHALF-OF-USER auth for the SQL and Genie reads — read the `X-Forwarded-Access-Token` "
-                f"request header and use that token for the warehouse and Genie Conversation API calls. The "
-                f"logged-in participant already has USE CATALOG + SELECT on {ds['schema']} and CAN USE on the "
-                f"workshop SQL warehouse via their workshop group, so no admin grant is needed. Declare the scopes "
-                f"in app.yaml as `user_api_scopes: [sql, dashboards.genie]` (changing scopes forces every user to "
-                f"re-consent — test in a fresh/incognito browser window). The app's Lakebase writes still use the "
-                f"app's own identity (the participant owns their Lakebase project and grants its Postgres role), "
-                f"and any supplementary tables in the participant's OWN schema they can grant the SP directly.")
+                f" The app reads the shared seeded tables in {ds['schema']} (read-only) plus the participant's own gold "
+                f"tables; name both fully qualified in the App Builder prompt.")
     gl = "\n".join(f"- {t}: {guardrails.get(t, '')}" for t in targets)
     # The PRD is authoritative: the user may have refined the blueprint (changed the
     # whole idea) after describing it. Build from the plan they approved, not the first
@@ -501,13 +375,10 @@ def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
         f"Interaction model: {interaction or 'not specified — infer it from the plan'} "
         f"(this sets the app's first screen and primary action: browse_act=ranked shortlist to act; "
         f"monitor=dashboard/overview; ask=question box; explore=flexible drilling; "
-        f"agent_actions=a supervise-the-agent console: opens on the actions the agent has proposed, "
-        f"person approves/overrides each, every decision recorded to Lakebase as an audit trail).\n"
+        f"agent_actions=a review queue: opens on the suggestions the pipeline's rules drafted for each item, "
+        f"the person approves or overrides each, every decision recorded to Lakebase as an audit trail).\n"
         f"The plan names who it's for, the first screen, and the primary action — the app step must build "
         f"an app that opens on that primary action for that person, not a generic dashboard.\n"
-        f"Foundation Model API endpoint to use for the app's own LLM/agent calls (the supervisor agent, any "
-        f"in-app model call): '{config.get_serving_endpoint()}'. Use this exact endpoint; do not hardcode a "
-        f"different model, and omit the temperature param (some models reject it).\n"
         f"{catalog_line}"
         + (
             f"PRE-SEEDED DATA — USE THIS, DO NOT REGENERATE: this use case maps to the workshop's ready-made "
@@ -575,8 +446,10 @@ def build_plan(req: BuildRequest) -> BuildPlan:
             for i, s in enumerate(parsed.get("steps", []), 1):
                 # Sanitize the person-facing fields (VOICE forbids em-dashes; the model
                 # still leaks them). `move` is the paste-to-agent prompt, cleaned too.
+                cap = s.get("capability", "")
                 steps.append(BuildStep(
-                    n=i, title=strip_em_dashes(s.get("title", "")), capability=s.get("capability", ""),
+                    n=i, title=strip_em_dashes(s.get("title", "")), capability=cap,
+                    tool="app_builder" if cap == "Databricks Apps" else "genie_code",
                     concept=strip_em_dashes(s.get("concept", "")), move=strip_em_dashes(s.get("move", "")),
                     verify=strip_em_dashes(s.get("verify", "")), teach=strip_em_dashes(s.get("teach", ""))))
             if steps:

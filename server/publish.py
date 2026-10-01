@@ -66,7 +66,7 @@ def _build_practices(steps: list[BuildStep], data_mode: str) -> list[str]:
     if any(c == "data" for c in caps) or not caps:
         d = f"{GUARDRAILS['data']} {DATA_GUARDRAIL.get(data_mode, DATA_GUARDRAIL['synthetic'])}"
         out.append(f"**Data** — {d}")
-    for cap in ["Genie", "Knowledge Assistant", "Lakebase", "Supervisor agent", "Databricks Apps"]:
+    for cap in ["Declarative Pipelines", "Lakebase", "Genie", "AI/BI Dashboards", "Databricks Apps"]:
         if cap in caps and cap in GUARDRAILS:
             out.append(f"**{cap}** — {GUARDRAILS[cap].strip()}")
     return out
@@ -81,10 +81,11 @@ def _project_md(*, idea: str, prd_markdown: str, decisions: list[Decision], step
     title = (title[:70].rstrip() + "…") if len(title) > 70 else title
     out = [f"# {title or 'Your build'} — Build Studio project", ""]
     out.append(
-        "You are Genie Code, the coding agent in this Databricks workspace. Build the app "
-        "specified below, working through the steps in order and confirming each one before "
-        "moving on. This document is the source of truth — the plan, the architecture, the "
-        "build practices to follow, and the concrete steps. Everything you need is here.")
+        "You are Genie Code, the coding agent in this Databricks workspace. Build the data and "
+        "serving pieces specified below, working through the steps in order and confirming each one "
+        "before moving on. If the plan includes an app, it is built in Genie App Builder from the "
+        "prompt in its step, not by you. This document is the source of truth: the plan, the "
+        "architecture, the build practices to follow, and the concrete steps.")
     out.append("")
 
     out += ["## What we're building", "", (prd_markdown.strip() or f"Build: {idea.strip()}"), ""]
@@ -107,89 +108,17 @@ def _project_md(*, idea: str, prd_markdown: str, decisions: list[Decision], step
     if practices:
         out += ["## Build practices — follow these throughout", ""]
         out += [f"- {p}" for p in practices]
-        out += ["- **App stack (fixed)**: build the app as a React + Tailwind CSS front end with a FastAPI "
-                "(Python) backend, deployed as a Databricks App. Do NOT use Streamlit, Gradio, or Dash. Compile "
-                "Tailwind at BUILD time (Vite + the tailwindcss plugin, emitting a CSS file into dist/); do NOT "
-                "load Tailwind from a browser/play CDN (@tailwindcss/browser, cdn.tailwindcss.com) — it ships an "
-                "in-browser compiler that is slow, flashes unstyled content, and can be CSP-blocked.",
-                f"- **Foundation Model endpoint**: for any in-app LLM or agent call (the supervisor agent), use the "
-                f"model serving endpoint `{config.get_serving_endpoint()}`. Do not hardcode a different model; omit "
-                f"the temperature param (some models reject it).",
-                "- **MLflow tracing for the agent**: instrument the supervisor agent so every question it handles is "
-                "observable — this is how you prove the pieces are wired for real, not faked. Call the model through "
-                "the OpenAI-compatible Databricks client (the `openai`/`databricks-openai` client pointed at the FM "
-                "endpoint — still a plain loop, NOT the OpenAI Agents SDK) and enable `mlflow.openai.autolog()`, which "
-                "captures the model and tool-calling calls automatically; also decorate the loop's entry function and "
-                "each tool with `@mlflow.trace` so the span tree records the question, the routing decision, which "
-                "tool ran, its latency and result, and the final answer. Each tool is a plain function whose docstring "
-                "is its description — that text is what the model routes on. Tracing needs a Databricks MLflow "
-                "experiment the app can write to: the app runs as a service principal, so create an experiment and "
-                "grant the app's SP CAN_EDIT on it (same pattern as the catalog/warehouse grants). Add `mlflow` to "
-                "requirements.txt and set `MLFLOW_TRACKING_URI=databricks` and `MLFLOW_EXPERIMENT_ID=<experiment id>` "
-                "as env in app.yaml. Make trace init resilient — a tracing or missing-experiment failure must degrade "
-                "to untraced, never 500 a request. Verify by asking one question per tool and confirming each call "
-                "appears as a span in the experiment (a faked tool shows up as a missing span).",
-                "- **Complete HTML shell + verify it renders**: the built `index.html` must be a full HTML5 "
-                "document (`<!DOCTYPE html>`, a `<head>` with charset and viewport meta, a `<body>` wrapping "
-                "the root div) or the page renders in quirks mode with a broken layout. After deploy, open the "
-                "URL and confirm it actually renders and lays out correctly — a green deploy is not proof.",
-                "- **Deploy lean with an ALLOWLIST, not a denylist**: `git init` the app folder and set "
-                "`sync.include: [\"dist/**\", \"main.py\", \"requirements.txt\", \"app.yaml\"]` in `databricks.yml`. "
-                "With include set, ONLY those paths deploy, so `dist/index.html` always ships while a root-level "
-                "index.html, `src/`, `node_modules`, `package.json` and configs stay out automatically. Do NOT use "
-                "`sync.exclude: [\"index.html\", ...]` — a bare index.html glob also matches `dist/index.html`, so the "
-                "built page never ships and the app 500s on every load. If node_modules ships the deploy times out; "
-                "if `package.json` ships the runtime runs `npm install` and crashes — the allowlist prevents both.",
-                "- **Literal port in app.yaml**: the command must hardcode port 8000 — "
-                "`[\"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\"]`. Databricks Apps execs "
-                "the command with no shell expansion, so `${DATABRICKS_APP_PORT}` is passed literally and crashes the app.",
-                "- **Grant the app's service principal**: the app runs as an SP, not you. Anything it queries "
-                "needs grants to that SP — USE CATALOG + USE SCHEMA + SELECT on the data, and CAN USE on the "
-                "Genie/SQL warehouse — or Genie/SQL calls fail at runtime (deploys fine, then /api calls 500/502). "
-                "Verify a query returns rows as the app, not just as you.",
-                "- **Frontend footguns**: a `useEffect` must return undefined or a cleanup function, never a value "
-                "(e.g. `useEffect(() => el.scrollIntoView({behavior:\"smooth\"}), deps)` returns a Promise → React "
-                "calls it as cleanup → 'TypeError: n is not a function'; use a block body). With strict TS, use "
-                "`import type` and remove unused imports. Serve `dist/index.html` by a path relative to the app "
-                "file, not the working directory. Guard `response.json()` (error responses may not be JSON).",
-                "- **Wrap backend service calls**: every call to Genie, the SQL warehouse, Lakebase, or the model "
-                "goes in a try/except that logs the error and returns a clean JSON error ({\"error\": \"...\"}) the "
-                "UI can show. A transient failure should degrade one panel, never surface as a raw 500.",
-                "- **Verify BOTH the root page and the core action before done**: after deploy, (a) open the base "
-                "URL and confirm it returns 200 with a full `<!DOCTYPE html>` page (a 500 here means dist/index.html "
-                "did not ship — check the sync.include allowlist), and (b) actually perform the app's ONE primary "
-                "action (ask a question, flag an item) and confirm a real 200 with real data. An app whose API works "
-                "but whose root page 500s is not done, and neither is one that renders but whose main action fails.",
-                "- **Briefing, not dashboard**: open on ONE clear finding or action (matching the plan's First "
-                "screen and interaction model), then evidence, then detail. Make the plan's Primary action "
-                "obvious on the entry screen. Never a blank canvas or an empty query box. Build it for the "
-                "persona in 'Who it's for'.",
-                "- **Findings in plain language**: state insights as one-sentence observations a non-technical "
-                "person could say aloud, with numbers supporting the sentence — not an unfiltered table dump.",
-                "- **Design spec**: one strong display/number font + one clean body font, with tabular numerals "
-                "everywhere numbers appear; at most three semantic colors, each paired with a label or icon "
-                "(never color alone), no gradients or 'AI blue'; light theme, generous whitespace; loading is a "
-                "skeleton mirroring the layout (not a spinner) and empty states name the next step; no AI slop "
-                "(definitive language, no fabricated metrics, no ChatGPT-clone chrome).",
-                "- **Fast base + responsive detail**: render the main briefing from deterministic queries so it "
-                "loads instantly; reserve the Genie/agent call for drill-down follow-ups, not the cold entry.",
-                "- **Integrate the pieces FOR REAL (not for show)**: every build runs a Genie flow (fixed "
-                "architecture). The app MUST include a genuine free-text ask box wired to the Genie Conversation "
-                "API — the person types any question and it calls Genie against the space. It must actually call "
-                "Genie: not a hardcoded SQL string formatted into a sentence, and not one canned/templated "
-                "question (a fixed question is what gets hardcoded; an instant answer is the tell). A single "
-                "fixed insight belongs in the deterministic briefing, not the ask box. Anything the app records "
-                "MUST persist to the Lakebase Postgres table via the attached database resource (NOT a Unity "
-                "Catalog table via the warehouse). Verify each: the ask makes a real Genie call, and a recorded "
-                "action lands a real row in Lakebase.",
-                "- **Seed, not cage**: treat the idea as the seed. Build a complete, genuinely useful app "
-                "around it with sensible supporting views and a couple of relevant metrics; expand tastefully "
-                "beyond the literal one-liner. Hold the architecture fixed, but let features and polish breathe.",
-                "- **Notebooks**: the first line must be `# Databricks notebook source`, and separate "
-                "every cell with a line reading `# COMMAND ----------`, or the cells silently merge into one.",
-                "- **Packaging**: use `requirements.txt`, never a `uv.lock` (it can leak internal proxy URLs).",
-                "- **Verify as you go**: after each step, run the 'Done when' check before continuing — "
-                "a created-but-unconfigured asset looks done but isn't.", ""]
+        out += ["- **Medallion, gold-first**: Declarative Pipelines take data bronze (raw) -> silver (cleaned, joined) "
+                "-> gold (ready to use). Genie, dashboards and the app read ONLY gold tables. Scores, flags, rankings and "
+                "drafted suggestions are explainable rule columns in gold (a score, a flag, a reason). There are no AI agents "
+                "in this build.",
+                "- **Genie Code builds everything except the app**: the data, the pipeline, the Genie space, the dashboard "
+                "and the Lakebase tables. The app is built in **Genie App Builder** (Apps > Build tab), from the prompt in "
+                "its step. When you reach that step, stop and hand the prompt to the person; do not hand-build an app.",
+                "- **Notebooks**: the first line must be `# Databricks notebook source`, and separate every cell with a "
+                "line reading `# COMMAND ----------`, or the cells silently merge into one.",
+                "- **Verify as you go**: after each step, run the 'Done when' check before continuing. A pipeline that "
+                "succeeded with empty gold tables, or a Genie space with no instructions, looks done but isn't.", ""]
 
     if steps:
         out += ["## Build steps (in order)", ""]
@@ -200,7 +129,11 @@ def _project_md(*, idea: str, prd_markdown: str, decisions: list[Decision], step
             out.append(head)
             if s.concept:
                 out.append(s.concept.strip())
-            out += ["", f"**Build:** {s.move.strip().replace('__PROJECT_MD__', prd_ref)}"]
+            if getattr(s, "tool", "genie_code") == "app_builder":
+                out += ["", "**Build in Genie App Builder** (Apps > Build tab, choose your App Space). Paste this prompt:",
+                        "", "> " + s.move.strip().replace("\n", "\n> ")]
+            else:
+                out += ["", f"**Build:** {s.move.strip().replace('__PROJECT_MD__', prd_ref)}"]
             if s.verify:
                 out.append(f"**Done when:** {s.verify.strip()}")
             if s.teach:

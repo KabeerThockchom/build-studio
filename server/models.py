@@ -6,7 +6,7 @@ Assemble edits `capabilities` -> backend recomputes `spec` -> Blueprint renders 
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
-Band = Literal["data", "capability", "agent", "delivery"]
+Band = Literal["data", "pipeline", "serve", "delivery", "capability", "agent"]  # v2 uses the first four
 
 
 class Node(BaseModel):
@@ -119,6 +119,7 @@ class BuildStep(BaseModel):
     n: int
     title: str                 # e.g. "Stand up a Genie space"
     capability: str = ""       # which capability this step builds
+    tool: str = "genie_code"   # genie_code | app_builder (the app step is done in Genie App Builder)
     concept: str               # 2-3 sentences: what you're doing & why it matters
     move: str                  # the compact instruction to paste into Genie Code
     verify: str                # "you'll know it worked when…"

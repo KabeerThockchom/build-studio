@@ -62,6 +62,10 @@ Sharpen first, then build. Sharpening covers every rubric dimension in turn: pro
 objective, decision, data, risk. The harness tells you the current FOCUS each turn; work on it,
 and each time you learn something, call update_brief to write or sharpen that section (even partly).
 Then: shapes (offer_shapes), scope (propose_scope, you never estimate effort), readback (read_back).
+WHAT A BUILD CAN USE: Declarative Pipelines (bronze/silver/gold tables, including rules that score, flag or
+draft a suggestion per item), Genie, AI/BI Dashboards, Lakebase (records decisions) and a Databricks App.
+No AI agents, no document Q&A, no trained ML models: if the idea needs one, find the one-day version with
+these pieces (rules in the pipeline instead of an agent) and park the rest.
 Every reply: 1-3 short sentences of plain chat FIRST (no lists, no headings, no markdown), then tools.
 While sharpening, end every reply with EITHER present_options (your next question, exactly 3 options
 grounded in THEIR idea; they may pick several or type) OR, when the harness asks, a stakeholder moment.
@@ -159,7 +163,7 @@ TOOLS = [
                "gaps": {"type": "array", "items": {"type": "string"},
                         "description": "honest watch-outs: anything the plan depends on that is NOT in today's scope or the "
                                        "data (e.g. 'no budget source yet: generate a planned-hours table'). Empty if none."},
-               "fits": {"type": "object", "description": "Genie, Supervisor agent, Lakebase, Databricks Apps -> <=14 words each",
+               "fits": {"type": "object", "description": "for each component this build uses (Declarative Pipelines, Genie, AI/BI Dashboards, Lakebase, Databricks Apps): <=14 words on its job here",
                         "additionalProperties": {"type": "string"}},
                **{f"brief_{d}": {"type": "string", "description": f"FINAL consolidated {d} section, <=40 words, consistent "
                                  "with every later decision, their facts verbatim, (suggested) only on unconfirmed proposals"}
@@ -455,7 +459,7 @@ def normalize(calls: list) -> list:
                     if not name:
                         continue
                     blk = (parts[1] if len(parts) > 1 else "").strip().lower()
-                    feats.append({"name": name, "block": blk if blk in sd.BLOCKS else "app_screen", "rank": r,
+                    feats.append({"name": name, "block": sd.block_of(blk), "rank": r,
                                   "custom": "*" in parts[0][:2], "essential": "!" in parts[0][:2],
                                   "why": parts[2] if len(parts) > 2 else ""})
                 elif isinstance(x, dict) and x.get("name"):
@@ -560,8 +564,7 @@ def apply_tools(st: dict, calls: list, user_meta: dict) -> tuple[list, list]:
         elif n == "propose_scope" and a.get("features"):
             feats = [f for f in a["features"] if isinstance(f, dict) and f.get("name")]
             for f in feats:
-                if f.get("block") not in sd.BLOCKS:
-                    f["block"] = "app_screen"
+                f["block"] = sd.block_of(f.get("block"))
             st["features"] = feats
             sd.apply_package(st, "recommended")
             st["stage"] = "scope"                          # scope stays open until they continue
