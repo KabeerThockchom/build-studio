@@ -2,8 +2,9 @@
 (concept -> the move -> verify) for the capabilities in the blueprint.
 
 Design notes:
-- Ordered by dependency: data -> Declarative Pipelines -> Lakebase -> Genie ->
-  Databricks App (the app step is done in Genie App Builder, not Genie Code).
+- Ordered by Publix data-engineering-to-app journey: data -> Zerobus (real-time ingest) ->
+  SDP medallion (bronze/silver/gold) -> Genie -> Lakebase -> Databricks App (done in
+  Genie App Builder, not Genie Code).
 - The guardrails are the load-bearing, hard-won lessons distilled from V2V (see
   the research): they go in the SYSTEM prompt so every generated move carries the
   rigor without the ceremony. We are NOT AppKit, so AppKit-specific import
@@ -28,9 +29,10 @@ def _schema_name(text: str) -> str:
         s = "p_" + s
     return (s[:40].rstrip("_") or "my_build")
 
-# Canonical dependency order for the steps we know how to guide. No Lakeflow —
-# a workshop day never stands up a live ingestion source.
-STEP_ORDER = ["data", "Declarative Pipelines", "Lakebase", "Genie", "Databricks Apps"]
+# Canonical dependency order for the steps we know how to guide. Publix stack: stream events in
+# with Zerobus, shape them through an SDP medallion (bronze/silver/gold), then serve with Genie,
+# Lakebase, and a Databricks App.
+STEP_ORDER = ["data", "Zerobus", "SDP medallion", "Genie", "Lakebase", "Databricks Apps"]
 
 # The data step is one of three workshop-realistic paths, keyed by data_mode.
 DATA_GUARDRAIL = {
@@ -160,36 +162,43 @@ GUARDRAILS = {
     "data": (
         "Data comes first. Notebook cells need the '# Databricks notebook source' header and "
         "'# COMMAND ----------' separators or cells silently merge."),
+    "Zerobus": (
+        "Zerobus is a direct-write ingest API: producers push events straight into a governed Delta "
+        "table. Create the table first with the exact schema the producer will send (columns and types). "
+        "Grant the producer's service principal MODIFY on the table. The producer then opens Zerobus, "
+        "points at your table, and starts pushing. Events land in seconds. Zerobus never changes the "
+        "table's shape — if the producer's schema evolves, the table schema must evolve first (it is the "
+        "contract). Verify the table has rows (SELECT * LIMIT 5) before the next step."),
+    "SDP medallion": (
+        "Build the data flow as an SDP (Spark Declarative Pipeline) with the medallion pattern: BRONZE "
+        "tables land the raw Zerobus events as they are, SILVER tables clean, type and join them, GOLD "
+        "tables are ready to use and are the ONLY tables Genie and the app read. Any scoring, flagging, "
+        "ranking or drafted suggestion the plan describes is a rule computed in a gold table (a clear, "
+        "explainable column such as a score, a flag and a reason), never an AI agent. Keep it small: two "
+        "to four gold tables, named for what they mean. Add a short comment on each table saying what it "
+        "holds, and data quality expectations on the key columns (e.g. ids not null). Run the pipeline and "
+        "check each gold table has sensible rows before moving on; a pipeline that 'succeeded' with empty "
+        "gold tables is not done."),
     "Genie": (
-        "A Genie space is the natural-language layer over the tables, and creating the asset is NOT "
-        "enough — its accuracy comes from how you ground it. Point it at a few query-ready tables (not "
-        "many raw ones). Give each important column a short description with its units and allowed values "
-        "— this is the single biggest driver of answer accuracy. Write the space instructions in the "
-        "idea's real terms: what the key numbers mean, the business synonyms people use for them, how to "
-        "format them, and any grain or caveats — not generic text. If the app leans on any DERIVED status that "
-        "isn't a stored column (e.g. 'on hold', 'at risk', 'flagged', 'a mismatch'), spell it out in the space "
-        "instructions as a computed rule over the real columns (e.g. \"'on hold' means the invoice amount differs "
-        "from its matched PO by more than the 2% tolerance\") — otherwise Genie hunts for a literal status column "
-        "and answers wrong. Then make it genuinely GOOD, not just "
-        "present: write a handful (about 5 to 8) of benchmark questions phrased the way this app's real "
-        "users would ask, each with the answer you expect; ask them in the space, and wherever Genie is "
-        "wrong or picks the wrong table, tighten the column descriptions and instructions (often just "
-        "adding a synonym) and re-ask until it answers them correctly and repeatably. Push a little past "
-        "the obvious too — try a follow-up question and a differently-worded version of the same ask — "
-        "since that is how people actually use it. Keep this lightweight: a short benchmark set you can "
-        "eyeball, not a formal eval harness. Optional, only once it is answering well: you can export a "
-        "good answer's query from Genie as a Metric View to lock that definition in — do that AFTER Genie "
-        "is good, never as a prerequisite. An empty or unconfigured space looks created but is useless. "
-        "Point the space at the GOLD tables from the pipeline, not the bronze or silver ones."),
-    "Declarative Pipelines": (
-        "Build the data flow as a Lakeflow Declarative Pipeline with the medallion pattern: BRONZE tables land the raw "
-        "data as it is, SILVER tables clean, type and join it, GOLD tables are ready to use and are the ONLY tables "
-        "Genie and the app read. Any scoring, flagging, ranking or drafted suggestion the plan describes is "
-        "a rule computed in a gold table (a clear, explainable column such as a score, a flag and a reason), never an "
-        "AI agent. Keep it small: two to four gold tables, named for what they mean. Add a short comment on each table "
-        "saying what it holds, and data quality expectations on the key columns (e.g. ids not null). Run the pipeline "
-        "and check each gold table has sensible rows before moving on; a pipeline that 'succeeded' with empty gold "
-        "tables is not done."),
+        "A Genie space is the natural-language layer over the GOLD tables, and creating the asset is NOT "
+        "enough — its accuracy comes from how you ground it. Point it at the GOLD tables your SDP medallion "
+        "produces (not the bronze or silver ones). Give each important column a short description with its "
+        "units and allowed values — this is the single biggest driver of answer accuracy. Write the space "
+        "instructions in the idea's real terms: what the key numbers mean, the business synonyms people "
+        "use for them, how to format them, and any grain or caveats — not generic text. If the app leans "
+        "on any DERIVED status that isn't a stored column (e.g. 'on hold', 'at risk', 'flagged', 'a "
+        "mismatch'), spell it out in the space instructions as a computed rule over the real columns "
+        "(e.g. \"'on hold' means the invoice amount differs from its matched PO by more than the 2% "
+        "tolerance\") — otherwise Genie hunts for a literal status column and answers wrong. Then make it "
+        "genuinely GOOD, not just present: write a handful (about 5 to 8) of benchmark questions phrased "
+        "the way this app's real users would ask, each with the answer you expect; ask them in the space, "
+        "and wherever Genie is wrong or picks the wrong table, tighten the column descriptions and "
+        "instructions (often just adding a synonym) and re-ask until it answers them correctly and "
+        "repeatably. Push a little past the obvious too — try a follow-up question and a differently-worded "
+        "version of the same ask — since that is how people actually use it. Keep this lightweight: a short "
+        "benchmark set you can eyeball, not a formal eval harness. Optional, only once it is answering well: "
+        "you can export a good answer's query from Genie as a Metric View to lock that definition in — do "
+        "that AFTER Genie is good, never as a prerequisite."),
     "Lakebase": (
         "Lakebase is managed Postgres for what people decide at runtime (an approval, a change, a note). Create your "
         "OWN Lakebase database/project for this build (named for your project) and provision it fresh; do NOT write to "
