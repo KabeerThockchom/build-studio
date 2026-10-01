@@ -124,8 +124,11 @@ SEEDED_DOCS_VOLUME = "workshop.docs_corpus (a Volume of real PDFs at /Volumes/wo
 
 
 def _match_dataset(req: BuildRequest) -> dict | None:
-    """Best-fit pre-seeded dataset for this idea/PRD, by keyword hit count. Returns None
-    when nothing matches (an off-theme use case) so the build falls back to generate-your-own."""
+    """Best-fit pre-seeded dataset for this idea/PRD. The Sit-Down pins one per session (or 'none' for an idea
+    outside the workshop host's business); honour that. Otherwise fall back to keyword matching."""
+    pinned = (req.design_answers or {}).get("seeded_schema")
+    if pinned:
+        return next((d for d in SEEDED_DATASETS if d["schema"] == pinned), None)
     return match_text(f"{req.idea} {req.prd_markdown} {req.project_name}")
 
 
@@ -371,7 +374,9 @@ def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
     return (
         f"{what}\n"
         f"Databricks familiarity: {req.expertise}\n"
-        f"Data mode: {data_mode}\n"
+        + (f"Participant's organisation context: {req.design_answers['participant_context']} (use their terms and "
+           f"currency; never assume the workshop host's company)\n" if req.design_answers.get("participant_context") else "")
+        + f"Data mode: {data_mode}\n"
         f"Interaction model: {interaction or 'not specified — infer it from the plan'} "
         f"(this sets the app's first screen and primary action: browse_act=ranked shortlist to act; "
         f"monitor=dashboard/overview; ask=question box; explore=flexible drilling; "

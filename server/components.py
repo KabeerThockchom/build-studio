@@ -60,8 +60,13 @@ def block_of(key: str) -> str:
     return k if k in BLOCKS else "app_screen"
 
 
-def components_for(features: list, lanes=("today", "stretch")) -> list[str]:
-    """The components a build needs, from its scoped features, in build order."""
+SURFACE_FOR = {"monitor": DASHBOARDS, "ask": GENIE, "explore": GENIE, "browse_act": APPS, "agent_actions": APPS}
+SURFACES = {GENIE, DASHBOARDS, APPS}
+
+
+def components_for(features: list, lanes=("today", "stretch"), interaction_model: str = "") -> list[str]:
+    """The components a build needs, from its scoped features, in build order. Every build ships something
+    people can use (a surface), and Lakebase only makes sense with an app writing to it."""
     used = set()
     for f in features or []:
         if f.get("lane", "today") in lanes:
@@ -70,9 +75,13 @@ def components_for(features: list, lanes=("today", "stretch")) -> list[str]:
                 used.add(comp)
     # Genie, dashboards and apps read gold tables, so any of them implies a pipeline unless
     # the build only records decisions (Lakebase + app over existing data).
-    if used & {GENIE, DASHBOARDS} and PIPELINES not in used:
-        used.add(PIPELINES)
-    return [c for c in ORDER if c in used] or [PIPELINES, GENIE]
+    if not used & SURFACES:
+        used.add(SURFACE_FOR.get(interaction_model, APPS if LAKEBASE in used else GENIE))
+    if LAKEBASE in used:
+        used.add(APPS)                         # something has to write the decisions
+    if used & {GENIE, DASHBOARDS, APPS} and PIPELINES not in used:
+        used.add(PIPELINES)                    # surfaces read gold tables
+    return [c for c in ORDER if c in used]
 
 
 def spec_for(components: list[str], data_label: str = "Sample data", data_sub: str = "tables we create for you") -> dict:

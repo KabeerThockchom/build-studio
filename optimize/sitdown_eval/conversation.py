@@ -181,7 +181,8 @@ def run_session(idea_key, persona_key, max_turns=24):
         n_replies += 1
     return {"idea": idea_key, "persona": persona_key, "turns": turns, "transcript": transcript,
             "final": {k: S.get(k) for k in ("brief", "grades", "north_star", "parked", "stage", "readback",
-                                             "cast_seen", "cast_tones", "features")} if S else None}
+                                             "cast_seen", "cast_tones", "features", "shape", "facts", "decisions",
+                                             "idea", "context", "dataset_schema", "cast")} if S else None}
 
 
 # ── deterministic metrics ─────────────────────────────────────────────────────

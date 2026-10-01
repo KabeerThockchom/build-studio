@@ -65,7 +65,9 @@ SHAPE = """Return ONLY one JSON object:
 def _context(sd: dict) -> str:
     a = sd.get("answers") or {}
     lines = [f"IDEA (sharpened): {sd.get('idea', '')}", f"PIECES IN THIS BUILD: {', '.join(sd.get('capabilities') or [])}"]
-    lines += [f"- {k}: {v}" for k, v in a.items() if v]
+    lines += [f"- {k}: {v}" for k, v in a.items() if v and k not in ("seeded_schema",)]
+    if a.get("participant_context"):
+        lines.append(f"Use the participant's own context throughout ({a['participant_context']}); never assume another company.")
     return "\n".join(lines)
 
 

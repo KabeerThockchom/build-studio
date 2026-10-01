@@ -46,7 +46,9 @@ SKETCHES = {
 # Scope is rule-based, not model-priced. The model only maps features onto these known
 # building blocks; we own the effort of each block, so packages are consistent every time.
 EFFORT = {"quick": 1, "half": 2, "big": 3}          # units of a workshop day
-DAY_CAPACITY = 6                                     # a comfortable one-day build
+DAY_CAPACITY = 9          # v2 catalog: data(1) + pipeline(2) + rules(2) + Lakebase(1) + app(2) is a full, doable day
+LEAN_CAPACITY = 5         # the heart of it with time to spare
+FOUNDATION = {"generated_data", "pipeline_step"}   # prerequisites: always in every package
 # Building blocks now come from the v2 component catalog (no agents, no document Q&A).
 from .components import BLOCKS as _CBLOCKS, block_of  # noqa: E402
 BLOCKS = {k: (v[0], v[1]) for k, v in _CBLOCKS.items()}
@@ -454,19 +456,23 @@ def fit_label(units: int) -> str:
 def build_packages(features: list) -> dict:
     """Lean / Recommended / Bold from ranked features. Pure code, same answer every time.
     Bold never refuses: it keeps the core in Today and moves the rest to Stretch, in order."""
+    # Foundation first (everything else reads its tables), then essentials, then rank. Both are always in today.
+    surface = next((f["name"] for f in sorted(features, key=lambda f: f.get("rank", 99))
+                    if f.get("block") in ("app_screen", "dashboard", "genie_space")), None)
+    found = lambda f: f.get("block") in FOUNDATION or f.get("name") == surface
     doable = sorted([f for f in features if BLOCKS.get(f.get("block"), (1,))[0]],
-                    key=lambda f: (not f.get("essential"), f.get("rank", 99)))   # essentials first, always in today
+                    key=lambda f: (not found(f), not f.get("essential"), f.get("rank", 99)))
     later = [f["name"] for f in features if f not in doable]
 
     def fill(cap):
         today, used = [], 0
         for f in doable:                       # strict rank order: core first, stop at the first misfit
-            if today and used + _effort(f) > cap and not f.get("essential"):
+            if today and used + _effort(f) > cap and not f.get("essential") and not found(f):
                 break
             today.append(f["name"]); used += _effort(f)
         return today, used
 
-    lean, lu = fill(3)
+    lean, lu = fill(LEAN_CAPACITY)
     rec, ru = fill(DAY_CAPACITY)
     names = [f["name"] for f in doable]
     pk = lambda key, label, blurb, today, stretch: {
@@ -550,11 +556,14 @@ def to_studio(state: dict, rb: dict) -> dict:
         "risks": "; ".join(f"{r.get('risk')} (guard: {r.get('mitigation')})" for r in rb.get("risks") or [] if isinstance(r, dict)),
         "facts the participant stated (honour exactly)": "; ".join(state.get("facts") or []),
         "watch-outs (plan around these)": "; ".join(rb.get("gaps") or []),
+        "seeded_schema": state.get("dataset_schema") or "none",
+        "participant_context": ", ".join(x for x in [(state.get("context") or {}).get("org"), (state.get("context") or {}).get("industry"),
+                                                       (state.get("context") or {}).get("currency")] if x),
     }
     answers = {k: v for k, v in answers.items() if v}
     from .components import components_for, COMPONENTS
     fits = rb.get("fits") or {}
-    comps = components_for(feats)
+    comps = components_for(feats, interaction_model=(shape or {}).get("interaction_model", ""))
     caps = [{"name": n, "selected": True, "fits": fits.get(n) or COMPONENTS[n]["one_liner"]} for n in comps]
     return {
         "phase": "learn",

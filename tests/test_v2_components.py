@@ -13,10 +13,14 @@ def test_legacy_blocks_map_into_v2_catalog():
 
 
 def test_components_are_dynamic_and_ordered():
-    assert C.components_for([{"block": "decision_log"}, {"block": "app_screen"}]) == [C.LAKEBASE, C.APPS]
+    # an app always reads gold tables, so it brings a pipeline; Lakebase always brings an app to write to it
+    assert C.components_for([{"block": "decision_log"}, {"block": "app_screen"}]) == [C.PIPELINES, C.LAKEBASE, C.APPS]
+    assert C.components_for([{"block": "decision_log"}, {"block": "rules_logic"}]) == [C.PIPELINES, C.LAKEBASE, C.APPS]
+    # every build ships a surface, chosen from the shape when the scope has none
+    assert C.components_for([{"block": "rules_logic"}], interaction_model="monitor") == [C.PIPELINES, C.DASHBOARDS]
     # Genie or dashboards read gold tables, so they imply a pipeline
     assert C.components_for([{"block": "genie_space"}]) == [C.PIPELINES, C.GENIE]
-    assert C.components_for([{"block": "dashboard", "lane": "later"}]) == [C.PIPELINES, C.GENIE]  # fallback
+    assert C.components_for([{"block": "dashboard", "lane": "later"}]) == [C.PIPELINES, C.GENIE]  # surface fallback
     full = C.components_for([{"block": b} for b in ("app_screen", "dashboard", "genie_space", "decision_log", "pipeline_step")])
     assert full == C.ORDER
     assert "Supervisor agent" not in full and "Knowledge Assistant" not in full
@@ -79,3 +83,16 @@ def test_untag_only_values_they_said():
     st = {"said": ["we want it under 5 minutes"], "facts": []}
     assert sa.untag_said("Under 5 minutes (suggested).", st) == "Under 5 minutes."
     assert "(suggested)" in sa.untag_said("Reach 3 minutes (suggested).", st)
+
+
+def test_packages_realistic_for_v2_and_foundation_first():
+    f = [{"name": "app", "block": "app_screen", "rank": 1, "essential": True},
+         {"name": "rules", "block": "rules_logic", "rank": 2, "essential": True},
+         {"name": "log", "block": "decision_log", "rank": 3}, {"name": "data", "block": "generated_data", "rank": 4},
+         {"name": "pipe", "block": "pipeline_step", "rank": 5}, {"name": "genie", "block": "genie_space", "rank": 6},
+         {"name": "dash", "block": "dashboard", "rank": 7}]
+    P = {p["key"]: p for p in sd.build_packages(f)["packages"]}
+    for p in P.values():
+        assert {"data", "pipe", "app", "rules"} <= set(p["today"])       # foundation + essentials always ship
+        assert p["fit"] != "Won't fit today"                               # a standard v2 build fits a day
+    assert P["lean"]["fit"] == "Comfortable"

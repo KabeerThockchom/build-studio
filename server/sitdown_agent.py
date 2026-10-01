@@ -464,6 +464,10 @@ def normalize(calls: list) -> list:
                                   "why": parts[2] if len(parts) > 2 else ""})
                 elif isinstance(x, dict) and x.get("name"):
                     feats.append({**x, "rank": r})
+            # Essentials always ship, so keep them honest: at most the two highest-ranked stay essential.
+            ess = [x for x in feats if x.get("essential")]
+            for x in sorted(ess, key=lambda x: x.get("rank", 99))[2:]:
+                x["essential"] = False
             a["features"] = feats
         elif n == "read_back":
             a["final_brief"] = {d: str(a.pop(f"brief_{d}")).strip() for d in sd.DIMS if str(a.get(f"brief_{d}") or "").strip()}
