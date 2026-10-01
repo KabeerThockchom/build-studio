@@ -564,7 +564,10 @@ def to_studio(state: dict, rb: dict) -> dict:
     from .components import components_for, COMPONENTS
     fits = rb.get("fits") or {}
     comps = components_for(feats, interaction_model=(shape or {}).get("interaction_model", ""))
-    caps = [{"name": n, "selected": True, "fits": fits.get(n) or COMPONENTS[n]["one_liner"]} for n in comps]
+    neg = re.compile(r"\b(not (used|needed|in)|later|skip|none|n/a|parked)\b", re.I)
+    caps = [{"name": n, "selected": True,
+             "fits": fits.get(n) if fits.get(n) and not neg.search(fits.get(n)) else COMPONENTS[n]["one_liner"]}
+            for n in comps]
     return {
         "phase": "learn",
         "idea": idea,

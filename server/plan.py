@@ -44,7 +44,9 @@ PRD DISCIPLINE: no code, SQL, schemas, column lists or API endpoints. Use THEIR 
 "(suggested)". Today's scope is what the Sit-Down put in Today; stretch comes after the core works; later is out.
 Never claim data exists that the data plan does not list; say what is generated instead. If they said to use
 data they already have, plan to read it, not regenerate it. When the app records decisions in Lakebase, the
-app's list must reflect them (the latest decision per item), so the loop closes. The app records
+app's list must reflect them (the latest decision per item and date), so the loop closes. If Lakebase is not
+one of the pieces, nothing is recorded: never plan a decision log without it. Model the data so the decision
+works: the right grain (per user, site, day), keys that join, and time-based metrics relative to today. The app records
 decisions in Lakebase but cannot act on external systems: say so and put the real integration in later.
 Write it so a newcomer can follow it, plain and specific."""
 
@@ -103,6 +105,13 @@ CHECK = """You are reviewing a build plan against the participant's own Sit-Down
 - a piece used that is not in the build's list, or an AI agent / document Q&A anywhere
 - an essential step with no piece to do it (e.g. ranking with no pipeline rule), or a success measure today's build can't measure
 - vague or generic sections that ignore their specifics
+- the data grain and keys can't support the decision (e.g. a per-rep list with no rep column; a daily decision
+  log keyed without the date so one decision blocks every later day; no way to scope to the user's own sites)
+- time-sensitive logic (age, SLA, "right now", "this week") that breaks on static sample data: generated data
+  must be relative to today's date, or the metric computed at read time
+- a dashboard or Genie space reading Lakebase directly (they read Unity Catalog gold tables; leave Lakebase-only
+  metrics to the app or say how they reach a gold table)
+- a step writing to Lakebase, or using any piece, when that piece is not in the build
 Reply ONLY JSON: {"issues": ["<specific problem and the fix, <=30 words>", ...], "ok": true|false}"""
 
 

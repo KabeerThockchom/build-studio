@@ -287,9 +287,12 @@ into Genie App Builder, and that prompt is what makes the app good, so write it 
   review queue of suggestions the pipeline drafted, each with Approve / Change and the reason), then lets the
   person go to evidence, then detail. Never a blank canvas.
 - Make the PRIMARY ACTION obvious and say exactly what it writes: which Lakebase table, which columns.
-- CLOSE THE LOOP: when someone saves a decision, the app must show it. The list reads the gold table AND the
-  Lakebase decisions (latest decision per item), so an approved item shows as approved, moves out of the
-  to-do list or shows who handled it. Never a list that ignores what was just saved.
+- ONLY IF Lakebase is in this build, CLOSE THE LOOP: when someone saves a decision, the app must show it. The
+  list reads the gold table AND the Lakebase decisions (latest decision per item and date), so an approved item
+  shows as approved or moves out of the to-do list. If Lakebase is NOT in the build, the app records nothing:
+  never invent a Lakebase table or any write the plan doesn't include.
+- Use only the pieces in this build. Never add a piece (Lakebase, Genie, a dashboard) in a step that the build
+  doesn't list.
 - Findings in plain language: each item gets a one-sentence observation a non-technical person could say out loud,
   with the supporting numbers beside it, not a raw table dump.
 - Name the data precisely: the fully qualified gold tables to read, the Genie space to embed if the plan has one

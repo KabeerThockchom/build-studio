@@ -96,3 +96,13 @@ def test_packages_realistic_for_v2_and_foundation_first():
         assert {"data", "pipe", "app", "rules"} <= set(p["today"])       # foundation + essentials always ship
         assert p["fit"] != "Won't fit today"                               # a standard v2 build fits a day
     assert P["lean"]["fit"] == "Comfortable"
+
+
+def test_handoff_never_sends_negative_fits_for_included_components():
+    st = sd.new_state("idea")
+    st["features"] = [{"name": "Queue", "block": "app_screen", "lane": "today", "rank": 1},
+                      {"name": "Score", "block": "rules_logic", "lane": "today", "rank": 2}]
+    out = sd.to_studio(st, {"fits": {C.APPS: "Not used today", C.PIPELINES: "scores each item"}})
+    f = {c["name"]: c["fits"] for c in out["plan"]["capabilities"]}
+    assert f[C.APPS] == C.COMPONENTS[C.APPS]["one_liner"]
+    assert f[C.PIPELINES] == "scores each item"
