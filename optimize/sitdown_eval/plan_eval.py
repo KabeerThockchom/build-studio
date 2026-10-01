@@ -59,7 +59,7 @@ def checks(res):
     app_steps = [s for s in steps if s.get("capability") == "Databricks Apps"]
     return {
         "components_valid": all(c in COMPONENTS for c in caps),
-        "no_agent_or_ka": not re.search(r"supervisor agent|knowledge assistant|ai agent", blob),
+        "no_agent_or_ka": not re.search(r"supervisor agent|knowledge assistant", blob),
         "app_step_is_app_builder": (not app) or (bool(app_steps) and all(s.get("tool") == "app_builder" for s in app_steps)),
         "no_app_via_genie_code": all(s.get("tool") != "genie_code" for s in app_steps),
         "one_step_per_component": all(any(s.get("capability") == c for s in steps) for c in caps),

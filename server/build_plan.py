@@ -197,7 +197,8 @@ GUARDRAILS = {
         "a shared or pre-existing project (you likely lack the Postgres role there and the connection fails auth). "
         "A new project auto-provisions a production branch with a ready primary endpoint. Create the one or two small "
         "tables the plan needs (e.g. a decision log with who, what, when, the item id, the decision and any note), "
-        "keyed so they join back to the gold tables. It is not a place to copy the analytical tables. Insert one test "
+        "keyed so they join back to the gold tables (same item ids), so the app can show each item's latest decision.
+It is not a place to copy the analytical tables. Insert one test "
         "row and read it back. The app (built next, in Genie App Builder) writes to these tables, so note the "
         "database and table names for that step. Autoscaling Lakebase sleeps when idle, so the first request after a "
         "quiet spell takes a few seconds."),
@@ -271,8 +272,10 @@ already saved in their workspace, where Genie Code can read it.
 
 MULTI-USER ISOLATION (required — many people build in the same catalog at once):
 - All of a participant's work lives in ONE dedicated schema so builds don't collide. Use the catalog and
-  schema names given below. In a shared catalog, step 1 appends the person's own Databricks username to
-  the schema name to keep it unique. Every table goes in that schema with a clear, descriptive name.
+  schema name given below EXACTLY, in every step, character for character (it is already unique to this
+  build). Never add a username or any suffix in one step and not the others: one schema name, everywhere.
+  If that schema already exists and belongs to someone else, step 1 stops and asks the person. Every table
+  goes in that schema with a clear, descriptive name.
 - Write the fully-qualified location (<catalog>.<schema>) in the move text so the person sees exactly
   where their data lives.
 
@@ -284,6 +287,9 @@ into Genie App Builder, and that prompt is what makes the app good, so write it 
   review queue of suggestions the pipeline drafted, each with Approve / Change and the reason), then lets the
   person go to evidence, then detail. Never a blank canvas.
 - Make the PRIMARY ACTION obvious and say exactly what it writes: which Lakebase table, which columns.
+- CLOSE THE LOOP: when someone saves a decision, the app must show it. The list reads the gold table AND the
+  Lakebase decisions (latest decision per item), so an approved item shows as approved, moves out of the
+  to-do list or shows who handled it. Never a list that ignores what was just saved.
 - Findings in plain language: each item gets a one-sentence observation a non-technical person could say out loud,
   with the supporting numbers beside it, not a raw table dump.
 - Name the data precisely: the fully qualified gold tables to read, the Genie space to embed if the plan has one

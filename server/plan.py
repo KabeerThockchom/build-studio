@@ -42,7 +42,9 @@ THE PIECES (use only the ones listed for this build; never add others):
 PRD DISCIPLINE: no code, SQL, schemas, column lists or API endpoints. Use THEIR words and THEIR numbers exactly
 (targets, baselines, deadlines, roles, devices). Anything you propose that they did not confirm is marked
 "(suggested)". Today's scope is what the Sit-Down put in Today; stretch comes after the core works; later is out.
-Never claim data exists that the data plan does not list; say what is generated instead. The app records
+Never claim data exists that the data plan does not list; say what is generated instead. If they said to use
+data they already have, plan to read it, not regenerate it. When the app records decisions in Lakebase, the
+app's list must reflect them (the latest decision per item), so the loop closes. The app records
 decisions in Lakebase but cannot act on external systems: say so and put the real integration in later.
 Write it so a newcomer can follow it, plain and specific."""
 
