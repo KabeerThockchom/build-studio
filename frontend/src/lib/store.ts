@@ -82,9 +82,12 @@ export type Action =
   | { t: "hydrate"; s: Partial<StudioState> };
 
 // The slice worth persisting server-side (not transient flags).
+// Saved-state version: sessions from the earlier Build Studio flow (no v) are never loaded into v2.
+export const STATE_V = 2;
+
 export function persistable(s: StudioState) {
   return {
-    phase: s.phase, idea: s.idea, projectName: s.projectName, answers: s.answers,
+    v: STATE_V, phase: s.phase, idea: s.idea, projectName: s.projectName, answers: s.answers,
     capabilities: s.capabilities, plan: s.plan, spec: s.spec, sitdown: s.sitdown, sdProgress: s.sdProgress,
     learnIdx: s.learnIdx, learnMax: s.learnMax, planJob: s.planJob, blueprint: s.blueprint,
     buildPlan: s.buildPlan, buildEntered: s.buildEntered, buildStepIdx: s.buildStepIdx, buildDone: s.buildDone,
@@ -158,6 +161,7 @@ export function reducer(s: StudioState, a: Action): StudioState {
       return { ...s, buildDone: s.buildDone.includes(a.n) ? s.buildDone : [...s.buildDone, a.n] };
     case "publishOk": return { ...s, publishedDir: a.dir, publishedHost: a.host, publishedDeepLink: a.deepLink };
     case "hydrate": {
+      if ((a.s as { v?: number }).v !== STATE_V) return s;     // an older flow's session: start fresh instead
       const phase = PHASES.includes(a.s.phase as Phase) ? (a.s.phase as Phase) : s.phase;
       return { ...s, ...a.s, phase, buildLoading: false };
     }

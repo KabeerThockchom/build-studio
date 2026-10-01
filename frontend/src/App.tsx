@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useStudio, persistable, type Phase, type SitDownProgress } from "./lib/store";
+import { useStudio, persistable, PHASES, type Phase, type SitDownProgress } from "./lib/store";
 import { api } from "./lib/api";
 import { specFor } from "./lib/diagram";
 import type { Blueprint, StudioHandoff } from "./lib/types";
@@ -49,7 +49,7 @@ export default function App() {
       return;
     }
     api.latestSession()
-      .then((r) => { if (r.found && r.session_id) setResume({ session_id: r.session_id, phase: r.phase || "", idea: r.idea || "", project_name: r.project_name || "" }); })
+      .then((r) => { if (r.found && r.session_id && (PHASES as string[]).includes(r.phase || "")) setResume({ session_id: r.session_id, phase: r.phase || "", idea: r.idea || "", project_name: r.project_name || "" }); })
       .catch(() => {})
       .finally(() => { restored.current = true; });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

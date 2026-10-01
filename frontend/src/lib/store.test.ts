@@ -84,10 +84,17 @@ describe("the journey", () => {
   });
 
   it("hydrate keeps unknown phases out and never restores a loading flag", () => {
-    const s = reducer({ ...initialState, buildLoading: true }, { t: "hydrate", s: { phase: "teach" as any, idea: "x" } });
+    const s = reducer({ ...initialState, buildLoading: true }, { t: "hydrate", s: { v: 2, phase: "teach", idea: "x" } as any });
     expect(s.phase).toBe("overview");
     expect(s.idea).toBe("x");
     expect(s.buildLoading).toBe(false);
+  });
+
+  it("never loads a session saved by the earlier Build Studio flow", () => {
+    const old = { phase: "blueprint", idea: "old", capabilities: ["Supervisor agent", "Knowledge Assistant"] } as any;
+    const s = reducer(initialState, { t: "hydrate", s: old });
+    expect(s).toBe(initialState);
+    expect(persistable(initialState).v).toBe(2);
   });
 
   it("persists the Sit-Down session and the plan job with the rest of the journey", () => {

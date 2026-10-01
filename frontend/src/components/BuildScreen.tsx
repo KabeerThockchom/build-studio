@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, Lightbulb, ExternalLink, ArrowRight, ChevronLeft, FolderCheck } from "lucide-react";
+import { Check, Copy, Lightbulb, ExternalLink, ArrowRight, ChevronLeft, FolderCheck, HelpCircle, Sparkles } from "lucide-react";
 import type { BuildPlan, BuildStep, BuildTool } from "../lib/types";
 import { APPS } from "../lib/constants";
 import "./sitdown/sitdown.css";
@@ -7,8 +7,10 @@ import { charSVG } from "./sitdown/art";
 import { VideoEmbed } from "./VideoEmbed";
 import { Label, Title, Lead, Card, Go, Primary, ToolBadge } from "./ui";
 
-/* Build: one step at a time, each clear about WHERE you do it (Genie Code or Genie App
-   Builder), the move in a copy box, and "done when" as a checklist item you tick. */
+/* Build: one step at a time, each clear about WHERE you do it (Genie Code or Genie App Builder) and
+   WHAT you're doing and why. The participant writes the prompt in their own words; the example prompt
+   is there only if they ask for help (the workshop flow). One sub-step at a time: prompt -> look at what
+   it made (data step) -> confirm it worked. */
 
 interface Props {
   plan: BuildPlan | null;
@@ -45,7 +47,7 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
               <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green opacity-60" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green" /></span>
               Turning your plan into steps
             </div>
-            <p className="mt-1 text-[14px] leading-snug text-navy-3">One step per piece, in build order, each with the exact prompt and how you'll know it worked. Up to a minute.</p>
+            <p className="mt-1 text-[14px] leading-snug text-navy-3">One step per piece, in build order, each with what you're doing, why, and how you'll know it worked. Up to a minute.</p>
             <div className="relative mt-3 h-1 overflow-hidden rounded-full bg-oat-2"><span className="sweep" /></div>
           </Card>
         )}
@@ -118,13 +120,25 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
 
       <div className="mt-6 flex items-center gap-2"><ToolBadge tool={tool} size="md" /></div>
       <Title className="mt-2">{step.title}</Title>
-      <p className="mt-2 max-w-[66ch] text-[16px] leading-relaxed text-navy-2">{step.concept}</p>
-      {step.teach && (
-        <div className="mt-3 flex max-w-[66ch] items-start gap-2 rounded-lg border border-dashed border-[#ecd9a8] bg-[#fffbf3] px-3.5 py-2.5">
-          <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-[#9a5b00]" />
-          <div className="text-[14px] leading-snug text-navy-2">{step.teach}</div>
+      {stepIdx === 0 && (
+        <div className="mt-4 flex max-w-[66ch] items-start gap-2.5 rounded-xl border border-line bg-white px-4 py-3">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-green" />
+          <div className="text-[14px] leading-snug text-navy-2">
+            <b className="font-semibold text-navy">How this works:</b> every step has the same rhythm. Ask in your own words,
+            then check the result before moving on. The tool does the technical part; you don't write any code.
+          </div>
         </div>
       )}
+      <Card className="mt-4 px-5 py-4">
+        <div className="text-[12px] font-medium text-navy-3">What you're doing and why</div>
+        <p className="mt-1.5 max-w-[66ch] text-[16px] leading-relaxed text-navy-2">{step.concept}</p>
+        {step.teach && (
+          <div className="mt-3 flex max-w-[66ch] items-start gap-2 rounded-lg border border-dashed border-[#ecd9a8] bg-[#fffbf3] px-3.5 py-2.5">
+            <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-[#9a5b00]" />
+            <div className="text-[14px] leading-snug text-navy-2">{step.teach}</div>
+          </div>
+        )}
+      </Card>
 
       <StepCard key={step.n} step={step} tool={tool} isDone={isDone} publishedDir={publishedDir} onComplete={complete} />
 
@@ -153,78 +167,111 @@ const SetupItem = ({ n, children }: { n: number; children: React.ReactNode }) =>
   </li>
 );
 
-// One step's "how": numbered mini-steps for the tool, the move in a copy box, and the
-// "done when" checklist item that completes the step.
+// One step's "how", one sub-step at a time (progressive disclosure, as in the workshop):
+//   Genie Code:       prompt in your own words -> look at what it made (data step) -> confirm
+//   Genie App Builder: open it -> describe the app in your own words -> refine in short cycles -> confirm
+// The example prompt is behind "I need help" so people write the words themselves.
+type Sub = "open" | "prompt" | "explore" | "refine" | "confirm";
 function StepCard({ step, tool, isDone, publishedDir, onComplete }: { step: BuildStep; tool: BuildTool; isDone: boolean; publishedDir?: string | null; onComplete: () => void }) {
+  const app = tool === "app_builder";
+  const isData = step.capability === "data" || step.n === 1;
+  const subs: Sub[] = app ? ["open", "prompt", "refine", "confirm"] : ["prompt", ...(isData ? ["explore" as Sub] : []), "confirm"];
+  const LABEL: Record<Sub, string> = {
+    open: "Open Genie App Builder", prompt: app ? "Describe your app in your own words" : "Ask Genie Code in your own words",
+    explore: "Look at what it made", refine: "Refine it in short cycles", confirm: "Confirm it worked",
+  };
+  const [idx, setIdx] = useState(0);
+  const [help, setHelp] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [checked, setChecked] = useState(isDone);
-  useEffect(() => { setChecked(isDone); setCopied(false); }, [step.n, isDone]);
+  useEffect(() => { setIdx(0); setHelp(false); setCopied(false); }, [step.n]);
   const prdRef = publishedDir ? `${publishedDir}/PROJECT.md` : "PROJECT.md in your project folder";
   const move = step.move.replace(/__PROJECT_MD__/g, prdRef);
   const copy = () => { navigator.clipboard?.writeText(move); setCopied(true); setTimeout(() => setCopied(false), 1400); };
-  const app = tool === "app_builder";
-  const isData = step.capability === "data" || step.n === 1;
-  const accent = app ? "border-[#b6d6e2]" : "border-green/40";
+  const goal = step.title.replace(/\.$/, "");
+  const next = () => setIdx((i) => i + 1);
+
+  if (isDone) {
+    return (
+      <div className="mt-5 rounded-xl border-[1.5px] border-green bg-green-soft px-5 py-4">
+        <div className="flex items-center gap-2 text-[15px] font-semibold text-navy"><Check className="h-4 w-4 text-green" /> You marked this step done.</div>
+        <div className="mt-1.5 text-[14px] leading-snug text-navy-2"><b className="font-semibold">It worked when:</b> {step.verify}</div>
+      </div>
+    );
+  }
 
   return (
-    <Card className={`mt-6 border-[1.5px] ${accent} px-5 py-5`}>
-      <div className="text-[15px] font-semibold text-navy">{app ? "Do it in Genie App Builder" : "Do it in Genie Code"}</div>
-      <ol className="mt-3 flex flex-col gap-4">
-        {app && (
-          <Mini n={1} title="Open Genie App Builder">
-            In your workspace, open <b className="font-semibold text-navy">Apps</b>, then the <b className="font-semibold text-navy">Build</b> tab, and choose your <b className="font-semibold text-navy">App Space</b> (or create one) so the app sits next to your data.
-            <div className="mt-2 rounded-lg border border-dashed border-[#ecd9a8] bg-[#fffbf3] px-3 py-2 text-[13.5px] text-navy-2">Genie App Builder is in Beta, so the workspace preview needs to be enabled. No Build tab? Ask your facilitator to turn it on.</div>
-          </Mini>
-        )}
-        <Mini n={app ? 2 : 1} title={app ? "Paste your app prompt" : "Paste this into your Genie Code chat"}>
-          {app ? "It describes your screens in plain language, from your plan. Reword anything you like." : "Your exact wording doesn't matter; the plan carries the details. Reword it if you like."}
-          <div className={`relative mt-2.5 rounded-xl border bg-oat/50 px-4 py-3 ${app ? "border-[#b6d6e2]" : "border-line"}`}>
-            <button onClick={copy} className="absolute right-3 top-2.5 inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[12px] font-semibold text-navy-2 shadow-sm hover:text-navy">
-              {copied ? <><Check className="h-3.5 w-3.5 text-green" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}
-            </button>
-            <div className="text-[12px] font-medium text-navy-3">{app ? "Your app prompt" : "The move"}</div>
-            <div className={`mt-1.5 whitespace-pre-wrap pr-16 leading-relaxed text-navy ${app ? "text-[14px]" : "font-mono text-[13px]"}`}>{move}</div>
+    <div className="mt-5 flex flex-col gap-2.5">
+      {subs.map((key, i) => {
+        if (i > idx) return (
+          <div key={key} className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-4 py-2.5 opacity-50">
+            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 border-line-2 text-[10px] font-semibold text-navy-3">{i + 1}</span>
+            <span className="text-[14px] font-medium text-navy-3">{LABEL[key]}</span>
           </div>
-        </Mini>
-        {app && (
-          <Mini n={3} title="Refine it in short cycles">
-            <ul className="mt-1 flex flex-col gap-1.5">
-              <li>Ask for one change at a time, check it, then the next.</li>
-              <li>Be specific about screens: what it opens on, what each row shows, what each button does.</li>
-              <li>Name the tables it reads and the Lakebase table it saves to, exactly as in your plan.</li>
-            </ul>
-          </Mini>
-        )}
-        {!app && isData && (
-          <Mini n={2} title="Look at what it made">
-            Open the catalog, find your schema, and look at the tables. What does one row mean? It makes your next prompts sharper.
-          </Mini>
-        )}
-      </ol>
-      <div className="mt-5 border-t border-line pt-4">
-        <div className="text-[12px] font-medium text-navy-3">Done when</div>
-        <label className={`mt-2 flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${checked ? "border-green bg-green-soft" : "border-line bg-white hover:border-navy-3"}`}>
-          <input type="checkbox" className="peer sr-only" checked={checked} disabled={isDone}
-            onChange={(e) => { setChecked(e.target.checked); if (e.target.checked) setTimeout(onComplete, 450); }} />
-          <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-[1.5px] transition ${checked ? "border-green bg-green text-white" : "border-line-2 bg-white"}`}>
-            {checked && <Check className="h-3.5 w-3.5" />}
-          </span>
-          <span className="text-[15px] leading-snug text-navy">{step.verify}</span>
-        </label>
-      </div>
-    </Card>
+        );
+        const past = i < idx;
+        return (
+          <div key={key} className={`rounded-xl border-[1.5px] px-4 py-3.5 ${past ? "border-line bg-white" : app ? "border-[#b6d6e2] bg-[#f3f9fb]" : "border-green/50 bg-green-soft/50"}`}>
+            <button className="flex w-full items-center gap-2.5 text-left" onClick={() => past && setIdx(i)}>
+              <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-semibold ${past ? "bg-green text-white" : "border-2 border-green text-green-ink"}`}>
+                {past ? <Check className="h-3 w-3" /> : i + 1}
+              </span>
+              <span className={`text-[14.5px] font-semibold ${past ? "text-navy-3" : "text-navy"}`}>{LABEL[key]}</span>
+            </button>
+            {i === idx && (
+              <div className="mt-2.5 pl-[30px] text-[14.5px] leading-relaxed text-navy-2">
+                {key === "open" && <>
+                  In your workspace, open <b className="font-semibold text-navy">Apps</b>, then the <b className="font-semibold text-navy">Build</b> tab, and choose your <b className="font-semibold text-navy">App Space</b> (or create one) so the app sits next to your data.
+                  <div className="mt-2 rounded-lg border border-dashed border-[#ecd9a8] bg-[#fffbf3] px-3 py-2 text-[13.5px]">Genie App Builder is in Beta, so the workspace preview needs to be on. No Build tab? Ask your facilitator.</div>
+                  <Next onClick={next}>It's open</Next>
+                </>}
+                {key === "prompt" && <>
+                  {app ? <>
+                    Tell it, in your own words, what app to build. Cover four things: <b className="font-semibold text-navy">who opens it and when</b>, <b className="font-semibold text-navy">what the first screen shows</b>, <b className="font-semibold text-navy">what each button does</b>, and <b className="font-semibold text-navy">which tables it reads and saves to</b>. Your plan has all of it; start with one or two screens.
+                  </> : <>
+                    In your Genie Code chat, ask it in your own words to <b className="font-semibold text-navy">{goal.charAt(0).toLowerCase() + goal.slice(1)}</b>. Point it at your plan each time (say "follow my plan in PROJECT.md"), so it has the details. Your exact wording doesn't matter; the plan carries the specifics.
+                  </>}
+                  {!help ? (
+                    <button onClick={() => setHelp(true)} className="mt-2.5 flex items-center gap-1.5 text-[13.5px] font-semibold text-green-ink hover:text-green">
+                      <HelpCircle className="h-4 w-4" /> {app ? "I need help describing the app" : "I need help prompting Genie Code"}
+                    </button>
+                  ) : (
+                    <div className="relative mt-2.5 rounded-xl border-[1.5px] border-dashed border-green/50 bg-white px-4 py-3">
+                      <button onClick={copy} className="absolute right-3 top-2.5 inline-flex items-center gap-1 rounded-md bg-oat px-2 py-1 text-[12px] font-semibold text-navy-2 hover:text-navy">
+                        {copied ? <><Check className="h-3.5 w-3.5 text-green" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}
+                      </button>
+                      <div className="text-[12px] font-medium text-green-ink">Example prompt (yours to reword)</div>
+                      <div className={`mt-1.5 whitespace-pre-wrap pr-16 leading-relaxed text-navy ${app ? "text-[14px]" : "font-mono text-[13px]"}`}>{move}</div>
+                    </div>
+                  )}
+                  <Next onClick={next}>{app ? "I described it" : "I asked it"}</Next>
+                </>}
+                {key === "explore" && <>
+                  Open the catalog, find your schema, and look at the tables it made. What does one row mean, and how do the tables connect? It makes your next prompts sharper.
+                  <Next onClick={next}>Done looking</Next>
+                </>}
+                {key === "refine" && <>
+                  <ul className="flex flex-col gap-1.5">
+                    <li>Look at the preview. Ask for one change at a time, check it, then the next.</li>
+                    <li>Be specific: what it opens on, what each row shows, what each button does.</li>
+                    <li>Name the tables it reads and the Lakebase table it saves to, exactly as in your plan.</li>
+                  </ul>
+                  <Next onClick={next}>It looks right</Next>
+                </>}
+                {key === "confirm" && <>
+                  <div className="flex items-start gap-2 text-navy"><Check className="mt-1 h-4 w-4 shrink-0 text-green" /><span><b className="font-semibold">You'll know it worked when:</b> {step.verify}</span></div>
+                  <button onClick={onComplete} className="mt-3 rounded-lg bg-green px-5 py-2.5 text-[14px] font-semibold text-white hover:opacity-90">Yes, that worked</button>
+                </>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
-const Mini = ({ n, title, children }: { n: number; title: string; children: React.ReactNode }) => (
-  <li className="flex gap-3">
-    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-oat-2 text-[12px] font-semibold text-navy-2">{n}</span>
-    <div className="min-w-0 flex-1">
-      <div className="text-[15px] font-semibold text-navy">{title}</div>
-      <div className="mt-1 text-[14.5px] leading-relaxed text-navy-2">{children}</div>
-    </div>
-  </li>
+const Next = ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) => (
+  <div className="mt-3"><button onClick={onClick} className="inline-flex items-center gap-1.5 rounded-lg bg-navy px-4 py-2 text-[13.5px] font-semibold text-white hover:opacity-90">{children} <ArrowRight className="h-3.5 w-3.5" /></button></div>
 );
-
 // A real finish line: what they stood up, who helped, and what's next.
 function CompletionScreen({ steps, onReview, onBack }: { steps: BuildStep[]; onReview: () => void; onBack: () => void }) {
   const NEXT = [
