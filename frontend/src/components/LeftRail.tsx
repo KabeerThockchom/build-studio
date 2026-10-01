@@ -95,21 +95,21 @@ export function LeftRail({ state, go }: { state: StudioState; go: (t: RailTarget
         <span className="h-4 w-4 rounded-[5px] bg-green" />
         <b className="text-[13px] font-bold text-navy">Build Studio</b>
       </div>
-      <div className="mb-4 px-1.5 text-[11.5px] text-navy-3">From an idea to something real, on Databricks</div>
+      <div className="mb-3 px-1.5 text-[12px] text-navy-3">From an idea to something real, on Databricks</div>
 
       {groups.map((g) => {
         const active = g.steps.some((x) => x.cur);
         return (
           <div key={g.name} className="mb-1">
-            <div className={`flex items-center gap-1.5 px-2 pb-1.5 pt-3 text-[11px] font-bold uppercase tracking-[0.1em] ${active ? "text-navy" : "text-navy-3"}`}>
-              <span className="text-green">{g.n}</span><span className="text-line-2">·</span>{g.name}
+            <div className={`flex items-center gap-2 px-2 pb-1 pt-3.5 text-[12px] font-medium ${active ? "text-navy" : "text-navy-3"}`}>
+              <span className={`grid h-[18px] w-[18px] place-items-center rounded-full text-[11px] font-semibold ${active ? "bg-navy text-white" : "bg-oat-2 text-navy-2"}`}>{g.n}</span>{g.name}
             </div>
             {g.steps.map((st) => (
               <button key={st.key} disabled={!st.reachable}
                 onClick={() => st.reachable && go(st.target)}
                 aria-current={st.cur ? "step" : undefined}
                 className={`group flex w-full items-start gap-2.5 rounded-[9px] px-2 py-[7px] text-left text-[13.5px] transition-colors
-                  ${st.cur ? "bg-green-soft font-semibold text-navy" : st.done ? "text-navy-2" : "text-navy-2"}
+                  ${st.cur ? "bg-green-soft font-medium text-navy" : "text-navy-2"}
                   ${st.reachable ? (st.cur ? "" : "hover:bg-oat") : "cursor-default opacity-45"}`}>
                 <span className={`mt-[2px] grid h-[17px] w-[17px] shrink-0 place-items-center rounded-full border-2 text-[10px] font-bold transition-colors
                   ${st.done ? "border-green bg-green text-white" : st.cur ? "border-green bg-white" : "border-line-2"}`}>

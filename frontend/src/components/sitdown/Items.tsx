@@ -293,7 +293,6 @@ export function CeremonyItem({ it, live, ops }: { it: any; live: boolean; ops: C
     }
   }));
   const lane = (k: string) => arr(ops.session?.features).filter((f) => f && (f.lane || "later") === k).map((f) => noDash(f.name));
-  const li = (a: string[]) => a.length ? <ul>{a.map((x, i) => <li key={i}>{x}</li>)}</ul> : <p className="muted" style={{ fontSize: 12 }}>Nothing here</p>;
   const tbl = (t: string) => { const m = String(t).match(/^([a-z0-9_.]+)(.*)$/i); return m ? <><span className="mono">{m[1]}</span>{noDash(m[2])}</> : t; };
   const gaps = arr(it.gaps).filter((x) => typeof x === "string" && x.trim());
   const [md, setMd] = useState(false);
@@ -316,10 +315,12 @@ export function CeremonyItem({ it, live, ops }: { it: any; live: boolean; ops: C
         </div>
       </div>
       <div className="rb">{[["who", "Who"], ["what", "What"], ["worked_if", "Worked if"]].map(([k, l]) => <RbLine key={k} it={it} k={k} l={l} live={live} onEdit={ops.onEdit} />)}</div>
-      <div className="l3">
-        <div className="cbox"><div className="lb">Today</div>{li(lane("today"))}</div>
-        <div className="cbox"><div className="lb">Stretch, after the core</div>{li(lane("stretch"))}</div>
-        <div className="cbox"><div className="lb">Saved for later</div>{li(lane("later"))}</div>
+      <div className="lanechips">
+        {[["today", "Today"], ["stretch", "Stretch"], ["later", "Saved for later"]].map(([k, l]) => (
+          <div key={k} className={`lr ${k}`}><span className="lk2">{l}</span>
+            {lane(k).length ? lane(k).map((x, i) => <span key={i} className="ch">{x}</span>) : <span className="none">Nothing here</span>}
+          </div>
+        ))}
       </div>
       <div className="rbx">
         {arr(it.risks).length > 0 && (

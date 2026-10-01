@@ -221,7 +221,7 @@ export default function App() {
             onBack={() => setPhase("sitdown")} onDone={() => setPhase("plan")} />
         )}
         {state.phase === "plan" && (
-          <PlanScreen blueprint={state.blueprint} job={state.planJob} error={state.planError}
+          <PlanScreen blueprint={state.blueprint} job={state.planJob} error={state.planError} answers={state.answers}
             onRetry={() => startPlan({ idea: state.idea, answers: state.answers, capabilities: state.capabilities, projectName: state.projectName })}
             onRefine={(note) => startPlan({ idea: state.idea, answers: state.answers, capabilities: state.capabilities, projectName: state.projectName }, note, state.blueprint)}
             onBack={() => { dispatch({ t: "learnIdx", i: Math.max(0, state.learnIdx) }); setPhase("learn"); }}

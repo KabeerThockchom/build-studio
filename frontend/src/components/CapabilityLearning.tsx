@@ -1,25 +1,35 @@
-import { useEffect, useState } from "react";
-import { Check, X, Sparkles, ChevronRight, ChevronLeft, GraduationCap, BookOpen, ExternalLink } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, X, ChevronLeft, ArrowRight, BookOpen, ExternalLink, Sparkles } from "lucide-react";
 import { CONCEPTS, learnComponents } from "../lib/learn";
+import { BAND_LABELS, NODE_COLORS } from "../lib/constants";
+import { componentBand } from "../lib/diagram";
 import type { DiagramSpec } from "../lib/types";
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
+import { Label, Title, Lead, Card, Go, Primary } from "./ui";
 
-/* Learn: plays while the plan job drafts in the background. It is dynamic: first the
-   architecture of THIS build, then one module per component the build uses (in order), then a
-   quick check with one question per component. */
+/* Learn plays while the plan drafts in the background. It is about THEIR build: the
+   architecture reveals itself piece by piece, each piece gets a short module, then a quick
+   check. The rail ticks as they go. */
 
 interface Props {
   capabilities: string[];
-  fits: Record<string, string>;        // how each piece is used in this build (from the Sit-Down)
-  spec: DiagramSpec;                   // this build's architecture
+  fits: Record<string, string>;
+  spec: DiagramSpec;
   beat: number;
   onBeat: (i: number) => void;
-  onBack: () => void;                  // back to the Sit-Down
-  onDone: () => void;                  // on to the plan
+  onBack: () => void;
+  onDone: () => void;
   planReady: boolean;
 }
 
 const clean = (s?: string) => (s || "").trim().replace(/\.$/, "");
+const sentences = (t: string) => (t.match(/[^.!?]+[.!?]+/g) || [t]).map((x) => x.trim()).filter(Boolean);
+
+function BandChip({ cap }: { cap: string }) {
+  const b = componentBand(cap), c = NODE_COLORS[b];
+  const style = b === "delivery" ? { background: "#e9eef0", color: "#1B3139" } : { background: c.fill, color: c.text };
+  return <span className="rounded-full px-2 py-0.5 text-[11.5px] font-semibold" style={style}>{BAND_LABELS[b]}</span>;
+}
 
 export function CapabilityLearning({ capabilities, fits, spec, beat, onBeat, onBack, onDone, planReady }: Props) {
   const caps = learnComponents(capabilities);
@@ -28,16 +38,19 @@ export function CapabilityLearning({ capabilities, fits, spec, beat, onBeat, onB
   const onArch = cur === 0, onQuiz = cur === caps.length + 1;
   const goTo = (i: number) => onBeat(Math.max(0, Math.min(total - 1, i)));
   useEffect(() => { document.querySelector("main")?.scrollTo({ top: 0 }); }, [cur]);
+  const nextLabel = onArch ? `Start with ${CONCEPTS[caps[0]].short}` : cur < caps.length ? `Next: ${CONCEPTS[caps[cur]].short}` : "Quick check";
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-96px)] max-w-[860px] flex-col">
-      <div className="flex items-center justify-between border-b border-line pb-3">
-        <div className="flex items-center gap-2 text-[12px] font-semibold text-navy-3">
-          <GraduationCap className="h-4 w-4 text-green" /> Learn the pieces your build uses
+    <div className="mx-auto flex min-h-[calc(100vh-96px)] max-w-[880px] flex-col">
+      {/* progress: one segment per beat, the rail mirrors it */}
+      <div className="flex items-center gap-3">
+        <div className="flex flex-1 gap-1">
+          {Array.from({ length: total }).map((_, i) => (
+            <button key={i} onClick={() => goTo(i)} aria-label={`Go to ${i + 1}`}
+              className={`h-1 flex-1 rounded-full transition-colors ${i < cur ? "bg-navy-2" : i === cur ? "bg-green" : "bg-line-2 hover:bg-navy-3"}`} />
+          ))}
         </div>
-        <span className="text-[12px] font-medium text-navy-3">
-          {onArch ? "Your architecture" : onQuiz ? "Quick check" : `${CONCEPTS[caps[cur - 1]].short} · ${cur} of ${caps.length}`}
-        </span>
+        <Label>{onArch ? "Your architecture" : onQuiz ? "Quick check" : `Piece ${cur} of ${caps.length}`}</Label>
       </div>
 
       <div className="flex flex-1 items-start py-8">
@@ -48,198 +61,248 @@ export function CapabilityLearning({ capabilities, fits, spec, beat, onBeat, onB
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-line pt-4">
+      <div className="sticky bottom-0 -mx-2 flex items-center justify-between border-t border-line bg-oat px-2 py-4 shadow-[0_-14px_22px_-18px_rgba(27,49,57,.35)]">
         <button onClick={cur === 0 ? onBack : () => goTo(cur - 1)}
-          className="flex items-center gap-1 text-[14px] font-semibold text-navy-3 hover:text-navy">
+          className="flex items-center gap-1 text-[15px] text-navy-3 hover:text-navy">
           <ChevronLeft className="h-4 w-4" /> {cur === 0 ? "Back to the Sit-Down" : "Previous"}
         </button>
-        <div className="flex items-center gap-2">
-          {Array.from({ length: total }).map((_, i) => (
-            <button key={i} onClick={() => goTo(i)} aria-label={`Go to ${i + 1}`}
-              className={`h-2 rounded-full transition-all ${i === cur ? "w-6 bg-green" : "w-2 bg-line-2 hover:bg-navy-3"}`} />
-          ))}
-        </div>
-        {onQuiz ? (
-          <button onClick={onDone}
-            className="flex items-center gap-1.5 rounded-xl bg-green px-6 py-2.5 text-[14.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-green-l">
-            {planReady ? "See your plan" : "See your plan (almost ready)"} <ChevronRight className="h-4 w-4" />
-          </button>
-        ) : (
-          <button onClick={() => goTo(cur + 1)}
-            className="flex items-center gap-1.5 rounded-xl bg-navy px-5 py-2.5 text-[14.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-navy-2">
-            Next <ChevronRight className="h-4 w-4" />
-          </button>
-        )}
+        {onQuiz
+          ? <Go onClick={onDone}>{planReady ? "See your plan" : "See your plan, almost ready"} <ArrowRight className="h-4 w-4" /></Go>
+          : <Primary onClick={() => goTo(cur + 1)}>{nextLabel} <ArrowRight className="h-4 w-4" /></Primary>}
       </div>
     </div>
   );
 }
 
-// ── The opening beat: the architecture of THIS build, and a door into each piece. ──
+// ── The opening beat: a reveal of THEIR build, one piece at a time. ──
 function ArchitectureBeat({ caps, fits, spec, onOpen }: { caps: string[]; fits: Record<string, string>; spec: DiagramSpec; onOpen: (c: string) => void }) {
   return (
     <div>
-      <div className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Your architecture</div>
-      <h1 className="text-[32px] font-extrabold leading-[1.08] tracking-[-0.025em] text-navy">Here's what you'll build.</h1>
-      <p className="mt-3 max-w-[62ch] text-[15.5px] leading-relaxed text-navy-2">
-        {caps.length} {caps.length === 1 ? "piece" : "pieces"}, picked from what you scoped in the Sit-Down. Data flows left to right: from your data,
-        through the pieces that shape and serve it, to where people use it. All of it runs in your governed Databricks workspace.
-      </p>
-      <div className="mt-6 rounded-2xl border border-line bg-white px-3 py-4">
-        <ArchitectureDiagram spec={spec} />
-      </div>
-      <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+      <Label>Your architecture</Label>
+      <Title className="mt-1">Here's what you'll build.</Title>
+      <Lead className="mt-2 max-w-[60ch]">
+        {caps.length} {caps.length === 1 ? "piece" : "pieces"}, chosen from what you scoped in the Sit-Down. Data flows left to right, from your data to the screen people use.
+      </Lead>
+      <Card className="mt-6 px-3 py-4"><ArchitectureDiagram spec={spec} reveal /></Card>
+      <ol className="mt-5 flex flex-col gap-2">
         {caps.map((c, i) => (
-          <button key={c} onClick={() => onOpen(c)}
-            className="group rounded-xl border-[1.5px] border-line bg-white px-4 py-3 text-left outline-none transition hover:-translate-y-px hover:border-green focus-visible:ring-[3px] focus-visible:ring-green-soft">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-bold text-navy"><span className="mr-1.5 text-navy-3">{i + 1}.</span>{CONCEPTS[c].title}</span>
-              <span className="text-[11.5px] font-semibold text-navy-3 opacity-0 transition-opacity group-hover:opacity-100">Learn &rarr;</span>
-            </div>
-            <div className="mt-1 text-[13px] leading-snug text-navy-2">{clean(fits[c]) || CONCEPTS[c].tagline}</div>
-          </button>
+          <li key={c} style={{ animation: `rise .5s ${400 + i * 260}ms cubic-bezier(.2,.7,.2,1) both` }}>
+            <button onClick={() => onOpen(c)}
+              className="group flex w-full items-center gap-4 rounded-xl border border-line bg-white px-4 py-3 text-left transition hover:-translate-y-px hover:border-navy-3 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-green-soft">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-oat-2 text-[12px] font-semibold text-navy-2">{i + 1}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[15px] font-semibold text-navy">{CONCEPTS[c].title}</span><BandChip cap={c} />
+                </div>
+                <div className="mt-0.5 text-[14px] leading-snug text-navy-2">
+                  <span className="text-navy-3">In your build: </span>{clean(fits[c]) || CONCEPTS[c].tagline}
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 shrink-0 text-line-2 transition group-hover:translate-x-0.5 group-hover:text-navy-3" />
+            </button>
+          </li>
         ))}
-      </div>
+      </ol>
     </div>
   );
 }
 
-// ── One piece: what it is, how it's used in THIS build, a small visual, docs links. ──
+// ── One piece: what it is, its job in THIS build, how it works in three short points. ──
 function ModuleBeat({ cap, idx, count, fit, onHome }: { cap: string; idx: number; count: number; fit?: string; onHome: () => void }) {
   const card = CONCEPTS[cap];
+  const points = sentences(card.deeper).slice(0, 3);
   return (
     <div>
-      <button onClick={onHome}
-        className="mb-4 inline-flex items-center gap-1.5 rounded-xl border-[1.5px] border-line bg-white px-4 py-2 text-[13.5px] font-bold text-navy-2 outline-none transition hover:-translate-y-px hover:border-green hover:bg-green-soft hover:text-green-ink focus-visible:ring-[3px] focus-visible:ring-green-soft">
-        <ChevronLeft className="h-4 w-4" /> Back to your architecture
+      <button onClick={onHome} className="mb-4 inline-flex items-center gap-1 text-[13.5px] text-navy-3 hover:text-navy">
+        <ChevronLeft className="h-4 w-4" /> Your architecture
       </button>
-      <div className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Piece {idx + 1} of {count}</div>
-      <h1 className="text-[32px] font-extrabold leading-[1.08] tracking-[-0.025em] text-navy">{card.title}</h1>
-      <p className="mt-3 max-w-[56ch] text-[17px] font-semibold leading-relaxed text-navy">{card.tagline}</p>
-      <p className="mt-3 max-w-[64ch] text-[15.5px] leading-relaxed text-navy-2">{card.deeper}</p>
+      <div className="flex items-center gap-2"><Label>Piece {idx + 1} of {count}</Label><BandChip cap={cap} /></div>
+      <Title className="mt-1">{card.title}</Title>
+      <Lead className="mt-2 max-w-[56ch]">{card.tagline}</Lead>
 
-      {clean(fit) && (
-        <div className="mt-5 max-w-[64ch] rounded-xl border-[1.5px] border-green bg-green-soft px-4 py-3">
-          <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-green-ink">In your build</div>
-          <div className="mt-1 text-[14.5px] leading-snug text-navy">{clean(fit)}.</div>
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr]">
+        <div className="flex flex-col gap-4">
+          {clean(fit) && (
+            <div className="rounded-xl border border-green/40 bg-green-soft px-4 py-3.5">
+              <div className="text-[12px] font-medium text-green-ink">Its job in your build</div>
+              <div className="mt-1 text-[15px] leading-snug text-navy">{clean(fit)}.</div>
+            </div>
+          )}
+          <Card className="px-4 py-4">
+            <div className="text-[12px] font-medium text-navy-3">How it works</div>
+            <ol className="mt-2.5 flex flex-col gap-3">
+              {points.map((p, i) => (
+                <li key={i} className="flex gap-3 text-[15px] leading-relaxed text-navy-2">
+                  <span className="mt-[3px] grid h-5 w-5 shrink-0 place-items-center rounded-full bg-oat-2 text-[11px] font-semibold text-navy-2">{i + 1}</span>
+                  <span>{p}</span>
+                </li>
+              ))}
+            </ol>
+          </Card>
         </div>
-      )}
-
-      {card.demo && (
-        <div className="mt-5">
+        <div className="flex flex-col gap-4">
           {card.demo === "genie-chat" && <GenieChatMock />}
           {card.demo === "medallion" && <MedallionMock />}
           {card.demo === "app-builder" && <AppBuilderMock />}
+          {!card.demo && <DashboardMock />}
+          {card.links.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {card.links.map((l) => (
+                <a key={l.url} href={l.url} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium text-navy-2 hover:border-navy-3 hover:text-navy">
+                  {l.kind === "watch" ? <ExternalLink className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}{l.label}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
-      )}
-
-      {card.links.length > 0 && (
-        <div className="mt-5 flex flex-wrap gap-2">
-          {card.links.map((l) => (
-            <a key={l.url} href={l.url} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] font-semibold text-navy-2 hover:border-green hover:text-green-ink">
-              {l.kind === "watch" ? <ExternalLink className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}{l.label}
-            </a>
-          ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
 
-// ── The quick check: one question per piece. Not graded, reinforcement. ──
+// ── The quick check: instant feedback, a small celebration when it's done. ──
 function QuizBeat({ caps }: { caps: string[] }) {
-  const items = caps.map((c) => ({ cap: c, ...CONCEPTS[c].quiz }));
+  const items = useMemo(() => caps.map((c) => ({ cap: c, ...CONCEPTS[c].quiz })), [caps]);
   const [picked, setPicked] = useState<Record<number, number>>({});
+  const answered = Object.keys(picked).length;
+  const right = items.filter((it, i) => picked[i] === it.answer).length;
+  const finished = answered === items.length;
   return (
     <div>
-      <div className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Quick check</div>
-      <h1 className="text-[32px] font-extrabold leading-[1.1] tracking-[-0.025em] text-navy">One on each piece before you build.</h1>
-      <p className="mt-3 max-w-[52ch] text-[15px] leading-relaxed text-navy-2">No grade. Just to make each piece stick.</p>
-      <div className="mt-6 flex flex-col gap-5">
+      <Label>Quick check</Label>
+      <Title className="mt-1">One question on each piece.</Title>
+      <Lead className="mt-2">No grade. Tap an answer to see why.</Lead>
+      <div className="mt-6 flex flex-col gap-3">
         {items.map((item, qi) => {
-          const chosen = picked[qi], answered = chosen !== undefined;
+          const chosen = picked[qi], done = chosen !== undefined;
           return (
-            <div key={qi} className="rounded-2xl border border-line bg-white p-5">
-              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-green-ink">{CONCEPTS[item.cap].short}</div>
-              <div className="mb-3 text-[15px] font-bold text-navy">{qi + 1}. {item.q}</div>
-              <div className="flex flex-col gap-2">
+            <section key={qi} data-quiz className="rounded-xl border border-line bg-white p-5">
+              <div className="flex items-center justify-between">
+                <Label>{qi + 1} of {items.length} · {CONCEPTS[item.cap].short}</Label>
+                {done && (chosen === item.answer
+                  ? <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-green-ink"><Check className="h-3.5 w-3.5" /> Right</span>
+                  : <span className="text-[12px] font-semibold text-navy-3">Not quite</span>)}
+              </div>
+              <div className="mt-1.5 text-[16px] font-semibold leading-snug text-navy">{item.q}</div>
+              <div className="mt-3 flex flex-col gap-2">
                 {item.options.map((opt, oi) => {
-                  const isChosen = chosen === oi, isCorrect = oi === item.answer, show = answered && (isChosen || isCorrect);
+                  const isChosen = chosen === oi, isCorrect = oi === item.answer, show = done && (isChosen || isCorrect);
                   return (
-                    <button key={oi} disabled={answered} onClick={() => setPicked((p) => ({ ...p, [qi]: oi }))}
-                      className={`flex items-center gap-2.5 rounded-xl border-[1.5px] px-4 py-2.5 text-left text-[14px] transition-colors
-                        ${!answered ? "border-line bg-white text-navy hover:border-green"
+                    <button key={oi} disabled={done} onClick={() => setPicked((p) => ({ ...p, [qi]: oi }))}
+                      className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-[15px] transition
+                        ${!done ? "border-line bg-white text-navy hover:border-navy-3"
                           : show && isCorrect ? "border-green bg-green-soft text-navy"
-                          : isChosen ? "border-lava/40 bg-[#fdecef] text-navy"
-                          : "border-line bg-white text-navy-3 opacity-60"}`}>
-                      {answered && show && (isCorrect ? <Check className="h-4 w-4 shrink-0 text-green" /> : <X className="h-4 w-4 shrink-0 text-lava" />)}
+                          : isChosen ? "border-[#f3c3bb] bg-[#fdebe8] text-navy"
+                          : "border-line bg-white text-navy-3 opacity-55"}`}>
+                      <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[11px]
+                        ${show && isCorrect ? "border-green bg-green text-white" : isChosen ? "border-[#e25a45] bg-[#e25a45] text-white" : "border-line-2"}`}>
+                        {show && isCorrect ? <Check className="h-3 w-3" /> : isChosen ? <X className="h-3 w-3" /> : null}
+                      </span>
                       {opt}
                     </button>
                   );
                 })}
               </div>
-              {answered && (
-                <div className="mt-3 flex items-start gap-2 rounded-lg bg-oat px-3.5 py-2.5 text-[13px] leading-snug text-navy-2">
-                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green" />{item.why}
-                </div>
-              )}
-            </div>
+              {done && <div className="rise mt-3 rounded-lg bg-oat px-3.5 py-2.5 text-[14px] leading-snug text-navy-2">{item.why}</div>}
+            </section>
           );
         })}
       </div>
+      {finished && (
+        <div className="rise relative mt-5 overflow-hidden rounded-xl border border-green/40 bg-green-soft px-5 py-4">
+          <Confetti />
+          <div className="relative flex items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-green text-white"><Sparkles className="h-[18px] w-[18px]" /></span>
+            <div>
+              <div className="text-[16px] font-semibold text-navy">{right === items.length ? "All right first time. You're ready." : `${right} of ${items.length} first time. You're ready.`}</div>
+              <div className="text-[14px] text-navy-2">Your plan is next. It's been drafting while you learned.</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Confetti() {
+  const bits = Array.from({ length: 18 }, (_, i) => i);
+  const cols = ["#00A870", "#2E7D9A", "#F59E0B", "#5A8A9A"];
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0">
+      {bits.map((i) => (
+        <span key={i} className="confetti" style={{ left: `${(i * 53) % 100}%`, background: cols[i % 4], animationDelay: `${(i % 6) * 60}ms` }} />
+      ))}
     </div>
   );
 }
 
 // ── Small product-style visuals ──
+function Frame({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-line px-3.5 py-2">
+        <span className="text-[12px] font-medium text-navy-3">{title}</span>
+        {badge && <span className="ml-auto rounded-full border border-line px-2 py-0.5 text-[11px] font-medium text-navy-3">{badge}</span>}
+      </div>
+      <div className="px-3.5 py-3.5">{children}</div>
+    </Card>
+  );
+}
 function GenieChatMock() {
   return (
-    <div className="max-w-[460px] overflow-hidden rounded-xl border border-line bg-white">
-      <div className="border-b border-line px-3.5 py-2 text-[10.5px] font-bold uppercase tracking-[0.08em] text-green-ink">Genie</div>
-      <div className="flex flex-col gap-2 px-3.5 py-3.5">
-        <div className="self-end rounded-lg rounded-tr-sm bg-oat px-3 py-1.5 text-[12.5px] text-navy">Which ones need attention this week?</div>
-        <div className="rounded-lg rounded-tl-sm bg-green-soft px-3 py-1.5 text-[12.5px] leading-snug text-navy">Three items are trending the wrong way, led by the top one at 18% above normal. Here's the list.</div>
+    <Frame title="Genie space">
+      <div className="flex flex-col gap-2">
+        <div className="self-end rounded-lg rounded-tr-sm bg-oat px-3 py-1.5 text-[13px] text-navy">Which ones need attention this week?</div>
+        <div className="rounded-lg rounded-tl-sm bg-green-soft px-3 py-2 text-[13px] leading-snug text-navy">Three are trending the wrong way, led by the top one at 18% above normal. Here's the list.</div>
       </div>
-    </div>
+    </Frame>
   );
 }
 function MedallionMock() {
   const L = [
-    { n: "Bronze", d: "raw, as it arrived", c: "bg-[#f6ede1] text-[#7a5412] border-[#ecd9bd]" },
-    { n: "Silver", d: "cleaned and joined", c: "bg-[#eef3f5] text-navy-2 border-line-2" },
-    { n: "Gold", d: "ready to use, with your rules", c: "bg-[#fdf6dd] text-[#7a5f00] border-[#ecdca0]" },
+    { n: "Bronze", d: "raw, as it arrived", bg: "#f6ede1", fg: "#7a5412" },
+    { n: "Silver", d: "cleaned and joined", bg: "#eef3f5", fg: "#2E5A6B" },
+    { n: "Gold", d: "ready, with your rules", bg: "#fdf6dd", fg: "#7a5f00" },
   ];
   return (
-    <div className="flex max-w-[620px] flex-wrap items-center gap-2">
-      {L.map((l, i) => (
-        <div key={l.n} className="flex items-center gap-2">
-          <div className={`rounded-xl border px-4 py-2.5 ${l.c}`}>
-            <div className="text-[13px] font-bold">{l.n}</div>
-            <div className="text-[11.5px] opacity-80">{l.d}</div>
+    <Frame title="One pipeline, three layers">
+      <div className="flex items-stretch gap-1.5">
+        {L.map((l, i) => (
+          <div key={l.n} className="flex flex-1 items-center gap-1.5">
+            <div className="flex-1 rounded-lg px-3 py-2.5" style={{ background: l.bg, color: l.fg, animation: `rise .5s ${i * 180}ms both` }}>
+              <div className="text-[14px] font-semibold">{l.n}</div>
+              <div className="text-[12px] opacity-85">{l.d}</div>
+            </div>
+            {i < L.length - 1 && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-line-2" />}
           </div>
-          {i < L.length - 1 && <ChevronRight className="h-4 w-4 text-line-2" />}
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </Frame>
+  );
+}
+function DashboardMock() {
+  const bars = [38, 52, 44, 66, 58, 74, 62];
+  return (
+    <Frame title="AI/BI dashboard">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg bg-oat px-3 py-2"><div className="text-[11.5px] text-navy-3">This week</div><div className="text-[18px] font-semibold text-navy">−12%</div></div>
+        <div className="rounded-lg bg-oat px-3 py-2"><div className="text-[11.5px] text-navy-3">Flagged</div><div className="text-[18px] font-semibold text-navy">7</div></div>
+      </div>
+      <div className="mt-3 flex h-16 items-end gap-1.5">
+        {bars.map((h, i) => <div key={i} className="flex-1 rounded-t bg-[#2E7D9A]/70" style={{ height: `${h}%`, animation: `rise .4s ${i * 60}ms both` }} />)}
+      </div>
+    </Frame>
   );
 }
 function AppBuilderMock() {
   return (
-    <div className="max-w-[520px] overflow-hidden rounded-xl border border-line bg-white">
-      <div className="flex items-center gap-2 border-b border-line px-3.5 py-2">
-        <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-navy-3">Apps</span>
-        <span className="text-line-2">›</span>
-        <span className="rounded-md bg-green-soft px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.06em] text-green-ink">Build</span>
-        <span className="ml-auto rounded-full border border-line px-2 py-0.5 text-[10px] font-semibold text-navy-3">Beta</span>
+    <Frame title="Apps  ›  Build" badge="Beta">
+      <div className="text-[12px] font-medium text-navy-3">Describe your app</div>
+      <div className="mt-1.5 rounded-lg border border-line bg-oat/60 px-3 py-2 text-[13px] leading-snug text-navy">
+        One screen that opens on today's ranked list. Each row shows why it was flagged, with Approve and Change buttons that save to Lakebase.
       </div>
-      <div className="px-3.5 py-3.5">
-        <div className="text-[11px] font-semibold text-navy-3">Describe your app</div>
-        <div className="mt-1.5 rounded-lg border border-line bg-oat/60 px-3 py-2 text-[12.5px] leading-snug text-navy">
-          One screen that opens on today's ranked list. Each row shows why it was flagged, with Approve and Change buttons that save to Lakebase.
-        </div>
-        <div className="mt-2 text-[11px] text-navy-3">Builds with AppKit in your App Space. Refine it one change at a time.</div>
-      </div>
-    </div>
+      <div className="mt-2 text-[12px] text-navy-3">Builds with AppKit in your App Space. Refine it one change at a time.</div>
+    </Frame>
   );
 }

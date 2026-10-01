@@ -73,7 +73,7 @@ export function BriefPane({ disp, drafts, fx, idea, started }: { disp: Disp; dra
     <aside className="brief">
       <div className="bhd">
         <div key={`ring-${ringUp}`} className={`ringw ${ringUp ? "ringup" : ""}`}>
-          <div className="ring">
+          <div className="sdring">
             <svg viewBox="0 0 64 64">
               <circle className="trk" cx="32" cy="32" r="27" />
               <circle className="val" cx="32" cy="32" r="27"

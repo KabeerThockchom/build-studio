@@ -57,6 +57,7 @@ const META: Record<string, { band: Band; label: string; sub: string }> = {
   [APPS]: { band: "delivery", label: "Databricks App", sub: "built with Genie App Builder" },
 };
 export const nodeId = (c: string) => c.toLowerCase().replace("/", "").replace(/ /g, "_");
+export const componentBand = (c: string): Band => META[c]?.band || "serve";
 
 export function specFor(components: string[], dataLabel = "Your data", dataSub = "tables your build reads"): DiagramSpec {
   const nodes: Node[] = [{ id: "data", band: "data", label: dataLabel, sub: dataSub }];
