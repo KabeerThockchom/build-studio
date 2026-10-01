@@ -4,8 +4,11 @@
 
    Each card: what the piece is (tagline), a plain go-deeper, a quiz with plausible
    distractors (answer positions vary on purpose) and one or two docs links. How the piece is
-   used in THIS build comes from the Sit-Down handoff (plan.capabilities[].fits). */
-import { PIPELINES, GENIE, LAKEBASE, APPS, COMPONENT_ORDER } from "./constants";
+   used in THIS build comes from the Sit-Down handoff (plan.capabilities[].fits).
+
+   Publix customization: the data-engineering-to-app stack uses Zerobus for streaming ingest,
+   SDP medallion for bronze/silver/gold shaping, then Genie, Lakebase, and Apps. */
+import { ZEROBUS, SDP_MEDALLION, PIPELINES, GENIE, LAKEBASE, APPS, COMPONENT_ORDER } from "./constants";
 
 export interface LearnQuiz {
   q: string;
@@ -29,6 +32,67 @@ export interface ConceptCard {
 }
 
 export const CONCEPTS: Record<string, ConceptCard> = {
+  [ZEROBUS]: {
+    title: "Zerobus",
+    short: "Zerobus",
+    tagline: "Stream events straight into the lakehouse, no message bus.",
+    deeper:
+      "Zerobus is a direct-write ingest API: whatever produces your events (a register, a sensor, an app) pushes them straight into a governed Delta table, landing in seconds. " +
+      "There's no Kafka cluster to size or run in the middle. You create the table first, grant the producer access, and start streaming; Zerobus never changes your table's shape, so the table stays the source of truth.",
+    video: { id: "wrH5wWmFT94", title: "Zerobus: real-time ingest, no message bus", sub: "Databricks PMs on pushing events straight into the lakehouse with Zerobus." },
+    quiz: {
+      q: "What does Zerobus save you compared with a traditional streaming setup?",
+      options: [
+        "Nothing; you still run and size a Kafka cluster yourself",
+        "Standing up and operating a separate message bus, since producers push events straight into a Delta table",
+        "The need to have any tables at all",
+      ],
+      answer: 1,
+      why: "Zerobus is a direct-to-lakehouse write API. Producers push events straight into a managed Delta table, so there's no separate message bus to run.",
+    },
+    more: [
+      { q: "Your store events are landing in the lakehouse a few seconds after they happen, with no Kafka cluster in sight. What's doing that?",
+        options: ["Zerobus, which lets producers push events straight into a Delta table with no message bus to run", "A nightly batch job you scheduled", "Genie, which pulls the events in when someone asks a question"],
+        answer: 0, why: "Zerobus is a direct-write ingest API: producers push events straight into a managed Delta table in near real time, so there's no separate message bus to stand up and run." },
+      { q: "You want to use Zerobus but your producer sends data in a format your table doesn't match. What do you do?",
+        options: ["Change the format at the producer (before it reaches Zerobus)", "Change the table schema in Zerobus", "Zerobus handles the conversion automatically"],
+        answer: 0, why: "Zerobus writes exactly what the producer sends. If the format doesn't match the table, the producer has to send it in a shape the table accepts." },
+    ],
+    links: [{ label: "Zerobus Ingest", url: "https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/zerobus", kind: "docs" }],
+  },
+  [SDP_MEDALLION]: {
+    title: "SDP Medallion",
+    short: "SDP medallion",
+    tagline: "Declare bronze → silver → gold, once.",
+    deeper:
+      "Spark Declarative Pipelines (SDP) is how you turn the raw Zerobus events into trustworthy tables. " +
+      "You declare the layers: bronze keeps the raw stream, silver cleans and enriches it, gold is the analytics-ready shape everyone reads. " +
+      "You describe WHAT each table should be and the quality rules it must meet; the pipeline figures out the ordering, runs it incrementally, retries on failure, and keeps it fresh, so you don't hand-write the orchestration.",
+    demo: "medallion",
+    video: { id: "BIxwoO65ylY", title: "Declarative pipelines: bronze to gold", sub: "A Databricks walkthrough of a declarative medallion ETL pipeline." },
+    quiz: {
+      q: "In a bronze/silver/gold pipeline, what is the gold layer for?",
+      options: [
+        "The untouched raw events exactly as they landed",
+        "The clean, analytics-ready tables the rest of the app reads",
+        "A backup copy you never query",
+      ],
+      answer: 1,
+      why: "Bronze is the raw landing, silver is cleaned and enriched, and gold is the curated, analytics-ready shape Genie and the app read from.",
+    },
+    more: [
+      { q: "Your raw Zerobus events are messy and you need clean, analytics-ready tables. What does the SDP pipeline do for you?",
+        options: ["Nothing; you query the raw events directly and hope they're clean", "Declares bronze → silver → gold transforms once, and the pipeline handles the ordering, retries, and data quality", "Copies the raw table five times under different names"],
+        answer: 1, why: "Spark Declarative Pipelines let you declare the bronze/silver/gold transforms and the quality rules; the pipeline works out dependencies, incremental updates, and retries so gold stays trustworthy." },
+      { q: "You change a scoring rule in the pipeline. What happens to the gold table?",
+        options: ["Nothing until someone rebuilds it by hand", "It's deleted and you start again", "The pipeline refreshes it with the new rule, and everything downstream reads the update"],
+        answer: 2, why: "Declarative Pipelines manage the refresh for you. Change the rule, run the pipeline, and every reader sees the same new answer." },
+    ],
+    links: [
+      { label: "Lakeflow Declarative Pipelines", url: "https://docs.databricks.com/aws/en/dlt/", kind: "docs" },
+      { label: "The medallion architecture", url: "https://docs.databricks.com/aws/en/lakehouse/medallion", kind: "docs" },
+    ],
+  },
   [PIPELINES]: {
     title: "Declarative Pipelines",
     short: "Declarative Pipelines",
@@ -181,9 +245,10 @@ export function quizFor(capabilities: string[], n = 5): QuizItem[] {
 }
 
 // The components a build teaches, in the order given, limited to ones we have content for.
+// Publix: includes Zerobus and SDP medallion in the default stack.
 export function learnComponents(capabilities: string[]): string[] {
   const known = (capabilities || []).filter((c) => CONCEPTS[c]);
-  return known.length ? known : COMPONENT_ORDER.filter((c) => c === PIPELINES || c === GENIE);
+  return known.length ? known : COMPONENT_ORDER.filter((c) => c === ZEROBUS || c === SDP_MEDALLION || c === GENIE);
 }
 
 // Learn beats: 0 = the architecture overview, 1..n = one per component, n+1 = the quick check.
