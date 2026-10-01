@@ -260,9 +260,9 @@ def test_a_data_level_up_never_breaks_the_day():
         assert p["fit"] != "Won't fit today", p
 
 
-def test_every_build_gets_a_design_brief_and_only_costa_gets_the_brand():
+def test_every_build_gets_a_design_brief_and_only_publix_gets_the_brand():
     from server import publish as P
     neutral = P._design_md(idea="x", interaction_model="browse_act")
     assert "Crisp Operational" in neutral and "(recommended for this app)" in neutral
-    assert "Costa" not in neutral and "maroon" not in neutral.lower() and "Genie App Builder" in neutral
-    assert "Costa maroon" in P._design_md(idea="x", interaction_model="ask", brand=True)
+    assert "Publix" not in neutral and "maroon" not in neutral.lower() and "Genie App Builder" in neutral
+    assert "Publix green" in P._design_md(idea="x", interaction_model="ask", brand=True)

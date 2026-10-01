@@ -34,7 +34,7 @@ describe("learn content", () => {
   });
   it("never mentions retired pieces or a currency", () => {
     const text = JSON.stringify(CONCEPTS);
-    expect(text).not.toMatch(/Supervisor agent|Knowledge Assistant|£|Costa|\u2014/);
+    expect(text).not.toMatch(/Supervisor agent|Knowledge Assistant|£|Costa|costa|\u2014/i);
   });
 });
 
