@@ -197,8 +197,8 @@ GUARDRAILS = {
         "a shared or pre-existing project (you likely lack the Postgres role there and the connection fails auth). "
         "A new project auto-provisions a production branch with a ready primary endpoint. Create the one or two small "
         "tables the plan needs (e.g. a decision log with who, what, when, the item id, the decision and any note), "
-        "keyed so they join back to the gold tables (same item ids), so the app can show each item's latest decision.
-It is not a place to copy the analytical tables. Insert one test "
+        "keyed so they join back to the gold tables (same item ids), so the app can show each item's latest decision. "
+        "It is not a place to copy the analytical tables. Insert one test "
         "row and read it back. The app (built next, in Genie App Builder) writes to these tables, so note the "
         "database and table names for that step. Autoscaling Lakebase sleeps when idle, so the first request after a "
         "quiet spell takes a few seconds."),
