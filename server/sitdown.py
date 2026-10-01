@@ -561,7 +561,7 @@ def to_studio(state: dict, rb: dict) -> dict:
                                                        (state.get("context") or {}).get("currency")] if x),
     }
     answers = {k: v for k, v in answers.items() if v}
-    from .components import components_for, COMPONENTS
+    from .components import components_for, COMPONENTS, spec_for
     fits = rb.get("fits") or {}
     comps = components_for(feats, interaction_model=(shape or {}).get("interaction_model", ""))
     neg = re.compile(r"\b(not (used|needed|in)|later|skip|none|n/a|parked)\b", re.I)
@@ -575,6 +575,9 @@ def to_studio(state: dict, rb: dict) -> dict:
         "answers": answers,
         "answersOther": {},
         "capabilities": comps,
+        # The ONE architecture: Learn and Plan both render this spec, computed once from the same component list.
+        "spec": spec_for(comps, "Your seeded data" if state.get("dataset_schema") else "Sample data",
+                         "read-only tables" if state.get("dataset_schema") else "tables we generate for you"),
         "plan": {"read_back": rb.get("reaction", ""), "questions": [], "capabilities": caps},
         "planRequested": True,
         "sitdown": {"grades": rb.get("grades") or state.get("grades"), "decisions": state.get("decisions"),

@@ -137,7 +137,7 @@ def refine(sd: dict, plan: dict, issues: list[str]) -> dict:
 
 def to_blueprint(sd: dict, p: dict, components: list[str]) -> dict:
     a = sd.get("answers") or {}
-    seeded = bool(a.get("data_seeded (read only)"))
+    seeded = a.get("seeded_schema", "none") not in ("", "none") if "seeded_schema" in a else bool(a.get("data_seeded (read only)"))
     spec = C.spec_for(components, "Your seeded data" if seeded else "Sample data",
                       "read-only tables" if seeded else "tables we generate for you")
     clean = lambda x: strip_em_dashes(str(x or ""))

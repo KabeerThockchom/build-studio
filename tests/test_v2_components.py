@@ -119,3 +119,15 @@ def test_build_plan_drops_steps_outside_the_build(monkeypatch):
     plan = bp.build_plan(BuildRequest(idea="i", capabilities=["Declarative Pipelines", "Genie"], design_answers={}))
     assert [s.capability for s in plan.steps] == ["data", "Genie"]
     assert [s.n for s in plan.steps] == [1, 2]
+
+
+def test_learn_and_plan_render_the_same_architecture():
+    from server import plan as P
+    st = sd.new_state("idea")
+    st["dataset_schema"] = None
+    st["features"] = [{"name": "Queue", "block": "app_screen", "lane": "today", "rank": 1},
+                      {"name": "Log", "block": "decision_log", "lane": "today", "rank": 2},
+                      {"name": "Ask", "block": "genie_space", "lane": "stretch", "rank": 3}]
+    studio = sd.to_studio(st, {})
+    bp = P.to_blueprint({"idea": studio["idea"], "answers": studio["answers"]}, {"prd_markdown": "x"}, studio["capabilities"])
+    assert studio["spec"] == bp["spec"]
