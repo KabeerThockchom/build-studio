@@ -1,80 +1,90 @@
 # Build Studio v2 · morning review
 
-Branch `build-studio-v2` (local only, not pushed, not deployed). Run it:
+Branch `build-studio-v2`, 14 local commits, **not pushed, not deployed**. To run it:
 
 ```
-cd ~/Documents/v2v-studio
+cd ~/Documents/v2v-studio && git checkout build-studio-v2
 DATABRICKS_PROFILE=build-studio python3 -m uvicorn app:app --port 8000 --reload --reload-dir server
-# then open http://localhost:8000   (frontend is prebuilt into frontend/dist)
+# open http://localhost:8000   (the frontend is prebuilt into frontend/dist)
 ```
 
-Screens for both test ideas (Costa waste, American Airlines crew) are in `screens/`; the frontend's design notes
-are in `design-notes.md`.
+- `screens/`: every step for both test ideas, `costa-` (store food waste) and `aa-` (American Airlines crew timeouts). `before/` holds the pre-polish versions.
+- `design-notes.md`: what the design pass changed and why.
 
-## The new journey
+## The journey
 
 ```
-Overview → Sit-Down (chat with your SA + colleagues) → Learn (only your build's pieces + quick check)
-         → Plan (drafted in the background while you learn) → Build (Genie Code, + Genie App Builder for the app)
+Overview → Sit-Down → Learn → Plan → Build
+           your SA and     only the pieces    drafted in the      Genie Code for everything,
+           colleagues      your build uses,   background while    Genie App Builder for the app
+                           then a quick check you learn
 ```
 
-The left rail is back and accurate at every step, including during the Sit-Down (its sub-steps follow the
-conversation: Sharpen the idea · N of 7 covered, Ways to build it, Fit it in a day, Your plan).
+The left rail is back and accurate at every step, including inside the Sit-Down. Its sub-steps follow the conversation: Sharpen the idea (N of 7 covered), Ways to build it, Fit it in a day, Your plan.
 
-## What changed
+## What's new
 
-**No prescribed architecture.** A build is made of whichever of five components its Sit-Down scope needs:
-Declarative Pipelines (medallion), Genie, AI/BI Dashboards, Lakebase, Databricks Apps. No Supervisor agent, no
-Knowledge Assistant. One catalog (`server/components.py`) drives the Sit-Down's building blocks, the
-architecture diagram, which Learn modules appear, the plan and the build steps. Rules that keep builds sane:
-every build ships a surface people use (picked from the shape: monitor → dashboard, ask/explore → Genie,
-review/act → app); Lakebase always comes with an app that writes to it; the data foundation always ships.
+- **No prescribed architecture.** Each build uses whichever of five components its Sit-Down scope needs:
+  - Declarative Pipelines (medallion)
+  - Genie
+  - AI/BI Dashboards
+  - Lakebase
+  - Databricks Apps
 
-**Sit-Down, ported to React** with parity to `/sitdown3` (that page still exists, untouched, for comparison).
+  There's no Supervisor agent and no Knowledge Assistant. One catalog (`server/components.py`) drives all of it: the Sit-Down's building blocks, the architecture diagram, which Learn modules appear, the plan and the build steps. Rules in code keep each build coherent:
+  - The data foundation always ships.
+  - Every build ships a surface people use. The surface is picked from the build's shape: monitor → dashboard, ask or explore → Genie, review or act → app.
+  - Lakebase always comes with an app that writes to it.
+  - The build plan can't add a step for a component the build doesn't use.
+- **The Sit-Down is ported to React** and matches `/sitdown3`, which is untouched for comparison.
+  - Colleagues adapt to any industry. Their roles, the currency and the company come from the idea, generated in the background so there's no wait. The drawings keep fixed names; Priya is now Arjun.
+  - Options are concrete answers, with realistic ranges for numbers.
+  - The ring grade averages all seven sections, so it starts low and climbs.
+  - Scope packages are sized for v2 builds. Lean is usually Comfortable, and nothing comes back "Won't fit today" any more.
+- **Learn is dynamic.** It starts with a reveal of *your* architecture, each piece with its job in your build. Then comes one module per piece (three short points plus a small product visual), and a quick check that gives instant feedback and a small celebration at the end.
+- **Plan is a three-pass background job.** It drafts the PRD from the whole Sit-Down, then a critic checks it against what the participant actually said, then it fixes what the critic found. The critic also checks:
+  - grain and keys
+  - time-based metrics on static data
+  - Lakebase reads
+  - pieces outside the build
 
-**Learn is dynamic.** An architecture reveal of their build, then one module per component it uses, then a
-quick check.
+  The job starts at "Let's build it". The screen shows the diagram first, Today/Stretch/Later chips, an outlined PRD, decision cards with their tradeoffs, and a refine bar with a "What changed" note when a refine lands.
+- **Build:** each step shows a badge saying where you do it.
+  - **Genie Code** builds the data, pipelines, Genie, dashboards and Lakebase.
+  - **Genie App Builder** builds the app. The step walks through Apps, then the Build tab, then the App Space; notes that App Builder is in Beta; gives the prompt to paste, which describes the screens, the data read and what each action writes; and adds tips for iterating.
 
-**Plan is a background job** with three passes: draft the PRD from the whole Sit-Down, a critic checks it against
-what the participant actually said, then a refine pass fixes what the critic found. It starts the moment they
-click "Let's build it" and is usually ready before they finish Learn (observed 28 to 60s after Learn).
-
-**Build: Genie Code for everything except the app.** The app step is a Genie App Builder handoff (Apps > Build
-tab, App Space, paste the prompt), with the prompt written to describe screens, data read and what each action
-writes. PROJECT.md says the same, so Genie Code stops at the app step instead of hand-building one.
+  PROJECT.md says the same, so Genie Code stops at the app step instead of hand-building an app. The end of Build has a "You built it" screen.
 
 ## How it was tested
 
-| Eval | What it measures | Result |
+| Eval | Measures | Result |
 |---|---|---|
-| Conversation eval (16 simulated participants, 8 personas, 11 ideas incl. American Airlines, blind Opus judge) | Question quality, responsiveness, context, momentum, engagement, persona fit, brief fidelity | 6.19 → 6.62 over the Sit-Down rounds; v2 agent 6.38 (in the noise band); 16/16 reach the plan, 7/7 sections covered, 0 errors |
-| Plan eval (finished Sit-Downs pushed through handoff → plan job → build plan, blind judge) | Fidelity, architecture, buildable today, Genie Code moves, App Builder prompt, clarity | 5.89 → 6.30 (round 3 pending at time of writing, see below) |
-| Unit tests | Component catalog, packages, handoff, cast, normalisation | 43 passing |
-| Browser end to end (React app, Chromium) | Full journey for both ideas, rail accuracy, Sit-Down parity, plan job states, App Builder step | Both ideas complete overview → Build with no page errors |
+| Conversation eval: 16 simulated participants across 8 personas and 11 ideas (including American Airlines), blind Opus judge | question quality, responsiveness, context, momentum, engagement, persona fit, brief fidelity | 6.19 → 6.62 over the Sit-Down rounds; the v2 agent scored **6.38** (within the run-to-run noise). 16/16 reached the plan, all 7 sections covered, 0 errors |
+| Plan eval: those finished Sit-Downs pushed through handoff → plan job → build plan, blind judge | fidelity, architecture, buildable today, Genie Code moves, App Builder prompt, clarity | 5.89 → 6.30 → 6.00 → **6.20**; architecture 2.89 → 3.40; deterministic checks **70/70**, 0 errors |
+| Unit tests | catalog, packages, handoff, cast, normalisation, step guard | **45 passing**, plus 28 frontend tests, typecheck and a production build |
+| Browser end to end (React, Chromium, 1440 to 1200 wide) | the full journey for both ideas, rail accuracy, Sit-Down parity, plan job states, App Builder step | both ideas complete Overview → Build with no page errors |
 
-## Design decisions for you
+## Decisions for you
 
-1. **Generic ideas default to the workshop host.** If an idea names no company, the cast and context assume
-   Costa (UK, £). Right for a Costa workshop; the judge flags it as "invented" on generic test ideas. Keep, or make
-   the host a facilitator setting that can be blank?
-2. **The grade journey starts at F.** The overall letter averages all seven sections with uncovered ones as zero,
-   so the ceremony reads "F → B". Honest, but harsh as an opening number. Options: keep; start the journey from
-   the first answered turn; or show the journey as sections covered (1 of 7 → 7 of 7) beside the letter.
-3. **Concrete range cards vs open questions.** You chose concrete assumed ranges (faster). The cost: a pure
-   card-clicker accepts our assumptions, so the brief carries our numbers rather than theirs (fidelity dipped
-   slightly). Keep as is, or reintroduce one open question for the success target only?
-4. **Plan takes about 2 minutes in the background** (draft, check, refine on Sonnet 5). Learn usually covers it.
-   If someone races through Learn they see a live "Drafting / Checking / Tightening" state. Acceptable, or trade
-   the check/refine pass for speed?
-5. **Jobs live in server memory.** Cast and plan jobs are in-process; a server restart mid-job loses it (the app
-   now restarts the job once automatically). Fine for a workshop app with one instance; worth persisting to
-   Lakebase if we scale out.
-6. **App Builder is Beta** and needs a workspace admin to enable "Governed agentic app-building". The Build
-   screen says so on the app step. Worth confirming it's enabled in the target workspace before a workshop.
+1. **Generic ideas default to the workshop host.** If an idea names no company, the colleagues and context assume Costa (UK, £). That's right for a Costa workshop, but the judge flags it as invented on generic test ideas. Keep it, or make the host a facilitator setting that can be left blank?
+2. **The grade journey starts at F.** The ceremony reads "F → C-" or similar, because the first letter is taken with only one section covered.
+   - Keep it: the climb is the story.
+   - Start from the grade after turn 2.
+   - Show "1 of 7 covered → 7 of 7" instead of a starting letter.
+3. **"Let's build it" is below the fold on the ceremony** (`costa-06`). Pin it as a sticky primary button, as the Plan does with "Looks good, let's build"?
+4. **Concrete range cards or an open question.** You chose concrete ranges because they're faster. The cost is that a card-clicker accepts our assumed numbers. Keep that, or bring back one open question just for the success target?
+5. **Genie Code prompts are always visible** in Build, which makes copy-paste the easy path. The old design hid them to encourage people to write their own.
+   - Keep them visible.
+   - Collapse them behind "Show an example".
+   - Keep them visible, with a nudge to reword.
+6. **Plan length.** The full PRD is long, even with the outline. Keep it all inline, or show Summary, First screen, Scope and Success measure, with the rest expandable?
+7. **Plan generation time.** The three passes take about 2.5 minutes in the background. Learn usually covers it; someone who rushes Learn sees the live "Drafting, Checking, Tightening" state. Keep the critic pass, or trade it for speed?
+8. **Characters outside the Sit-Down.** They currently appear on the Overview and the Build finish. Keep that, or also add a "who weighed in" strip to the Plan?
 
 ## Known gaps
 
-- Session save/resume needs Lakebase (not available locally), so `?s=` resume was verified with a mocked session.
-- Plan fidelity is the weakest dimension (participant-stated data sometimes regenerated; occasional invented
-  details). The critic pass catches some; more to do.
-- No deploy tonight, by your call.
+- **Plan quality has levelled off around 6.2/10.** The remaining critiques are about data-modelling depth: per-user scoping, invented "ordered" quantities where no order data exists, metric definitions. The critic catches some of these. Further gains likely need a short data-modelling step in the Sit-Down, or a schema sketch in the plan.
+- **Resume isn't tested end to end.** Session save and resume need Lakebase, which isn't available locally, so `?s=` resume was checked with a mocked session only.
+- **Background jobs live in server memory.** A restart loses a running plan job. The app restarts it once automatically. That's fine for a single-instance workshop app, but persist the jobs before scaling out.
+- **Genie App Builder is in Beta.** A workspace admin has to enable "Governed agentic app-building" under Previews. Confirm that in the target workspace before running a workshop.
+- **Not deployed**, as you asked.
