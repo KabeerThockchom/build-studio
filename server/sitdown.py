@@ -50,7 +50,7 @@ DAY_CAPACITY = 9          # v2 catalog: data(1) + pipeline(2) + rules(2) + Lakeb
 LEAN_CAPACITY = 5         # the heart of it with time to spare
 FOUNDATION = {"generated_data", "pipeline_step"}   # prerequisites: always in every package
 # Building blocks now come from the v2 component catalog (no agents, no document Q&A).
-from .components import BLOCKS as _CBLOCKS, block_of  # noqa: E402
+from .components import BLOCKS as _CBLOCKS, block_of, components_for  # noqa: E402
 BLOCKS = {k: (v[0], v[1]) for k, v in _CBLOCKS.items()}
 BUDGET = DAY_CAPACITY  # legacy name kept for the bench
 OPEN_CAP = "B-"
@@ -449,43 +449,79 @@ def _effort(f: dict) -> int:
     return EFFORT.get(tier, 0) if tier else 0
 
 
+def day_units(feats: list) -> int:
+    """Effort of a set of features. Generated tables are one Genie Code step however many there are, and extra
+    pipeline steps reuse the first one's setup, so they cost less than the first."""
+    data = sum(1 for f in feats if f.get("block") == "generated_data")
+    pipe = sum(1 for f in feats if f.get("block") == "pipeline_step")
+    rest = sum(_effort(f) for f in feats if f.get("block") not in ("generated_data", "pipeline_step"))
+    return rest + (1 if data else 0) + (1 if data > 3 else 0) + (2 if pipe else 0) + max(0, pipe - 1)
+
+
 def fit_label(units: int) -> str:
     return "Comfortable" if units <= DAY_CAPACITY - 1 else "Tight" if units <= DAY_CAPACITY else "Won't fit today"
 
 
 def build_packages(features: list) -> dict:
-    """Lean / Recommended / Bold from ranked features. Pure code, same answer every time.
-    Bold never refuses: it keeps the core in Today and moves the rest to Stretch, in order."""
-    # Foundation first (everything else reads its tables), then essentials, then rank. Both are always in today.
+    """Lean / Recommended / Bold as three different versions of the build, not three cut-offs of one list.
+    Pure code, same answer every time.
+      Lean        the core loop only: foundation, the surface and the essentials (the heart of it)
+      Recommended the whole core plus the first level-up
+      Bold        everything, level-ups included (whatever doesn't fit the day goes to Stretch)
+    Level-ups are the '+' features: ambitious additions that change what the build can do. Packages that would
+    come out identical are dropped, so the participant only ever sees real choices."""
     surface = next((f["name"] for f in sorted(features, key=lambda f: f.get("rank", 99))
-                    if f.get("block") in ("app_screen", "dashboard", "genie_space")), None)
+                    if f.get("block") in ("app_screen", "dashboard", "genie_space") and not f.get("levelup")), None)
     found = lambda f: f.get("block") in FOUNDATION or f.get("name") == surface
-    doable = sorted([f for f in features if BLOCKS.get(f.get("block"), (1,))[0]],
-                    key=lambda f: (not found(f), not f.get("essential"), f.get("rank", 99)))
+    key = lambda f: (not found(f), not f.get("essential"), f.get("rank", 99))
+    doable = [f for f in features if BLOCKS.get(f.get("block"), (1,))[0]]
+    ups = sorted([f for f in doable if f.get("levelup")], key=lambda f: f.get("rank", 99))
+    if not ups:                               # older sessions / model slips: the tail of the list levels up
+        tail = [f for f in sorted(doable, key=key) if not found(f) and not f.get("essential")]
+        ups = tail[-2:] if len(doable) > 5 else []
+    core = sorted([f for f in doable if f not in ups], key=key)
     later = [f["name"] for f in features if f not in doable]
+    units = lambda names: day_units([f for f in doable if f["name"] in names])
 
-    def fill(cap):
-        today, used = [], 0
-        for f in doable:                       # strict rank order: core first, stop at the first misfit
-            if today and used + _effort(f) > cap and not f.get("essential") and not found(f):
-                break
-            today.append(f["name"]); used += _effort(f)
-        return today, used
+    def fill(items, cap):
+        today, stretch = [], []
+        for f in items:
+            must = found(f) or f.get("essential")
+            if today and units(today + [f["name"]]) > cap and not must:
+                stretch.append(f["name"]); continue
+            today.append(f["name"])
+        return today, stretch
 
-    lean, lu = fill(LEAN_CAPACITY)
-    rec, ru = fill(DAY_CAPACITY)
-    names = [f["name"] for f in doable]
-    pk = lambda key, label, blurb, today, stretch: {
-        "key": key, "label": label, "blurb": blurb, "today": today, "stretch": stretch,
-        "later": [n for n in names if n not in today and n not in stretch] + later,
-        "units": sum(_effort(f) for f in doable if f["name"] in today),
-        "fit": fit_label(sum(_effort(f) for f in doable if f["name"] in today))}
-    return {"recommended": "recommended", "packages": [
-        pk("lean", "Lean", "Just the heart of it. Done with time to spare.", lean, []),
-        pk("recommended", "Recommended", "A full, finished day.", rec, []),
-        pk("bold", "Bold", "Everything doable, core first, then stretch.", rec,
-           [n for n in names if n not in rec]),
-    ]}
+    heart = [f for f in core if found(f) or f.get("essential")]
+    lean_t, _ = fill(heart or core[:3], LEAN_CAPACITY)
+    if len(lean_t) < 3:                       # a lean core still needs a little body
+        lean_t, _ = fill(core[:max(3, len(heart))], LEAN_CAPACITY)
+    core_t, _ = fill(core, DAY_CAPACITY)
+    first_up = next((f for f in ups if units(core_t + [f["name"]]) <= DAY_CAPACITY), ups[0] if ups else None)
+    rec_t, rec_s = fill(core + ([first_up] if first_up else []), DAY_CAPACITY)
+    bold_t, bold_s = fill(core + ups, DAY_CAPACITY)
+    order = [f["name"] for f in sorted(doable, key=key)]
+    comps_of = lambda names: components_for([f for f in doable if f["name"] in names])
+
+    def pk(k, label, blurb, today, stretch, prev):
+        have = set(today) | set(stretch)
+        return {"key": k, "label": label, "blurb": blurb, "today": today, "stretch": stretch,
+                "later": [n for n in order if n not in have] + later,
+                "adds": [n for n in today + stretch if n not in prev], "levelups": [f["name"] for f in ups if f["name"] in have],
+                "components": comps_of(have), "units": units(today), "capacity": DAY_CAPACITY,
+                "fit": fit_label(units(today))}
+
+    lean = pk("lean", "Lean", "The core loop, working end to end. Time to spare.", lean_t, [], [])
+    rec = pk("recommended", "Recommended", "The full core, plus one step up.", rec_t, rec_s, lean_t)
+    bold = pk("bold", "Bold", "Every idea in, core first. Some may land as stretch.", bold_t, bold_s,
+              rec_t + rec_s)
+    pkgs = [lean]
+    for p in (rec, bold):                     # only show a package if it's genuinely different from the last one
+        if set(p["today"]) | set(p["stretch"]) != set(pkgs[-1]["today"]) | set(pkgs[-1]["stretch"]):
+            p["adds"] = [n for n in p["today"] + p["stretch"] if n not in set(pkgs[-1]["today"]) | set(pkgs[-1]["stretch"])]
+            pkgs.append(p)
+    rec_key = "recommended" if any(p["key"] == "recommended" for p in pkgs) else pkgs[-1]["key"]
+    return {"recommended": rec_key, "packages": pkgs}
 
 
 def set_features(state: dict, features: list) -> dict:
@@ -498,7 +534,7 @@ def set_features(state: dict, features: list) -> dict:
         f["effort"] = BLOCKS.get(f.get("block"), ("half",))[0]
     state["features"] = features
     today = [f for f in features if f["lane"] == "today"]
-    state["day_units"] = sum(_effort(f) for f in today)
+    state["day_units"] = day_units(today)
     state["fit"] = fit_label(state["day_units"])
     if today:
         state.setdefault("brief", {})["scope"] = ("Today: " + ", ".join(f["name"] for f in sorted(today, key=lambda f: f.get("rank", 99)))
@@ -516,8 +552,9 @@ def set_features(state: dict, features: list) -> dict:
 
 
 def apply_package(state: dict, key: str) -> dict:
-    pkgs = {p["key"]: p for p in build_packages(state.get("features") or [])["packages"]}
-    p = pkgs.get(key) or pkgs["recommended"]
+    built = build_packages(state.get("features") or [])
+    pkgs = {p["key"]: p for p in built["packages"]}
+    p = pkgs.get(key) or pkgs[built["recommended"]]
     feats = [dict(f) for f in state.get("features") or []]
     for f in feats:
         f["lane"] = "today" if f["name"] in p["today"] else "stretch" if f["name"] in p["stretch"] else "later"

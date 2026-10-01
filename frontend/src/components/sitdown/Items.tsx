@@ -106,7 +106,7 @@ export function StakeholderItem({ it, live, fresh, onSend }: { it: any; live: bo
           <div className="floor" />
         </div>
         <div className="sbub">
-          <div className="shead"><b>{nm}</b><span className="smeta">{rl ? rl + " · " : ""}{tone === "challenge" ? "has a challenge" : tone === "excited" ? "is excited" : "is curious"}</span></div>
+          <div className="shead"><b>{nm}</b><span className="smeta">{rl ? rl + " · " : ""}{tone === "challenge" ? "has a challenge" : tone === "excited" ? "is excited" : tone === "offers" ? "has an idea" : "is curious"}</span></div>
           <div className="sl" ref={lineRef}>{animate ? null : noDash(it.line)}</div>
         </div>
       </div>
@@ -166,6 +166,18 @@ export function ShapesItem({ it, live, fresh, onSend, base }: { it: any; live: b
 }
 
 /* ── fit it in a day: packages + lanes ── */
+// One colour per piece, so a package reads as "which pieces" at a glance.
+const PIECE: Record<string, { t: string; k: string }> = {
+  "Declarative Pipelines": { t: "Pipelines", k: "pipe" }, Lakebase: { t: "Lakebase", k: "lake" },
+  Genie: { t: "Genie", k: "genie" }, "AI/BI Dashboards": { t: "Dashboard", k: "dash" }, "Databricks Apps": { t: "App", k: "app" },
+};
+function PkgMeter({ units, cap, fit }: { units: number; cap: number; fit?: string }) {
+  return (
+    <div className="pmeter" title={`${units} of ${cap} parts of the day`}>
+      {Array.from({ length: cap }, (_, j) => <span key={j} className={j < units ? `on ${fitCls(fit)}` : ""} />)}
+    </div>
+  );
+}
 const fitPill = (fit?: string) => <span className={`fit ${fitCls(fit)}`}>{fit || ""}</span>;
 function EffortTag({ f }: { f: any }) {
   if (f.block === "not_today" || !f.effort) return <span className="eff lock" title={noDash(f.why || "")}>Not in a day</span>;
@@ -200,11 +212,16 @@ export function ScopeItem({ it, live, fresh, ops, base }: { it: any; live: boole
           return (
             <button key={p.key} className={`pkg ${p.key === cur ? "on" : ""} ${a.className}`} style={a.style}
               onClick={() => can && p.key !== cur && ops.onPackage(it, p.key)}>
-              <div className="ph"><span className="t">{p.label}</span></div>
+              <div className="ph"><span className="t">{p.label}</span>{fitPill(p.fit)}</div>
               <div className="d">{noDash(p.blurb || "")}</div>
-              <div className="pl"><b>Today</b>{strList(p.today).length ? strList(p.today).map((n, j) => <div key={j}>{noDash(n)}</div>) : <div className="m">Nothing yet</div>}</div>
-              {strList(p.stretch).length > 0 && <div className="pl m"><b>Stretch, after the core</b>{strList(p.stretch).map((n, j) => <div key={j}>{noDash(n)}</div>)}</div>}
-              <div className="pf"><span className="m">Saved for later: {arr(p.later).length}</span>{fitPill(p.fit)}</div>
+              <PkgMeter units={p.units || 0} cap={p.capacity || ops.dayCapacity || 9} fit={p.fit} />
+              <div className="pcomps">{strList(p.components).map((c) => <span key={c} className={`pcomp ${PIECE[c]?.k || ""} ${i > 0 && !strList(pk[i - 1].components).includes(c) ? "new" : ""}`}><i />{PIECE[c]?.t || c}</span>)}</div>
+              {i === 0
+                ? <div className="pl"><b>The core loop</b>{strList(p.today).map((n, j) => <div key={j}>{noDash(n)}</div>)}</div>
+                : <div className="pl"><b>Everything in {pk[i - 1].label}, plus</b>
+                    {strList(p.adds).map((n, j) => <div key={j} className="padd"><span className="plus">+</span>{noDash(n)}{strList(p.stretch).includes(n) && <span className="ps">stretch</span>}</div>)}
+                  </div>}
+              {arr(p.later).length > 0 && <div className="pf"><span className="m">Saved for later: {arr(p.later).length}</span></div>}
             </button>
           );
         })}

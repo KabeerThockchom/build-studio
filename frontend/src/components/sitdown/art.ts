@@ -15,7 +15,7 @@ export const CAST: Record<string, any>={
 /* which drawing to use: the payload's avatar, else persona if it names a drawing, else a default.
    Names and roles always come from the payload: the cast is generated per idea. */
 export function personaOf(it: any): string{return CAST[it.avatar]?it.avatar:CAST[it.persona]?it.persona:'data_engineer'}
-export const TONE_MOOD: Record<string,string>={challenge:'skeptical',curious:'warming',excited:'won'};
+export const TONE_MOOD: Record<string,string>={challenge:'skeptical',curious:'warming',excited:'won',offers:'won'};
 export function charSVG(pid: string,size: number,mood?: string): string{
   const L=CAST[pid]||CAST.regional_ops,ink="#1B3139",lk=L.look;
   const behind=lk==='gov'?`<circle cx="60" cy="21" r="10" fill="${L.hair}"/><circle cx="60" cy="21" r="4" fill="rgba(0,0,0,.12)"/>`:lk==='de'?`<path d="M30 96 Q60 64 90 96 Z" fill="#244b59"/>`:lk==='reg'?`<path d="M38 58 Q34 84 44 96 L76 96 Q86 84 82 58 Z" fill="${L.hair}"/>`:'';

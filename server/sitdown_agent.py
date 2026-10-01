@@ -53,9 +53,14 @@ CAST = DEFAULT_CAST   # legacy alias
 
 def cast_of(st: dict) -> dict:
     return st.get("cast") or DEFAULT_CAST
-TONES = {"challenge": "pokes the weakest assumption in their answer",
+TONES = {"challenge": "pokes the weakest assumption in their answer, ONLY where the honest answer is not obvious and "
+                      "would change what gets built (no strawmen anyone would answer 'obviously we'd use a template')",
          "curious": "likes it but asks how it would actually work",
-         "excited": "loves it and asks the one thing that would make it land"}
+         "excited": "loves it and asks the one thing that would make it land",
+         "offers": "PROPOSES a concrete idea from their own seat that would make it better (a different angle, a way to "
+                   "reuse something they already have, a smarter moment to run it). The line is a suggestion, not a "
+                   "question or a worry: it opens like 'What if...', 'We could...' or 'I'd love it if...'. The 3 replies "
+                   "are ways to take it up (yes as is, a twist on it, not today)"}
 
 PLAYBOOK = """HOW THE SIT-DOWN RUNS (you steer, the participant can always type freely):
 Sharpen first, then build. Sharpening covers every rubric dimension in turn: problem, user_moment,
@@ -126,13 +131,15 @@ TOOLS = [
     {"name": "stakeholder", "desc": "Bring a colleague into the conversation for one line, with 3 replies.",
      "props": {"persona": {"type": "string", "description": "the colleague key named in THIS TURN YOU MUST"},
                "tone": {"type": "string", "enum": list(TONES)},
-               "line": {"type": "string", "description": "<=25 words, in their voice, about the current focus"},
+               "line": {"type": "string", "description": "<=25 words, in their voice, about the current focus; it must "
+                                                          "match the tone (an 'offers' line proposes something, it doesn't object)"},
                **{f"option_{i}": {"type": "string", "description": "reply card, <=8 words"} for i in (1, 2, 3)},
                **{f"option_{i}_sub": {"type": "string", "description": "<=14 words"} for i in (1, 2, 3)}},
      "req": ["persona", "tone", "line", "option_1", "option_2", "option_3"]},
     {"name": "flag_drift", "desc": "Their answer pulls toward a different problem, user or job.",
      "props": {"note": {"type": "string", "description": "'moving from X toward Y', <=14 words"}}, "req": ["note"]},
-    {"name": "offer_shapes", "desc": "Three genuinely different ways to build it in one day (shapes a, b, c).",
+    {"name": "offer_shapes", "desc": "Three genuinely different approaches to THIS problem, each buildable in one day (shapes a, b, c). "
+                                     "Reason from first principles about this idea, not from a template list.",
      "props": {**{f"shape_{x}_{f}": spec for x in "abc" for f, spec in [
                    ("name", {"type": "string", "description": "<=4 words"}),
                    ("one_liner", {"type": "string", "description": "<=18 words"}),
@@ -147,9 +154,12 @@ TOOLS = [
     {"name": "propose_scope", "desc": "Features for the chosen shape, mapped to building blocks and ranked.",
      "props": {"features": {"type": "array", "items": {"type": "string"},
                             "description": "5-7 lines, each exactly 'name | block | why' in rank order (first = heart of "
-                                           "the build). name <=6 words in their words; block is one of: "
+                                           "the build), then 2-3 level-ups. name <=6 words in their words; block is one of: "
                                            + ", ".join(sd.BLOCKS) + "; why <=14 words. Start the name with '!' for a "
-                                           "component they called essential or their top worry, '*' for a feature they asked for."}},
+                                           "component they called essential or their top worry, '*' for a feature they asked for, '+' for a "
+                                           "level-up: an ambitious addition that changes what the build can do (a new angle, "
+                                           "a second piece such as Genie or a dashboard, running ahead of time instead of on "
+                                           "demand), never a small polish item. Level-ups go last."}},
      "req": ["features"]},
     {"name": "read_back", "desc": "Hand the plan back before they build.",
      "props": {"who": {"type": "string"}, "what": {"type": "string"}, "worked_if": {"type": "string"},
@@ -162,7 +172,8 @@ TOOLS = [
                    "generate": {"type": "array", "items": {"type": "string"}}}},
                "gaps": {"type": "array", "items": {"type": "string"},
                         "description": "honest watch-outs: anything the plan depends on that is NOT in today's scope or the "
-                                       "data (e.g. 'no budget source yet: generate a planned-hours table'). Empty if none."},
+                                       "data (e.g. 'no budget source yet: generate a planned-hours table'). Never mention "
+                                       "pieces the build doesn't use. Empty if none."},
                "fits": {"type": "object", "description": "for each component this build uses (Declarative Pipelines, Genie, AI/BI Dashboards, Lakebase, Databricks Apps): <=14 words on its job here",
                         "additionalProperties": {"type": "string"}},
                **{f"brief_{d}": {"type": "string", "description": f"FINAL consolidated {d} section, <=40 words, consistent "
@@ -266,7 +277,7 @@ def pick_cast(st: dict, dim: str) -> tuple[str, str] | None:
     else:
         grades = [sd.GRADES.index(v) for v in st["grades"].values()] or [0]
         strong = sum(grades) / len(grades) >= sd.GRADES.index("C+")
-        allowed = ["curious", "challenge"] + (["excited"] if strong else [])
+        allowed = ["offers", "curious", "challenge"] + (["excited"] if strong else [])
         tone = min(allowed, key=lambda t: (tones_used.count(t), allowed.index(t)))
     return who, tone
 
@@ -311,11 +322,18 @@ def turn_contract(st: dict, meta: dict | None = None) -> str:
                 f"Covered so far: {', '.join(covered) or 'nothing yet'}. Still to cover or strengthen: "
                 f"{', '.join(sd.DIM_LABEL[d] for d in CONVO_DIMS if d not in [x for x in CONVO_DIMS if st['brief'].get(x)]) or 'only weak grades'}.")
     if stg == "shapes":
-        need = ["one sentence of chat", "offer_shapes (three genuinely different one-day builds)"]
+        need = ["one sentence of chat", "offer_shapes: before naming anything, think about THIS problem's real choices: "
+                "WHEN the work happens (on demand, prepared ahead for every item, or set off by a signal), WHO does the "
+                "thinking (the system drafts and a person refines, the person writes and the system checks, or the "
+                "system just shows the picture), and WHAT comes out (a draft to edit, a ranked list, a decision, an "
+                "answer). The three shapes must differ on at least one of these, not just on which screen. Name each "
+                "in their own domain words (never generic names like Queue, Tracker, Dashboard, Generator). Each must "
+                "still fit the brief and be buildable in a day. The sketch only illustrates: pick the closest, or none"]
     elif stg == "scope":
         dec = st["brief"].get("decision", "(not set)")
         obj = st["brief"].get("objective", "(not set)")
-        need = ["one sentence of chat", "propose_scope (5-7 features mapped to blocks, ranked): rank 1 and marked '!' "
+        need = ["one sentence of chat", "propose_scope (4-6 core features mapped to blocks, ranked, then 2-3 '+' "
+                "level-ups that make Bold a genuinely bigger build, each a different kind of step up): rank 1 and marked '!' "
                 f"is the feature that delivers their Decision ({dec}); anything needed to measure their Objective ({obj}) "
                 "is marked '!' too; include every component they called essential (see facts_they_stated); keep the core "
                 "logic (detection, ranking, matching) in, never park the thing that makes it work; any feature they never "
@@ -455,12 +473,13 @@ def normalize(calls: list) -> list:
             for r, x in enumerate(_as_list(a.get("features")), 1):
                 if isinstance(x, str):
                     parts = [p.strip() for p in x.split("|")]
-                    name = parts[0].lstrip("*!").strip()
+                    name = parts[0].lstrip("*!+").strip()
                     if not name:
                         continue
                     blk = (parts[1] if len(parts) > 1 else "").strip().lower()
                     feats.append({"name": name, "block": sd.block_of(blk), "rank": r,
-                                  "custom": "*" in parts[0][:2], "essential": "!" in parts[0][:2],
+                                  "custom": "*" in parts[0][:3], "essential": "!" in parts[0][:3],
+                                  "levelup": "+" in parts[0][:3] and "!" not in parts[0][:3],
                                   "why": parts[2] if len(parts) > 2 else ""})
                 elif isinstance(x, dict) and x.get("name"):
                     feats.append({**x, "rank": r})
@@ -549,6 +568,9 @@ def apply_tools(st: dict, calls: list, user_meta: dict) -> tuple[list, list]:
             st.setdefault("cast_seen", []).append(who)
             st.setdefault("cast_dims", []).append(st["stage"])
             tone = a.get("tone") if a.get("tone") in TONES else "curious"
+            if tone == "offers" and not re.search(r"\b(what if|we could|could we|how about|i'd love|i would love|"
+                                                  r"why not|let's|we should|imagine)\b", a["line"], re.I):
+                tone = "curious"                           # the label must match the line: a question isn't an idea
             st.setdefault("cast_tones", []).append(tone)
             st.setdefault("cast_moments", []).append((st["stage"], tone))
             st["cast_last_turn"] = len(st["messages"]) // 2

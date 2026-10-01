@@ -169,6 +169,19 @@
 .sd .pkg .pl{font-size:12px;line-height:1.5;color:var(--navy)}
 .sd .pkg .pl b{display:block;font-weight:500;color:var(--navy3)}
 .sd .pkg .pl.m,.sd .pkg .m{color:var(--navy3)}
+.sd .pkg .pmeter{display:flex;gap:3px;margin:2px 0}
+.sd .pkg .pmeter span{flex:1;height:6px;border-radius:3px;background:var(--line)}
+.sd .pkg .pmeter span.on{background:var(--green)}
+.sd .pkg .pmeter span.on.tight{background:var(--amber)}
+.sd .pkg .pcomps{display:flex;flex-wrap:wrap;gap:4px}
+.sd .pkg .pcomp{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;color:var(--navy);background:var(--oat);border:1px solid var(--line);border-radius:999px;padding:1px 8px 1px 6px}
+.sd .pkg .pcomp i{width:7px;height:7px;border-radius:50%;background:var(--navy3)}
+.sd .pkg .pcomp.pipe i{background:#2f6f89}.sd .pkg .pcomp.lake i{background:#7a5bc7}.sd .pkg .pcomp.genie i{background:#00A870}
+.sd .pkg .pcomp.dash i{background:#e08a1e}.sd .pkg .pcomp.app i{background:#FF3621}
+.sd .pkg .pcomp.new{border-color:var(--green);background:var(--green-soft);color:var(--green-ink)}
+.sd .pkg .padd{display:flex;align-items:baseline;gap:6px}
+.sd .pkg .padd .plus{color:var(--green-ink);font-weight:600}
+.sd .pkg .padd .ps{margin-left:auto;font-size:10.5px;color:var(--navy3);border:1px solid var(--line);border-radius:6px;padding:0 5px}
 .sd .pkg .pf{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;margin-top:auto;padding-top:8px;border-top:1px solid var(--line)}
 .sd .fit{font-size:12px;font-weight:500;color:var(--navy2);background:var(--oat2);border-radius:20px;padding:0 8px;line-height:20px;white-space:nowrap}
 .sd .fit.ok{color:var(--gA-i);background:var(--gA-s)}

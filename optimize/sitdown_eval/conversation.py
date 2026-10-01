@@ -57,6 +57,12 @@ IDEAS = {
     "aa_crew": dict(
         idea="American Airlines: our crew schedulers scramble when flights get delayed. I want something that predicts which crews will time out and suggests swaps.",
         truth="Crew schedulers in the integrated operations center at DFW, during irregular operations, on two monitors. A bad IROP day has 40-60 crews at risk of timing out; today it takes 30-45 minutes per swap decision using lagged dashboards and phone calls. Goal: under 10 minutes per decision and 20% fewer crew-caused cancellations this summer. They approve or reject a suggested reserve swap. Worry: a suggestion that breaks FAA duty-time rules."),
+    "sa_pov": dict(
+        idea="I want something for Databricks Solution Architects to be able to develop rich point of view docs that are executive ready, tailored, authoritative, and aesthetic.",
+        truth="You're a Databricks SA. You write POV docs at pivotal account moments: a new exec arrives, or you hear a concern secondhand and can't get to that exec, or you want a first meeting. Account facts are in Salesforce; the rest is research. Today it takes 2 to 3 days per doc. Goal: a few hours, and track whether docs land the exec meeting. The SA sends it to the exec or to their manager for review first. Worry: weak, generic docs going out under the Databricks name."),
+    "hotel_rfp": dict(
+        idea="Our hotel group sales team spends forever answering wedding and conference RFPs. I want something that helps them respond faster with better proposals.",
+        truth="You run group sales for 14 hotels. Each hotel gets 30 to 50 RFPs a month; reps take about 4 hours per proposal and answer only the first 60%. Goal: respond within 24 hours to 90% of RFPs this season. The rep decides which RFPs to pursue and sends the proposal. Rates and room blocks are in the property system. Worry: quoting dates or rates that aren't actually available."),
     "ai_roi": dict(
         idea="Leadership wants to know if the AI tools we pay for are actually being used and are worth it.",
         truth="You're in IT finance. ~1,200 seats across 3 tools. Renewal decision in 3 months. Goal: cut unused seats 30%. The CIO decides keep/cut per tool, quarterly. Usage logs exist; value is fuzzy. Worry: measuring value, not just logins."),

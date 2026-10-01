@@ -163,3 +163,31 @@ def test_refine_job_swaps_pieces_and_diagram(monkeypatch):
     assert bp["components_changed"]["added"] == [C.GENIE]
     assert any(n["id"] == "genie" for n in bp["spec"]["nodes"])
     assert "pieces" in calls[0][-1]["content"]
+
+
+def test_packages_are_three_different_builds_and_duplicates_drop():
+    f = [{"name": "draft", "block": "rules_logic", "rank": 1, "essential": True},
+         {"name": "accts", "block": "generated_data", "rank": 2}, {"name": "wins", "block": "generated_data", "rank": 3},
+         {"name": "pos", "block": "generated_data", "rank": 4}, {"name": "join", "block": "pipeline_step", "rank": 5},
+         {"name": "screen", "block": "app_screen", "rank": 6}, {"name": "log", "block": "decision_log", "rank": 7},
+         {"name": "ahead", "block": "rules_logic", "rank": 8, "levelup": True},
+         {"name": "ask", "block": "genie_space", "rank": 9, "levelup": True}]
+    P = sd.build_packages(f)["packages"]
+    sets = [frozenset(p["today"] + p["stretch"]) for p in P]
+    assert len(P) == 3 and len(set(sets)) == 3
+    assert P[1]["adds"] and P[2]["adds"] and not set(P[1]["adds"]) & set(P[2]["adds"])
+    assert C.GENIE in P[1]["components"] or C.GENIE in P[2]["components"]
+    assert P[0]["fit"] != "Won't fit today"                     # three small tables are one step, not three
+    # a scope with nothing beyond the core shows fewer, real choices instead of copies
+    small = [{"name": "accts", "block": "generated_data", "rank": 1}, {"name": "screen", "block": "app_screen", "rank": 2}]
+    out = sd.build_packages(small)
+    assert len(out["packages"]) == 1 and out["recommended"] == "lean"
+
+
+def test_offer_label_matches_the_line():
+    for line, want in [("What if the draft cited which win story it used?", "offers"),
+                       ("What guest data goes into this, and who can see it?", "curious")]:
+        st = sa.new_session("idea")
+        ui, _ = sa.apply_tools(st, [{"name": "stakeholder", "args": {"persona": "data_lead", "tone": "offers", "line": line,
+                                                                     "option_1": "a", "option_2": "b", "option_3": "c"}}], {})
+        assert next(u for u in ui if u["type"] == "stakeholder")["tone"] == want
