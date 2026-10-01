@@ -1,6 +1,7 @@
 import type { Phase, StudioState } from "../lib/store";
 import { CONCEPTS, learnComponents } from "../lib/learn";
 import { SHARP } from "./sitdown/engine";
+import { BrandLockup } from "./BrandLockup";
 
 /* The journey rail, always visible (including during the Sit-Down). Four groups:
    1 Sit-Down (follows the session stage), 2 Learn (one step per component + Quick check),
@@ -128,11 +129,16 @@ export function LeftRail({ state, go, onProctor }: { state: StudioState; go: (t:
           </div>
         );
       })}
-      {onProctor && (
-        <button onClick={onProctor} className="mt-auto rounded-lg border border-line px-3 py-2 text-left text-[12.5px] font-medium text-navy-2 hover:border-navy-3 hover:text-navy">
-          Proctor console →
-        </button>
-      )}
+      <div className="mt-auto space-y-3">
+        {onProctor && (
+          <button onClick={onProctor} className="w-full rounded-lg border border-line px-3 py-2 text-left text-[12.5px] font-medium text-navy-2 hover:border-navy-3 hover:text-navy">
+            Proctor console →
+          </button>
+        )}
+        <div className="flex justify-center border-t border-line pt-3">
+          <BrandLockup size={22} />
+        </div>
+      </div>
     </aside>
   );
 }
