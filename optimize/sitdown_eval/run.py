@@ -249,8 +249,7 @@ def judge_prompt(sess, sc):
     truth = (f"Seeded tables that exist: {ds['schema']}: {ds['tables']}" if ds else "No seeded dataset matched; all data is generated.")
     return f"""PARTICIPANT'S ORIGINAL IDEA: "{sc['idea']}"
 GROUND TRUTH: {truth}. Anything else must be described as generated, not existing. The workshop is ONE day,
-happy path, no ML training, no live integrations. Participants are Costa Coffee (UK) staff, so the coach
-referring to Costa, stores and £ is correct context, not a hallucination. Expected alignment labels per turn step: {sc['expect']['alignment']}.
+happy path, no ML training, no live integrations. Expected alignment labels per turn step: {sc['expect']['alignment']}.
 
 TRANSCRIPT (step outputs are the coach's JSON):
 {chr(10).join(lines)}

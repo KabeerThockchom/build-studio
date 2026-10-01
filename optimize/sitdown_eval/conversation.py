@@ -25,14 +25,14 @@ JUDGE_MODEL = "databricks-claude-opus-5-5"
 ROOT = Path(__file__).parent
 DIMS = ["problem", "user_moment", "objective", "decision", "data", "scope", "risk"]
 
-# Ideas: Costa (seeded data) + the prior Build Studio quality/build cases (diverse domains).
+# Ideas: retail/finance (seeded data) + the prior Build Studio quality/build cases (diverse domains).
 IDEAS = {
-    "costa_waste": dict(
+    "store_waste": dict(
         idea="Our store managers throw away a lot of food at the end of the day. I want something that helps them order better and see where the waste is.",
         truth="Mostly sandwiches and pastries. Store managers order each morning ~6:45am on the back-office tablet, copying last week. No waste tracking today; you guess about 30 items binned per store per day. You'd love 20% less waste on the top 10 fresh lines within 8 weeks. They'd accept or tweak a suggested order. Worry: managers won't trust a suggestion and will order by habit."),
-    "costa_ap": dict(
+    "ap_invoices": dict(
         idea="AP clerks spend hours chasing invoices that don't match the PO. I want a tool that flags mismatches and duplicates before we pay.",
-        truth="Team of 6 AP clerks, each morning working an exceptions queue on laptops. Duplicates slip through maybe twice a month (one was £14k). Goal: zero duplicate payments and the queue cleared by noon. Clerk decides hold or release per invoice. Worry: false positives burying them."),
+        truth="Team of 6 AP clerks, each morning working an exceptions queue on laptops. Duplicates slip through maybe twice a month. Goal: zero duplicate payments and the queue cleared by noon. Clerk decides hold or release per invoice. Worry: false positives burying them."),
     "account_rep": dict(
         idea="Field reps manage 80 accounts and only notice one slipping once orders drop. Catch the early signs, explain why, tell them what to do.",
         truth="B2B beverage reps, Monday planning on their phone in the car. Early signs: order frequency dropping, fewer SKUs. Goal: cut lost accounts 25% this year. Rep picks which 3 accounts to visit this week. They have order history; call notes live in a CRM text field. Worry: reps ignore alerts if too many."),
@@ -81,9 +81,9 @@ PERSONAS = {
 
 # Diverse pairing: every persona twice, every idea at least once.
 MATRIX = [
-    ("costa_waste", "engaged"), ("costa_ap", "clicker"), ("account_rep", "rambler"), ("store_labor", "drifter"),
+    ("store_waste", "engaged"), ("ap_invoices", "clicker"), ("account_rep", "rambler"), ("store_labor", "drifter"),
     ("fraud_review", "technical"), ("clinical_ka", "contrarian"), ("plant_genie", "impatient"), ("thin_sales", "vague"),
-    ("exec_loyalty", "engaged"), ("ai_roi", "drifter"), ("costa_waste", "contrarian"), ("costa_ap", "technical"),
+    ("exec_loyalty", "engaged"), ("ai_roi", "drifter"), ("store_waste", "contrarian"), ("ap_invoices", "technical"),
     ("account_rep", "clicker"), ("aa_crew", "engaged"), ("thin_sales", "impatient"), ("aa_crew", "clicker"),
 ]
 
@@ -228,9 +228,8 @@ def metrics(s):
 JUDGE_SYS = """You are an exacting reviewer of an AI coaching conversation. An AI "Solutions Architect" (SA), sometimes
 bringing in colleague characters, interviews a workshop participant to sharpen a build idea into a clear one-day
 plan. You are shown the full transcript, the participant's HIDDEN FACTS (what they would say if asked well), their
-persona, and the final brief. The workshop host is Costa Coffee (UK); for ideas from another company or
-industry the SA should use THAT context (their currency, terms, roles). Colleague characters are part of
-the design. Score strictly; 3 = acceptable, 5 = what an excellent human SA would do."""
+persona, and the final brief. For the specific workshop, use its target industry context (their currency, terms, roles).
+Colleague characters are part of the design. Score strictly; 3 = acceptable, 5 = what an excellent human SA would do."""
 
 
 def judge(s):

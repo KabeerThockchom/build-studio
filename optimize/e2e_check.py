@@ -1,7 +1,7 @@
 """One-off e2e sanity check of the generation pipeline with the real model.
 
 Runs the full journey (plan -> blueprint -> build plan -> PROJECT.md) for an
-agentic Costa sample and asserts the recent changes actually landed:
+agentic finance sample and asserts the recent changes actually landed:
   - no data_mode question is asked (data is always synthetic now)
   - interaction_model is still asked
   - the Supervisor agent build step carries the MLflow tracing guidance
