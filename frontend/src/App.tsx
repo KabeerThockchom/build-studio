@@ -106,6 +106,12 @@ export default function App() {
         const r = await api.planStatus(job.id);
         if (!alive) return;
         if (r.status === "done" && r.blueprint) dispatch({ t: "planDone", bp: r.blueprint });
+        else if (r.status === "error" && /unknown job|restarted/i.test(r.error || "") && restartedFor.current !== job.id) {
+          // The server lost the job (it restarted): quietly start a fresh one, once per job.
+          restartedFor.current = job.id;
+          const s = stateRef.current;
+          startPlan({ idea: s.idea, answers: s.answers, capabilities: s.capabilities, projectName: s.projectName });
+        }
         else if (r.status === "error") dispatch({ t: "planErr", e: r.error || "The plan job failed" });
         else if (r.stage && r.stage !== stateRef.current.planJob?.stage) dispatch({ t: "planJob", job: { ...job, stage: r.stage } });
       } catch {
