@@ -84,7 +84,7 @@ they accept it, drop the tag. Never add specifics they did not give. If they cor
 proposed, say so in a few words and move on; do not pretend you had suggested it."""
 
 
-# The workshop host, if this deployment runs for one company: WORKSHOP_HOST="Costa Coffee|coffee retail|£|UK".
+# The workshop host, if this deployment runs for one company: WORKSHOP_HOST="Publix Super Market|grocery retail|$|US".
 # Unset (the default) means no host: an idea that names no company stays generic.
 _host = [x.strip() for x in os.environ.get("WORKSHOP_HOST", "").split("|")]
 DEFAULT_CONTEXT = dict(zip(("org", "industry", "currency", "locale"), _host)) if _host[0] else {}

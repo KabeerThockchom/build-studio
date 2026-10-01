@@ -25,6 +25,6 @@ env:
   # Off means every build generates its own sample data.
   - name: SEEDED_DATA
     value: "off"
-  # Workshop host for ideas that name no company, e.g. "Costa Coffee|coffee retail|£|UK". Empty = generic.
+  # Workshop host for ideas that name no company, e.g. "Publix Super Market|grocery retail|$|US". Empty = generic.
   - name: WORKSHOP_HOST
-    value: ""
+    value: "Publix Super Market|grocery retail|$|US"

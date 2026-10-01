@@ -66,7 +66,7 @@ def _build_practices(steps: list[BuildStep], data_mode: str) -> list[str]:
     if any(c == "data" for c in caps) or not caps:
         d = f"{GUARDRAILS['data']} {DATA_GUARDRAIL.get(data_mode, DATA_GUARDRAIL['synthetic'])}"
         out.append(f"**Data** — {d}")
-    for cap in ["Declarative Pipelines", "Lakebase", "Genie", "Databricks Apps"]:
+    for cap in ["Zerobus", "SDP medallion", "Genie", "Lakebase", "Databricks Apps"]:
         if cap in caps and cap in GUARDRAILS:
             out.append(f"**{cap}** — {GUARDRAILS[cap].strip()}")
     return out

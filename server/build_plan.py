@@ -67,7 +67,7 @@ DATA_GUARDRAIL = {
 }
 
 # The facilitator (Akil) pre-seeded a governed, benchmark-ready dataset in the
-# `workshop` catalog, aligned 1:1 to the Costa survey themes, granted read to the
+# `workshop` catalog, aligned 1:1 to the Publix survey themes, granted read to the
 # participant group. Most use cases map to one of these, so the harness points the
 # build at the matching schema (real, realistic, already benchmarked) instead of
 # having each person regenerate weaker data — and threads the matching evaluation.*
