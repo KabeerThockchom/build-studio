@@ -1,98 +1,58 @@
 import { useReducer } from "react";
-import type { Blueprint, DesignPlan, DesignQuestion, CapabilityPick, BuildPlan, IdeaCheck } from "./types";
+import type { Blueprint, BuildPlan, PlanJob, SitDownPlan, StudioHandoff } from "./types";
 
-// Phases. "teach" is the interactive scrollytelling loader that plays while the
-// SA authors ALL design questions in the background — every design question is
-// tailored, so there's no instant hard-coded Q1 anymore. Design is variable-length,
-// so we track a design index rather than a fixed screen number.
-export type Phase = "overview" | "shape" | "teach" | "design" | "learn" | "blueprint" | "build";
+// The journey: overview -> sitdown -> learn -> plan -> build.
+//   sitdown: the conversational SA sharpens the idea (its own session, see components/sitdown)
+//   learn:   the architecture of THIS build, one module per component, then a quick check
+//   plan:    the architecture + PRD, drafted in the background by a plan job while they learn
+//   build:   one step at a time, in Genie Code (and Genie App Builder for the app)
+export type Phase = "overview" | "sitdown" | "learn" | "plan" | "build";
+export const PHASES: Phase[] = ["overview", "sitdown", "learn", "plan", "build"];
+
+// Where the Sit-Down is, reported by the Sit-Down itself so the rail stays accurate.
+export interface SitDownProgress { stage: string; covered: number; started: boolean; done: boolean; }
 
 export interface StudioState {
   phase: Phase;
-  designIdx: number;                       // which design question we're on
   idea: string;
-  projectName: string;                     // user's name for the project → workspace folder name
-  industry: string;                        // implied from a gallery sample; silent
-  sampleStarter: string;                   // exact starter text of the picked sample (for edit detection)
-  expertise: string;
-  interests: string[];
-  ideaChecking: boolean;                   // stress-test running (during early teaching beats)
-  ideaCheck: IdeaCheck | null;             // advisory read of the idea; null until checked
-  planRequested: boolean;                  // design-question generation kicked off (after criteria)
-  plan: DesignPlan | null;                 // SA-authored questions + cap preselection
-  planning: boolean;
-  planError: string | null;
-  answers: Record<string, string>;         // question id -> option key ("other" allowed)
-  answersOther: Record<string, string>;
-  capabilities: string[];                  // selected capability names
-  capsPinned: boolean;                     // a picked sample set the components; SA plan won't overwrite
+  projectName: string;
+  answers: Record<string, string>;     // the Sit-Down's brief, scope lanes, data plan, risks (to_studio)
+  capabilities: string[];              // the components this build uses, in order
+  plan: SitDownPlan | null;            // per-component "fits" for THIS build
+  sitdown: unknown | null;             // the saved Sit-Down session (turns, brief, server session)
+  sdProgress: SitDownProgress;
+  learnIdx: number;                    // current Learn beat
+  learnMax: number;                    // furthest Learn beat seen (rail reachability)
+  planJob: PlanJob | null;
   blueprint: Blueprint | null;
-  generating: boolean;
-  error: string | null;
+  planError: string | null;
   buildPlan: BuildPlan | null;
   buildLoading: boolean;
+  buildEntered: boolean;               // left the build overview for step 1
   buildStepIdx: number;
-  buildDone: number[];               // completed step numbers
-  publishedDir: string | null;       // workspace folder the project doc was written to
-  publishedHost: string | null;      // workspace host
-  publishedDeepLink: string | null;  // clickable URL straight to PROJECT.md in the workspace
-}
-
-// The full ordered question list — every question is SA-authored (tailored to the idea).
-export function mergedQuestions(s: StudioState): DesignQuestion[] {
-  return s.plan?.questions ?? [];
-}
-// The architecture is prescribed (Akil, 2026-09-09): every app uses the SAME pieces.
-// Assemble is "meet your stack," not a selector — nothing toggles off.
-// Knowledge Assistant was moved OUT of the locked set (2026-09-09): three eval passes
-// couldn't cleanly verify its answer path in a workshop-realistic flow (opaque endpoints,
-// async indexing, no build-time check), so it's too fragile to be mandatory. It stays a
-// defined capability (concept + guardrails) so it can be re-enabled as an optional add-on.
-export const LOCKED_CAPABILITIES = ["Genie", "Supervisor agent", "Lakebase", "Databricks Apps"];
-const DEFAULT_PICKS: CapabilityPick[] = [
-  { name: "Genie", selected: true, fits: "ask your data in plain English" },
-  { name: "Supervisor agent", selected: true, fits: "tie the pieces together" },
-  { name: "Lakebase", selected: true, fits: "record decisions" },
-  { name: "Databricks Apps", selected: true, fits: "the front door" },
-];
-// Always the full locked set; fold in the SA's per-idea "fits" rationale when it's loaded.
-// Only adopt the SA's fits for a piece it actually SELECTED: the architecture is locked (all
-// four are always built), so a piece the SA left unselected carries a "not needed / you'd add
-// it later" rationale — wrong to paint on the architecture node as that piece's role. Fall back
-// to the generic positive role there. (Belt-and-suspenders with the SA prompt, which now tells
-// it to always select the four and write positive fits.)
-export function shownPicks(s: StudioState): CapabilityPick[] {
-  const saFits = new Map(
-    (s.plan?.capabilities ?? [])
-      .filter((c) => c.selected && (c.fits || "").trim())
-      .map((c) => [c.name, c.fits] as const));
-  return DEFAULT_PICKS.map((p) => ({ ...p, selected: true, fits: saFits.get(p.name) || p.fits }));
+  buildDone: number[];                 // completed step numbers
+  publishedDir: string | null;
+  publishedHost: string | null;
+  publishedDeepLink: string | null;
 }
 
 export const initialState: StudioState = {
   phase: "overview",
-  designIdx: 0,
   idea: "",
   projectName: "",
-  industry: "",
-  sampleStarter: "",
-  expertise: "New to it",
-  interests: [],   // no default — a pre-checked interest fabricated capability picks the user never chose
-  ideaChecking: false,
-  ideaCheck: null,
-  planRequested: false,
-  plan: null,
-  planning: false,
-  planError: null,
   answers: {},
-  answersOther: {},
-  capabilities: [...LOCKED_CAPABILITIES],   // fully prescribed; never toggled
-  capsPinned: false,
+  capabilities: [],
+  plan: null,
+  sitdown: null,
+  sdProgress: { stage: "", covered: 0, started: false, done: false },
+  learnIdx: 0,
+  learnMax: 0,
+  planJob: null,
   blueprint: null,
-  generating: false,
-  error: null,
+  planError: null,
   buildPlan: null,
   buildLoading: false,
+  buildEntered: false,
   buildStepIdx: 0,
   buildDone: [],
   publishedDir: null,
@@ -100,42 +60,31 @@ export const initialState: StudioState = {
   publishedDeepLink: null,
 };
 
-type Action =
+export type Action =
   | { t: "phase"; phase: Phase }
-  | { t: "designIdx"; i: number }
-  | { t: "idea"; v: string }
-  | { t: "projectName"; v: string }
-  | { t: "pickSample"; idea: string; name: string; industry: string; components: string[]; interests: string[] }
-  | { t: "expertise"; v: string }
-  | { t: "toggleInterest"; v: string }
-  | { t: "checkStart" }
-  | { t: "checkOk"; check: IdeaCheck }
-  | { t: "checkErr" }
-  | { t: "planStart" }
-  | { t: "planOk"; plan: DesignPlan }
+  | { t: "sitdownSave"; blob: unknown; progress: SitDownProgress }
+  | { t: "handoff"; studio: StudioHandoff }
+  | { t: "sitdownReset" }
+  | { t: "learnIdx"; i: number }
+  | { t: "planJob"; job: PlanJob | null }
+  | { t: "planDone"; bp: Blueprint }
   | { t: "planErr"; e: string }
-  | { t: "answer"; q: string; key: string }
-  | { t: "answerOther"; q: string; v: string }
-  | { t: "toggleCap"; v: string }
-  | { t: "genStart" }
-  | { t: "genOk"; bp: Blueprint }
-  | { t: "genErr"; e: string }
   | { t: "buildStart" }
   | { t: "buildOk"; plan: BuildPlan }
   | { t: "buildErr" }
+  | { t: "buildEnter"; v: boolean }
   | { t: "buildStep"; i: number }
   | { t: "buildComplete"; n: number }
   | { t: "publishOk"; dir: string; host: string; deepLink: string }
   | { t: "hydrate"; s: Partial<StudioState> };
 
-// The slice of state worth persisting (not transient flags like generating).
+// The slice worth persisting server-side (not transient flags).
 export function persistable(s: StudioState) {
   return {
-    phase: s.phase, designIdx: s.designIdx, idea: s.idea, projectName: s.projectName, industry: s.industry,
-    sampleStarter: s.sampleStarter, expertise: s.expertise,
-    interests: s.interests, plan: s.plan, answers: s.answers, answersOther: s.answersOther,
-    capabilities: s.capabilities, capsPinned: s.capsPinned, blueprint: s.blueprint,
-    buildPlan: s.buildPlan, buildStepIdx: s.buildStepIdx, buildDone: s.buildDone,
+    phase: s.phase, idea: s.idea, projectName: s.projectName, answers: s.answers,
+    capabilities: s.capabilities, plan: s.plan, sitdown: s.sitdown, sdProgress: s.sdProgress,
+    learnIdx: s.learnIdx, learnMax: s.learnMax, planJob: s.planJob, blueprint: s.blueprint,
+    buildPlan: s.buildPlan, buildEntered: s.buildEntered, buildStepIdx: s.buildStepIdx, buildDone: s.buildDone,
     publishedDir: s.publishedDir, publishedHost: s.publishedHost, publishedDeepLink: s.publishedDeepLink,
   };
 }
@@ -143,60 +92,47 @@ export function persistable(s: StudioState) {
 export function reducer(s: StudioState, a: Action): StudioState {
   switch (a.t) {
     case "phase": return { ...s, phase: a.phase };
-    case "designIdx": return { ...s, designIdx: a.i };
-    // Typing in the idea box. If they picked a sample and have now edited its starter
-    // text, the accelerator drops away: it becomes a custom idea, so we unpin the
-    // components (SA picks them) and clear the industry hint. No edit -> defaults hold.
-    case "idea": {
-      const edited = s.sampleStarter !== "" && a.v.trim() !== s.sampleStarter.trim();
-      if (edited) return { ...s, idea: a.v, industry: "", sampleStarter: "", capsPinned: false };
-      return { ...s, idea: a.v };
-    }
-    // Picking a gallery sample seeds the (editable) idea, silently records the vertical,
-    // pre-selects the sample's default app components (pinned so the SA plan won't
-    // overwrite them), and lights up the matching interest chips. All still tweakable;
-    // editing the idea text afterward turns it back into a plain custom prompt (see "idea").
-    case "pickSample":
-      // Architecture is locked, so a sample no longer sets components — it only seeds the
-      // idea, project name, vertical, and interest chips. capabilities stays the full set.
-      return { ...s, idea: a.idea, sampleStarter: a.idea, industry: a.industry,
-        projectName: s.projectName.trim() ? s.projectName : a.name,  // seed the name from the sample
-        interests: a.interests.length ? a.interests : s.interests };
-    case "projectName": return { ...s, projectName: a.v };
-    case "expertise": return { ...s, expertise: a.v };
-    case "toggleInterest":
-      return { ...s, interests: s.interests.includes(a.v)
-        ? s.interests.filter((x) => x !== a.v) : [...s.interests, a.v] };
-    case "checkStart": return { ...s, ideaChecking: true };
-    case "checkOk": return { ...s, ideaChecking: false, ideaCheck: a.check };
-    case "checkErr": return { ...s, ideaChecking: false };
-    case "planStart": return { ...s, planning: true, planError: null, planRequested: true };
-    case "planOk":
-      // Keep the SA's questions and its per-idea "fits" rationale, but NOT its capability
-      // selection — the architecture is locked, so capabilities never change here.
-      return { ...s, planning: false, plan: a.plan };
-    case "planErr": return { ...s, planning: false, planError: a.e };
-    case "answer": return { ...s, answers: { ...s.answers, [a.q]: a.key } };
-    case "answerOther":
-      return { ...s, answersOther: { ...s.answersOther, [a.q]: a.v }, answers: { ...s.answers, [a.q]: "other" } };
-    case "toggleCap":
-      return { ...s, capabilities: s.capabilities.includes(a.v)
-        ? s.capabilities.filter((x) => x !== a.v) : [...s.capabilities, a.v] };
-    case "genStart": return { ...s, generating: true, error: null };
-    // Capabilities are locked, so we do NOT adopt bp.capabilities — the full prescribed
-    // set always stands. A refined blueprint still invalidates the build plan + the
-    // persisted workspace guide: clear both so they regenerate + re-publish from the new plan.
-    case "genOk": return { ...s, generating: false, blueprint: a.bp,
-      buildPlan: null, buildStepIdx: 0, buildDone: [], publishedDir: null, publishedHost: null, publishedDeepLink: null };
-    case "genErr": return { ...s, generating: false, error: a.e };
+    case "sitdownSave": return { ...s, sitdown: a.blob, sdProgress: a.progress };
+    // The Sit-Down's "Let's build it": adopt its idea, brief and components, land on Learn.
+    // A new handoff invalidates any plan or build made from an earlier version.
+    case "handoff":
+      return {
+        ...s,
+        phase: "learn",
+        idea: a.studio.idea || s.idea,
+        projectName: a.studio.projectName || s.projectName,
+        answers: a.studio.answers || {},
+        capabilities: Array.isArray(a.studio.capabilities) ? a.studio.capabilities : [],
+        plan: a.studio.plan || null,
+        sdProgress: { ...s.sdProgress, done: true },
+        learnIdx: 0, learnMax: 0,
+        planJob: null, blueprint: null, planError: null,
+        buildPlan: null, buildEntered: false, buildStepIdx: 0, buildDone: [],
+        publishedDir: null, publishedHost: null, publishedDeepLink: null,
+      };
+    case "sitdownReset":
+      return { ...initialState, phase: "sitdown" };
+    case "learnIdx": return { ...s, learnIdx: a.i, learnMax: Math.max(s.learnMax, a.i) };
+    case "planJob": return { ...s, planJob: a.job, planError: null };
+    // A finished (or refined) plan invalidates the build plan made from the previous one.
+    case "planDone":
+      return { ...s, blueprint: a.bp, planJob: s.planJob ? { ...s.planJob, status: "done", stage: "done" } : null,
+        planError: null, buildPlan: null, buildEntered: false, buildStepIdx: 0, buildDone: [],
+        publishedDir: null, publishedHost: null, publishedDeepLink: null };
+    case "planErr":
+      return { ...s, planError: a.e, planJob: s.planJob ? { ...s.planJob, status: "error", error: a.e } : null };
     case "buildStart": return { ...s, buildLoading: true };
     case "buildOk": return { ...s, buildLoading: false, buildPlan: a.plan, buildStepIdx: 0 };
     case "buildErr": return { ...s, buildLoading: false };
-    case "buildStep": return { ...s, buildStepIdx: a.i };
+    case "buildEnter": return { ...s, buildEntered: a.v };
+    case "buildStep": return { ...s, buildStepIdx: a.i, buildEntered: true };
     case "buildComplete":
       return { ...s, buildDone: s.buildDone.includes(a.n) ? s.buildDone : [...s.buildDone, a.n] };
     case "publishOk": return { ...s, publishedDir: a.dir, publishedHost: a.host, publishedDeepLink: a.deepLink };
-    case "hydrate": return { ...s, ...a.s, capabilities: [...LOCKED_CAPABILITIES], generating: false, planning: false, ideaChecking: false, buildLoading: false, error: null, planError: null };
+    case "hydrate": {
+      const phase = PHASES.includes(a.s.phase as Phase) ? (a.s.phase as Phase) : s.phase;
+      return { ...s, ...a.s, phase, buildLoading: false };
+    }
     default: return s;
   }
 }

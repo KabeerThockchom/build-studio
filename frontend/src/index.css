@@ -48,3 +48,23 @@ body { font-family: "DM Sans", system-ui, sans-serif; -webkit-font-smoothing: an
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: #d8d3ca; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+
+/* The PRD on the plan screen: typeset to read like a document, not a markdown dump. */
+.prd { font-size: 15px; line-height: 1.65; color: #1B3139; }
+.prd > :first-child { margin-top: 0; }
+.prd h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 12px; }
+.prd h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; margin: 28px 0 8px; padding-top: 18px; border-top: 1px solid #e6e3dd; }
+.prd h2:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.prd h3 { font-size: 15px; font-weight: 700; margin: 18px 0 6px; color: #2E5A6B; }
+.prd p { margin: 0 0 10px; max-width: 72ch; }
+.prd ul, .prd ol { margin: 4px 0 12px; padding-left: 1.3em; max-width: 72ch; }
+.prd ul { list-style: disc; } .prd ol { list-style: decimal; }
+.prd li { margin: 4px 0; }
+.prd li::marker { color: #5A8A9A; }
+.prd strong { font-weight: 700; }
+.prd em { color: #2E5A6B; }
+.prd code { font-family: "DM Mono", monospace; font-size: 13px; background: #F5F3EF; border-radius: 5px; padding: 1px 5px; }
+.prd blockquote { margin: 12px 0; padding: 8px 14px; border-left: 3px solid #00A870; background: #f6fbf8; color: #2E5A6B; border-radius: 0 8px 8px 0; }
+.prd table { border-collapse: collapse; margin: 10px 0 14px; font-size: 14px; }
+.prd th, .prd td { border: 1px solid #e6e3dd; padding: 6px 10px; text-align: left; }
+.prd th { background: #F5F3EF; font-weight: 700; }

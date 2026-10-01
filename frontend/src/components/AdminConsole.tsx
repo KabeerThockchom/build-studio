@@ -70,7 +70,7 @@ function LiveBoard() {
                   <b className="text-[13.5px] font-semibold text-navy truncate">{p.app_user}</b>
                   <span className="rounded bg-oat px-1.5 py-0.5 text-[11px] font-semibold text-navy-2">{p.phase_label}{p.detail ? ` · ${p.detail}` : ""}</span>
                 </div>
-                <div className="mt-0.5 text-[12px] text-navy-3 truncate">{p.idea || "—"}</div>
+                <div className="mt-0.5 text-[12px] text-navy-3 truncate">{p.idea || "No idea yet"}</div>
               </div>
               <span className={`shrink-0 text-[12px] font-semibold ${p.stuck ? "text-amber" : "text-navy-3"}`}>
                 {p.idle_min != null ? `${p.idle_min}m idle` : ""}
@@ -105,7 +105,7 @@ function ParticipantPanel({ sid, appUser, onClose }: { sid: string; appUser: str
         <>
           <div className="text-[13px] text-navy-2"><b className="text-navy">{appUser}</b></div>
           <div className="mt-1 text-[12.5px] text-navy-3">{detail.progress?.phase_label}{detail.progress?.detail ? ` · ${detail.progress.detail}` : ""}</div>
-          <div className="mt-2 rounded-lg bg-oat px-3 py-2 text-[12.5px] leading-snug text-navy-2">{detail.state?.idea || "—"}</div>
+          <div className="mt-2 rounded-lg bg-oat px-3 py-2 text-[12.5px] leading-snug text-navy-2">{detail.state?.idea || "No idea yet"}</div>
           {detail.capabilities?.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {detail.capabilities.map((c: string) => <span key={c} className="rounded bg-green-soft px-1.5 py-0.5 text-[10.5px] font-semibold text-green-ink">{c}</span>)}
@@ -161,16 +161,16 @@ function ConfigEditor() {
 
   return (
     <div className="max-w-[720px]">
-      <p className="mb-6 text-[14px] leading-relaxed text-navy-2">These settings shape what every participant builds — the harness reads them at the start of each session.</p>
+      <p className="mb-6 text-[14px] leading-relaxed text-navy-2">These settings shape what every participant builds. The harness reads them at the start of each session.</p>
 
       <Field label="Workshop name">
         <input value={cfg.workshop_name} onChange={(e) => up({ workshop_name: e.target.value })}
-          className="w-full rounded-lg border border-line px-3 py-2 text-[14px] text-navy outline-none focus:border-green" placeholder="e.g. Costa · Sept" />
+          className="w-full rounded-lg border border-line px-3 py-2 text-[14px] text-navy outline-none focus:border-green" placeholder="e.g. Spring workshop · Day 1" />
       </Field>
 
       <Field label="Company (branding + context)">
         <input value={cfg.company} onChange={(e) => up({ company: e.target.value })}
-          className="w-full rounded-lg border border-line px-3 py-2 text-[14px] text-navy outline-none focus:border-green" placeholder="e.g. Costa Coffee" />
+          className="w-full rounded-lg border border-line px-3 py-2 text-[14px] text-navy outline-none focus:border-green" placeholder="e.g. your company name" />
       </Field>
       <Field label="Industry context">
         <input value={cfg.industry} onChange={(e) => up({ industry: e.target.value })}

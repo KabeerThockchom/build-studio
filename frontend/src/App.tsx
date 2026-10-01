@@ -1,21 +1,22 @@
-import { useEffect, useRef, useState } from "react";
-import { useStudio, mergedQuestions, shownPicks, persistable, type Phase } from "./lib/store";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useStudio, persistable, type Phase, type SitDownProgress } from "./lib/store";
 import { api } from "./lib/api";
-import { LeftRail } from "./components/LeftRail";
+import { specFor } from "./lib/diagram";
+import type { Blueprint, StudioHandoff } from "./lib/types";
+import { LeftRail, type RailTarget } from "./components/LeftRail";
 import { OverviewScreen } from "./components/OverviewScreen";
-import { ShapeScreen } from "./components/ShapeScreen";
-import { TeachingLoader } from "./components/TeachingLoader";
-import { DesignScreen } from "./components/DesignScreen";
+import { SitDown, SD_KEY, type SitDownBlob } from "./components/sitdown/SitDown";
 import { CapabilityLearning } from "./components/CapabilityLearning";
-import { BlueprintScreen } from "./components/BlueprintScreen";
+import { PlanScreen } from "./components/PlanScreen";
 import { BuildScreen } from "./components/BuildScreen";
 import { AdminConsole } from "./components/AdminConsole";
 
-const PHASE_LABEL: Record<string, string> = {
-  overview: "start", shape: "idea", teach: "learning", design: "design",
-  assemble: "assemble", learn: "learning", blueprint: "blueprint", build: "build",
-};
-const phaseLabel = (p: string) => PHASE_LABEL[p] || p;
+const PHASE_LABEL: Record<string, string> = { overview: "start", sitdown: "Sit-Down", learn: "Learn", plan: "plan", build: "build" };
+const POLL_MS = 2000;
+
+function localSitdown(): SitDownBlob | null {
+  try { const raw = localStorage.getItem(SD_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
 
 export default function App() {
   const { state, dispatch } = useStudio();
@@ -23,10 +24,11 @@ export default function App() {
   const restored = useRef(false);
   const [admin, setAdmin] = useState<{ email: string; is_admin: boolean } | null>(null);
   const [inConsole, setInConsole] = useState(false);
-  // "Welcome back" offer when they land on the base URL (no ?s=) but have a session in progress.
   const [resume, setResume] = useState<{ session_id: string; phase: string; idea: string; project_name: string } | null>(null);
+  const [focusStage, setFocusStage] = useState<{ stage: string; nonce: number } | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
-  // Am I a proctor? (CAN_MANAGE). Deep-link ?admin=1 opens the console directly.
   useEffect(() => {
     api.adminMe().then((r) => {
       setAdmin(r);
@@ -34,25 +36,9 @@ export default function App() {
     }).catch(() => {});
   }, []);
 
-  // Restore on first mount. Priority: (1) an explicit ?s=<id> in the URL (refresh / shared
-  // link) rehydrates that exact session; (2) no ?s — ask the server for this user's latest
-  // in-progress session and OFFER to resume it (so returning to the base URL isn't a dead
-  // end); (3) if there's nothing to resume, fall back to any shape typing cached in this
-  // browser, so a refresh while writing the idea (before the first server save) isn't lost.
-  // Sit-Down handoff: the new Shape stage (/sitdown2) finishes by writing its result here and
-  // navigating to "/". Adopt it, land on Learn, and start the blueprint behind the learning.
-  const kickBlueprint = useRef(false);
+  // Restore: an explicit ?s=<id> rehydrates that session (incl. a saved Sit-Down);
+  // otherwise offer to resume this user's latest in-progress session.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("bs_handoff");
-      if (raw) {
-        localStorage.removeItem("bs_handoff");
-        dispatch({ t: "hydrate", s: JSON.parse(raw) });
-        kickBlueprint.current = true;
-        restored.current = true;
-        return;
-      }
-    } catch { /* fall through to normal restore */ }
     const id = new URLSearchParams(location.search).get("s");
     if (id) {
       sessionId.current = id;
@@ -63,234 +49,151 @@ export default function App() {
       return;
     }
     api.latestSession()
-      .then((r) => {
-        if (r.found && r.session_id) {
-          setResume({ session_id: r.session_id, phase: r.phase || "", idea: r.idea || "", project_name: r.project_name || "" });
-        } else {
-          restoreShapeCache();   // nothing on the server for this user — recover local typing
-        }
-      })
-      .catch(() => { restoreShapeCache(); })
+      .then((r) => { if (r.found && r.session_id) setResume({ session_id: r.session_id, phase: r.phase || "", idea: r.idea || "", project_name: r.project_name || "" }); })
+      .catch(() => {})
       .finally(() => { restored.current = true; });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function restoreShapeCache() {
-    try {
-      const cached = localStorage.getItem("bs_shape");
-      if (cached) dispatch({ t: "hydrate", s: JSON.parse(cached) });
-    } catch { /* private mode / blocked storage — fine, just start empty */ }
-  }
-
-  // Resume the offered session: adopt its id, put it back in the URL, rehydrate its state.
   function doResume() {
     if (!resume) return;
     sessionId.current = resume.session_id;
     const url = new URL(location.href);
     url.searchParams.set("s", resume.session_id);
     history.replaceState(null, "", url.toString());
-    api.loadSession(resume.session_id)
-      .then((r) => { if (r?.state) dispatch({ t: "hydrate", s: r.state }); })
-      .catch(() => {});
+    api.loadSession(resume.session_id).then((r) => { if (r?.state) dispatch({ t: "hydrate", s: r.state }); }).catch(() => {});
     setResume(null);
   }
 
-  // Cache the shape inputs in this browser as a pre-first-save safety net (the server
-  // doesn't save until they leave shape). Cheap, per-browser, best-effort. Gated on
-  // `restored` so the empty initial state on mount can't wipe the cache before we read it.
+  // Save to the server whenever something worth keeping changes (debounced: the Sit-Down
+  // saves after every turn and that blob can be large).
+  const saveTimer = useRef<number | null>(null);
   useEffect(() => {
-    if (!restored.current) return;
-    try {
-      localStorage.setItem("bs_shape", JSON.stringify({
-        idea: state.idea, projectName: state.projectName,
-        expertise: state.expertise, interests: state.interests }));
-    } catch { /* ignore */ }
-  }, [state.idea, state.projectName, state.expertise, state.interests]);
+    if (!restored.current || state.phase === "overview") return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      api.saveSession(sessionId.current, persistable(stateRef.current))
+        .then((r) => {
+          if (r.session_id && r.session_id !== sessionId.current) {
+            sessionId.current = r.session_id;
+            const url = new URL(location.href);
+            url.searchParams.set("s", r.session_id);
+            history.replaceState(null, "", url.toString());
+          }
+        })
+        .catch(() => {});
+    }, 800);
+  }, [state.phase, state.sitdown, state.learnIdx, state.planJob?.id, state.planJob?.status, state.blueprint,
+      state.buildPlan, state.buildEntered, state.buildStepIdx, state.buildDone]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-save whenever the phase changes (and once restored, not during restore).
-  useEffect(() => {
-    if (!restored.current || state.phase === "overview" || state.phase === "shape") return;
-    api.saveSession(sessionId.current, persistable(state))
-      .then((r) => {
-        if (r.session_id && r.session_id !== sessionId.current) {
-          sessionId.current = r.session_id;
-          const url = new URL(location.href);
-          url.searchParams.set("s", r.session_id);
-          history.replaceState(null, "", url.toString());
-        }
-      })
-      .catch(() => {});
-    // Save on discrete choices too (a design answer, a capability toggle), not just phase
-    // changes — so a refresh right after a click doesn't lose it. These are clicks, not
-    // keystrokes, so the extra saves are cheap.
-  }, [state.phase, state.designIdx, state.blueprint, state.buildStepIdx, state.buildDone, state.answers, state.capabilities]); // eslint-disable-line
-
-  const go = (phase: Phase, i?: number) => {
-    dispatch({ t: "phase", phase });
-    if (phase === "design" && i != null) dispatch({ t: "designIdx", i });
-  };
-
-  // --- Shape -> teaching loader ---
-  // Two background jobs, staged to hide their latency behind the teaching:
-  //   1. On entering teach, the idea stress-test runs (covered by the first beats).
-  //   2. Design-question generation is deferred until the user passes the criteria
-  //      beat (covered by the quiz), so we don't build questions for an idea they're
-  //      about to rewrite. Akil's sequencing: learning covers the check, quiz covers the plan.
-  function startDesign() {
-    dispatch({ t: "phase", phase: "teach" });
-    // Kick off BOTH on entering the primer: the quick rubric check (~5s, shown at the
-    // criteria beat) AND design-question generation (the slow one, ~50s). Running the
-    // slow one from the start means the WHOLE primer hides it, not just the quiz — the
-    // measured 53s wait was the main friction. If the idea is edited at the criteria
-    // beat, regenPlan re-runs it for the new idea.
-    runIdeaCheck(state.idea);
-    requestPlan();
-  }
-  async function runIdeaCheck(idea: string) {
-    dispatch({ t: "checkStart" });
+  // --- the plan job: drafted in the background while they learn ---
+  const startPlan = useCallback(async (src: { idea: string; answers: Record<string, string>; capabilities: string[]; projectName: string },
+    adjust = "", previous: Blueprint | null = null) => {
     try {
-      const check = await api.checkIdea({ idea });
-      dispatch({ t: "checkOk", check });
-    } catch {
-      dispatch({ t: "checkErr" });  // advisory — a failure just means no nudges shown
-    }
-  }
-  function requestPlan() {
-    if (state.planRequested) return;   // fire design-question generation exactly once
-    loadPlan();
-  }
-  // Regenerate questions for an idea edited at the criteria beat — bypasses the
-  // once-only guard because the idea genuinely changed under us.
-  function regenPlan(idea: string) { loadPlan(idea); }
-  async function loadPlan(ideaOverride?: string) {
-    dispatch({ t: "planStart" });
-    try {
-      const { plan } = await api.planDesign({ idea: ideaOverride ?? state.idea, expertise: state.expertise, interests: state.interests, industry: state.industry });
-      dispatch({ t: "planOk", plan });
+      const { job_id } = await api.planStart({ idea: src.idea, answers: src.answers, capabilities: src.capabilities,
+        project_name: src.projectName, adjust, previous });
+      dispatch({ t: "planJob", job: { id: job_id, status: "running", stage: "drafting" } });
     } catch (e: any) {
-      dispatch({ t: "planErr", e: e.message || "Something went wrong" });
+      dispatch({ t: "planErr", e: e.message || "Could not start the plan" });
     }
-  }
-  // Leave the teaching loader for the (now-ready) tailored questions.
-  function enterDesign() {
-    dispatch({ t: "designIdx", i: 0 });
-    dispatch({ t: "phase", phase: "design" });
-  }
-
-  const questions = mergedQuestions(state);   // all SA-authored, tailored to the idea
-
-  // Design answers for downstream generation. Questions map option keys (and "other" text);
-  // answers with no matching question (the Sit-Down's brief/scope lines) pass through as-is.
-  function designAnswers(): Record<string, string> {
-    const out: Record<string, string> = { ...state.answers };
-    for (const q of questions) {
-      const key = state.answers[q.id];
-      out[q.id] = key === "other" ? (state.answersOther[q.id] || "other") : (key || "");
-    }
-    return out;
-  }
-
+  }, [dispatch]);
+  const restartedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (kickBlueprint.current && state.phase === "learn" && !state.blueprint && !state.generating) {
-      kickBlueprint.current = false;
-      generate();
-    }
-  }, [state.phase, state.blueprint, state.generating]); // eslint-disable-line
+    const job = state.planJob;
+    if (!job || job.status !== "running") return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const r = await api.planStatus(job.id);
+        if (!alive) return;
+        if (r.status === "done" && r.blueprint) dispatch({ t: "planDone", bp: r.blueprint });
+        else if (r.status === "error") dispatch({ t: "planErr", e: r.error || "The plan job failed" });
+        else if (r.stage && r.stage !== stateRef.current.planJob?.stage) dispatch({ t: "planJob", job: { ...job, stage: r.stage } });
+      } catch {
+        // The server lost the job (restart, resumed session): start a fresh one, once.
+        if (!alive || restartedFor.current === job.id) return;
+        restartedFor.current = job.id;
+        const s = stateRef.current;
+        startPlan({ idea: s.idea, answers: s.answers, capabilities: s.capabilities, projectName: s.projectName });
+      }
+    };
+    tick();
+    const iv = window.setInterval(tick, POLL_MS);
+    return () => { alive = false; clearInterval(iv); };
+  }, [state.planJob?.id, state.planJob?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function nextDesign() {
-    if (state.designIdx < questions.length - 1) dispatch({ t: "designIdx", i: state.designIdx + 1 });
-    else {
-      // Kick off blueprint generation as they leave the questions, so it runs in the
-      // background through Meet the Pieces and is ready by the time they finish the learning.
-      if (!state.blueprint && !state.generating) generate();
-      dispatch({ t: "phase", phase: "learn" });
-    }
-  }
-  function backDesign() {
-    if (state.designIdx > 0) dispatch({ t: "designIdx", i: state.designIdx - 1 });
-    else dispatch({ t: "phase", phase: "teach" });
-  }
+  // --- the Sit-Down hands off: adopt it, land on Learn, start the plan right away ---
+  const onSitdownSave = useCallback((blob: SitDownBlob | null, progress: SitDownProgress) => {
+    dispatch({ t: "sitdownSave", blob, progress });
+  }, [dispatch]);
+  const onHandoff = useCallback((studio: StudioHandoff) => {
+    dispatch({ t: "handoff", studio });
+    startPlan({ idea: studio.idea, answers: studio.answers || {}, capabilities: studio.capabilities || [], projectName: studio.projectName || "" });
+    document.querySelector("main")?.scrollTo({ top: 0 });
+  }, [dispatch, startPlan]);
 
-  // --- Design -> Learn -> Blueprint ---
-  // Blueprint generation is kicked off as the user leaves the design questions (nextDesign),
-  // so the ~50s generation is hidden behind the architecture overview + per-piece modules +
-  // quiz. The learn phase's CTA just switches to the Blueprint screen, which shows the result
-  // (or its own generating panel if not done).
-  async function generate(adjust = "") {
-    dispatch({ t: "genStart" });
-    try {
-      const answers = designAnswers();
-      const bp = await api.generateBlueprint({
-        idea: state.idea, expertise: state.expertise, interests: state.interests,
-        design_answers: answers, capabilities: state.capabilities, adjust,
-      });
-      dispatch({ t: "genOk", bp });
-    } catch (e: any) {
-      dispatch({ t: "genErr", e: e.message || "Something went wrong" });
-    }
-  }
-
-  // Persist the settled plan (PRD + build steps) into the user's workspace, so the
-  // build move can be "read this doc and build" and so a mid-workshop app crash doesn't
-  // lose their work. Fire-and-forget + best-effort: the endpoint always 200s (ok:false
-  // on failure), so this never blocks the build — the copy-paste path still stands.
+  // --- build ---
   function publishAssets(steps: unknown[]) {
-    const answers = designAnswers();
+    const s = stateRef.current;
     api.publishAssets({
-      idea: state.idea, prd_markdown: state.blueprint?.prd_markdown || "",
-      capabilities: state.capabilities, design_answers: answers,
-      decisions: state.blueprint?.decisions || [], steps, project_name: state.projectName,
+      idea: s.idea, prd_markdown: s.blueprint?.prd_markdown || "", capabilities: s.capabilities,
+      design_answers: s.answers, decisions: s.blueprint?.decisions || [], steps, project_name: s.projectName,
     }).then((r) => { if (r.ok && r.dir) dispatch({ t: "publishOk", dir: r.dir, host: r.host || "", deepLink: r.deep_link || "" }); })
       .catch(() => {});
   }
-
-  // --- Blueprint -> Build (fetch the guided build plan once) ---
   async function toBuild() {
     dispatch({ t: "phase", phase: "build" });
-    if (state.buildPlan) {                                    // already have it
-      if (!state.publishedDir) publishAssets(state.buildPlan.steps);  // ensure it's persisted
-      return;
-    }
+    const s = stateRef.current;
+    if (s.buildPlan) { if (!s.publishedDir) publishAssets(s.buildPlan.steps); return; }
     dispatch({ t: "buildStart" });
     try {
-      const answers = designAnswers();
       const plan = await api.buildPlan({
-        idea: state.idea, expertise: state.expertise,
-        capabilities: state.capabilities, design_answers: answers,
-        // The blueprint's PRD is authoritative — it reflects any refinements/pivots,
-        // so the build steps follow what the user actually approved, not the raw idea.
-        prd_markdown: state.blueprint?.prd_markdown || "",
-        project_name: state.projectName,   // isolates their schema/tables in the build prompts
+        idea: s.idea, capabilities: s.capabilities, design_answers: s.answers,
+        prd_markdown: s.blueprint?.prd_markdown || "", project_name: s.projectName,
+        app_screens: s.blueprint?.app_screens || [],
       });
       dispatch({ t: "buildOk", plan });
-      publishAssets(plan.steps);   // persist PRD + guide now that we have the full context
+      publishAssets(plan.steps);
     } catch {
       dispatch({ t: "buildErr" });
     }
   }
 
-  const curQ = questions[state.designIdx];
-  const lastQ = state.designIdx === questions.length - 1;
+  // --- rail navigation ---
+  const go = (t: RailTarget) => {
+    if (t.phase === "sitdown") { dispatch({ t: "phase", phase: "sitdown" }); setFocusStage({ stage: t.stage, nonce: Date.now() }); return; }
+    if (t.phase === "learn") { dispatch({ t: "phase", phase: "learn" }); dispatch({ t: "learnIdx", i: t.beat }); return; }
+    if (t.phase === "plan") { dispatch({ t: "phase", phase: "plan" }); return; }
+    if (t.phase === "build") {
+      if (stateRef.current.phase !== "build") { toBuild(); }
+      if (t.step != null) dispatch({ t: "buildStep", i: t.step });
+    }
+  };
+  const setPhase = (phase: Phase) => dispatch({ t: "phase", phase });
 
-  if (inConsole && admin?.is_admin) {
-    return <AdminConsole email={admin.email} onExit={() => setInConsole(false)} />;
-  }
+  if (inConsole && admin?.is_admin) return <AdminConsole email={admin.email} onExit={() => setInConsole(false)} />;
+
+  const fits = Object.fromEntries((state.plan?.capabilities || []).map((c) => [c.name, c.fits]));
+  const seeded = !!state.answers["data_seeded (read only)"];
+  const spec = state.blueprint?.spec || specFor(state.capabilities, seeded ? "Your seeded data" : "Sample data", seeded ? "read-only tables" : "tables we generate for you");
+  const sitdownSaved = (state.sitdown as SitDownBlob | null) || localSitdown();
+  const full = state.phase === "sitdown";
 
   return (
     <div className="flex h-screen bg-oat">
       <LeftRail state={state} go={go} />
-      <main className="relative flex-1 overflow-y-auto px-[72px] py-12">
-        {admin?.is_admin && (
+      <main className={`relative flex-1 ${full ? "overflow-hidden" : "overflow-y-auto px-[72px] py-12"}`}>
+        {admin?.is_admin && !full && (
           <button onClick={() => setInConsole(true)}
             className="absolute right-5 top-4 z-10 rounded-full border border-line bg-white px-3 py-1.5 text-[12px] font-bold text-navy-2 shadow-sm hover:border-green hover:text-green-ink">
             Proctor console →
           </button>
         )}
-        {resume && (
+        {resume && !full && (
           <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border-[1.5px] border-green bg-green-soft px-6 py-4">
             <div className="min-w-0 flex-1">
-              <div className="text-[14.5px] font-bold text-navy">Welcome back — you have a build in progress.</div>
+              <div className="text-[14.5px] font-bold text-navy">Welcome back. You have a build in progress.</div>
               <div className="mt-0.5 truncate text-[13px] text-navy-2">
-                {resume.project_name || resume.idea || "Your project"} · left off at the {phaseLabel(resume.phase)} step
+                {resume.project_name || resume.idea || "Your project"} · left off at {PHASE_LABEL[resume.phase] || resume.phase}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2.5">
@@ -301,58 +204,31 @@ export default function App() {
             </div>
           </div>
         )}
-        {state.phase === "overview" && (
-          <OverviewScreen onStart={() => dispatch({ t: "phase", phase: "shape" })} />
-        )}
-        {state.phase === "shape" && (
-          <ShapeScreen state={state}
-            onIdea={(v) => dispatch({ t: "idea", v })}
-            onProjectName={(v) => dispatch({ t: "projectName", v })}
-            onPickSample={(idea, name, industry, components, interests) => dispatch({ t: "pickSample", idea, name, industry, components, interests })}
-            onExpertise={(v) => dispatch({ t: "expertise", v })}
-            onToggleInterest={(v) => dispatch({ t: "toggleInterest", v })}
-            onNext={startDesign} />
-        )}
-        {state.phase === "teach" && (
-          <TeachingLoader idea={state.idea} expertise={state.expertise} planning={state.planning}
-            ready={!state.planning && (state.plan?.questions.length ?? 0) > 0}
-            ideaChecking={state.ideaChecking} ideaCheck={state.ideaCheck}
-            onReviseIdea={(v) => dispatch({ t: "idea", v })}
-            onRecheck={(v) => { runIdeaCheck(v); regenPlan(v); }}
-            onProceed={requestPlan}
-            onEnter={enterDesign} />
-        )}
-        {state.phase === "design" && curQ && (
-          <DesignScreen q={curQ} idea={state.idea}
-            selected={state.answers[curQ.id]}
-            otherText={state.answersOther[curQ.id] || ""}
-            onSelect={(key) => dispatch({ t: "answer", q: curQ.id, key })}
-            onOther={(v) => dispatch({ t: "answerOther", q: curQ.id, v })}
-            onBack={backDesign} onNext={nextDesign}
-            nextLabel={lastQ ? "See what fits →" : "Next →"} />
+        {state.phase === "overview" && <OverviewScreen onStart={() => setPhase("sitdown")} />}
+        {state.phase === "sitdown" && (
+          <SitDown saved={sitdownSaved} onSave={onSitdownSave} onHandoff={onHandoff} focusStage={focusStage} />
         )}
         {state.phase === "learn" && (
-          <CapabilityLearning capabilities={state.capabilities}
-            fits={Object.fromEntries(shownPicks(state).map((p) => [p.name, p.fits]))}
-            onBack={() => {
-              if (!questions.length) { location.href = "/sitdown2"; return; }   // came from the Sit-Down
-              dispatch({ t: "phase", phase: "design" }); dispatch({ t: "designIdx", i: questions.length - 1 });
-            }}
-            onDone={() => dispatch({ t: "phase", phase: "blueprint" })} />
+          <CapabilityLearning capabilities={state.capabilities} fits={fits} spec={spec}
+            beat={state.learnIdx} onBeat={(i) => dispatch({ t: "learnIdx", i })}
+            planReady={!!state.blueprint && state.planJob?.status !== "running"}
+            onBack={() => setPhase("sitdown")} onDone={() => setPhase("plan")} />
         )}
-        {state.phase === "blueprint" && (
-          <BlueprintScreen blueprint={state.blueprint} generating={state.generating} error={state.error}
-            onRetry={() => generate()} onRefine={(note) => generate(note)}
-            onBack={() => dispatch({ t: "phase", phase: "learn" })}
+        {state.phase === "plan" && (
+          <PlanScreen blueprint={state.blueprint} job={state.planJob} error={state.planError}
+            onRetry={() => startPlan({ idea: state.idea, answers: state.answers, capabilities: state.capabilities, projectName: state.projectName })}
+            onRefine={(note) => startPlan({ idea: state.idea, answers: state.answers, capabilities: state.capabilities, projectName: state.projectName }, note, state.blueprint)}
+            onBack={() => { dispatch({ t: "learnIdx", i: Math.max(0, state.learnIdx) }); setPhase("learn"); }}
             onNext={toBuild} />
         )}
         {state.phase === "build" && (
           <BuildScreen plan={state.buildPlan} loading={state.buildLoading}
             stepIdx={state.buildStepIdx} done={state.buildDone}
             publishedDir={state.publishedDir} publishedDeepLink={state.publishedDeepLink}
+            entered={state.buildEntered} onEnter={() => dispatch({ t: "buildEnter", v: true })}
             onStep={(i) => dispatch({ t: "buildStep", i })}
             onComplete={(n) => dispatch({ t: "buildComplete", n })}
-            onBack={() => dispatch({ t: "phase", phase: "blueprint" })} />
+            onBack={() => setPhase("plan")} />
         )}
       </main>
     </div>

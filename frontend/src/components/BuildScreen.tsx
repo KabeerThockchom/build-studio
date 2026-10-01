@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
-import { Check, Copy, Sparkles, Lightbulb, ExternalLink, PartyPopper, ArrowRight, FolderCheck, HelpCircle, Compass } from "lucide-react";
+import { Check, Copy, Sparkles, Lightbulb, ExternalLink, PartyPopper, ArrowRight, FolderCheck, HelpCircle, AppWindow } from "lucide-react";
 import type { BuildPlan, BuildStep } from "../lib/types";
+import { APPS } from "../lib/constants";
+
+// Which tool builds a step: Genie App Builder for the app, Genie Code for everything else.
+export const stepTool = (s: BuildStep) => s.tool || (s.capability === APPS ? "app_builder" : "genie_code");
 import { GeneratingPanel } from "./GeneratingPanel";
 import { VideoEmbed } from "./VideoEmbed";
 
@@ -11,6 +15,8 @@ interface Props {
   done: number[];
   publishedDir?: string | null;        // workspace folder the project doc was written to
   publishedDeepLink?: string | null;   // clickable URL straight to PROJECT.md
+  entered: boolean;                    // left the overview for step 1 (lifted so the rail can follow)
+  onEnter: () => void;
   onStep: (i: number) => void;
   onComplete: (n: number) => void;
   onBack: () => void;
@@ -19,19 +25,16 @@ interface Props {
 // First sentence of a step's concept, for the one-line roadmap summaries on the overview.
 const firstSentence = (t: string) => (t || "").match(/^.*?[.!?](\s|$)/)?.[0].trim() || (t || "");
 
-export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publishedDeepLink, onStep, onComplete, onBack }: Props) {
+export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publishedDeepLink, entered, onEnter, onStep, onComplete, onBack }: Props) {
   // After everything's done we show a real completion screen; "review" drops back in.
   const [reviewing, setReviewing] = useState(false);
-  // Whether the user has chosen to leave the intro and start step 1. We never auto-advance
-  // into the steps — that used to cut off the Genie Code video the moment the plan was ready.
-  // Skip the gate for someone already mid-build (returning to this screen).
-  const [entered, setEntered] = useState(() => done.length > 0);
 
   // Intro phase: the build is still generating OR it's ready and waiting for the user.
   // The video sits BELOW the status and stays mounted across both, so it keeps playing
   // until the user themselves clicks "Start building" — their decision, not ours.
   if (!entered) {
     const ready = !loading && !!plan;
+    const hasApp = !!plan?.steps.some((s) => stepTool(s) === "app_builder");
     return (
       <div className="rise max-w-[760px]">
         <div className="mb-4 text-[11.5px] font-bold uppercase tracking-[0.14em] text-green">Build · overview</div>
@@ -53,8 +56,8 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
         {ready && plan && (
           <>
             <p className="mb-5 max-w-[62ch] text-[16px] leading-relaxed text-navy-2">
-              You'll build your app one step at a time in Genie Code. Here's the whole path, and the two things to
-              set up before step 1.
+              You'll build it one step at a time{hasApp ? ": the data and pieces in Genie Code, then the app in Genie App Builder" : " in Genie Code"}.
+              Here's the whole path, and what to set up before step 1.
             </p>
 
             {/* One-time setup: open the plan + open Genie Code. This used to nag every step. */}
@@ -79,6 +82,14 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
                     <b>Open Genie Code in your workspace</b> and start one chat. Keep it open the whole way. You'll send each step there in order.
                   </div>
                 </li>
+                {hasApp && (
+                  <li className="flex items-start gap-3">
+                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-green text-white text-[11px] font-bold">3</span>
+                    <div className="text-[14px] leading-snug text-navy">
+                      <b>Check Genie App Builder is on.</b> The app step uses it (Apps, then the Build tab). It's in Beta, so the workspace preview needs to be enabled; ask your facilitator if you don't see the Build tab.
+                    </div>
+                  </li>
+                )}
               </ol>
             </div>
 
@@ -90,7 +101,11 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
                   <li key={s.n} className="flex items-start gap-3">
                     <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-oat-2 text-[11px] font-bold text-navy-2">{s.n}</span>
                     <div>
-                      <div className="text-[14.5px] font-bold text-navy">{s.title}</div>
+                      <div className="text-[14.5px] font-bold text-navy">{s.title}
+                        <span className={`ml-2 rounded-full px-2 py-0.5 align-middle text-[10.5px] font-bold ${stepTool(s) === "app_builder" ? "bg-[#e6f2f6] text-[#1f6480]" : "bg-oat text-navy-3"}`}>
+                          {stepTool(s) === "app_builder" ? "Genie App Builder" : "Genie Code"}
+                        </span>
+                      </div>
                       <div className="text-[13px] leading-snug text-navy-3">{firstSentence(s.concept)}</div>
                     </div>
                   </li>
@@ -98,7 +113,7 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
               </ol>
             </div>
 
-            <button onClick={() => setEntered(true)}
+            <button onClick={onEnter}
               className="tl-glow inline-flex items-center gap-2 rounded-xl bg-green px-7 py-3.5 text-[15.5px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-green-l">
               Start building. Go to step 1 →
             </button>
@@ -158,7 +173,7 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
 
       {publishedDir && <ProjectSavedNote dir={publishedDir} deepLink={publishedDeepLink} compact />}
 
-      {stepIdx === 0 && (
+      {stepIdx === 0 && stepTool(step) === "genie_code" && (
         <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-line bg-oat/60 px-4 py-3">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-green" />
           <div className="text-[13.5px] leading-snug text-navy-2">
@@ -169,6 +184,9 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
         </div>
       )}
 
+      <div className="mb-1 flex items-center gap-2 text-[12px] font-bold text-navy-3">
+        {stepTool(step) === "app_builder" ? <><AppWindow className="h-4 w-4 text-[#1f6480]" /> Built with Genie App Builder</> : <><Sparkles className="h-4 w-4 text-green" /> Built with Genie Code</>}
+      </div>
       <h2 className="mb-1.5 text-[27px] font-extrabold leading-[1.12] tracking-[-0.02em] text-navy">{step.title}</h2>
 
       <section className="mt-4 rounded-2xl border border-line bg-white px-6 py-5">
@@ -189,7 +207,7 @@ export function BuildScreen({ plan, loading, stepIdx, done, publishedDir, publis
 
       <div className="mt-8 flex items-center justify-between">
         <button onClick={stepIdx === 0 ? onBack : () => onStep(stepIdx - 1)}
-          className="text-[14px] font-semibold text-navy-3 hover:text-navy">← {stepIdx === 0 ? "Blueprint" : "Previous"}</button>
+          className="text-[14px] font-semibold text-navy-3 hover:text-navy">← {stepIdx === 0 ? "Your plan" : "Previous"}</button>
         {isDone && stepIdx < steps.length - 1 && (
           <button onClick={() => onStep(stepIdx + 1)}
             className="rounded-xl bg-green px-6 py-3 text-[15px] font-bold text-white hover:bg-green-l">Next step →</button>
@@ -245,7 +263,7 @@ function CompletionScreen({ steps, onReview, onBack }: { steps: BuildStep[]; onR
       </div>
 
       <div className="mt-8 flex items-center justify-between">
-        <button onClick={onBack} className="text-[14px] font-semibold text-navy-3 hover:text-navy">← Back to blueprint</button>
+        <button onClick={onBack} className="text-[14px] font-semibold text-navy-3 hover:text-navy">← Back to your plan</button>
         <button onClick={onReview}
           className="rounded-xl border border-line bg-white px-6 py-3 text-[15px] font-bold text-navy-2 hover:border-green hover:text-green-ink">Review the steps</button>
       </div>
@@ -259,12 +277,14 @@ function CompletionScreen({ steps, onReview, onBack }: { steps: BuildStep[]; onR
 // Learn phase, so there's no per-step learning module here anymore.
 const SUB_LABELS: Record<string, string> = {
   prompt: "Prompt Genie Code", explore: "Explore what it made", confirm: "Confirm it worked",
+  open: "Open Genie App Builder", describe: "Paste your app prompt", iterate: "Refine it in short cycles",
 };
 
 function StepWalker({ step, isData, isDone, publishedDir, onCompleteStep }:
   { step: BuildStep; isData: boolean; isDone: boolean;
     publishedDir?: string | null; onCompleteStep: () => void }) {
-  const subs = ["prompt", ...(isData ? ["explore"] : []), "confirm"];
+  const app = stepTool(step) === "app_builder";
+  const subs = app ? ["open", "describe", "iterate", "confirm"] : ["prompt", ...(isData ? ["explore"] : []), "confirm"];
   const [idx, setIdx] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -330,6 +350,41 @@ function StepWalker({ step, isData, isDone, publishedDir, onCompleteStep }:
                       </div>
                     )}
                     <div className="mt-3"><button onClick={advance} className="rounded-lg bg-navy px-4 py-2 text-[13px] font-bold text-white hover:bg-navy-2">I prompted it →</button></div>
+                  </>
+                )}
+                {key === "open" && (
+                  <>
+                    <p className="text-[14px] leading-relaxed text-navy-2">
+                      In your workspace, open <b className="text-navy">Apps</b>, then the <b className="text-navy">Build</b> tab. That's Genie App Builder.
+                      Choose your <b className="text-navy">App Space</b> (or create one) so the app lands next to your data.
+                    </p>
+                    <div className="mt-2.5 rounded-lg border border-dashed border-amber/50 bg-[#fffdf7] px-3 py-2 text-[12.5px] leading-snug text-navy-2">
+                      Genie App Builder is in Beta, so the workspace preview needs to be enabled. No Build tab? Ask your facilitator to turn it on.
+                    </div>
+                    <div className="mt-3"><button onClick={advance} className="rounded-lg bg-navy px-4 py-2 text-[13px] font-bold text-white hover:bg-navy-2">It's open →</button></div>
+                  </>
+                )}
+                {key === "describe" && (
+                  <>
+                    <p className="text-[14px] leading-relaxed text-navy-2">Paste this prompt. It describes your screens in plain language, from your plan. Reword anything you like.</p>
+                    <div className="relative mt-2.5 rounded-xl border-[1.5px] border-[#b6d6e2] bg-white px-3.5 py-3">
+                      <button onClick={copy} className="absolute right-3 top-2.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.05em] text-navy-3 hover:text-[#1f6480]">
+                        {copied ? <><Check className="h-3 w-3" /> Copied</> : <><Copy className="h-3 w-3" /> Copy</>}
+                      </button>
+                      <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#1f6480]">Your app prompt</div>
+                      <div className="text-[13px] leading-relaxed text-navy whitespace-pre-wrap">{pasteText}</div>
+                    </div>
+                    <div className="mt-3"><button onClick={advance} className="rounded-lg bg-navy px-4 py-2 text-[13px] font-bold text-white hover:bg-navy-2">I pasted it →</button></div>
+                  </>
+                )}
+                {key === "iterate" && (
+                  <>
+                    <ul className="flex flex-col gap-1.5 text-[14px] leading-relaxed text-navy-2">
+                      <li className="flex items-start gap-2"><span className="mt-[9px] h-[5px] w-[5px] shrink-0 rounded-full bg-[#2E7D9A]" />Short cycles: ask for one change at a time, check it, then the next.</li>
+                      <li className="flex items-start gap-2"><span className="mt-[9px] h-[5px] w-[5px] shrink-0 rounded-full bg-[#2E7D9A]" />Be specific about screens: what it opens on, what each row shows, what each button does.</li>
+                      <li className="flex items-start gap-2"><span className="mt-[9px] h-[5px] w-[5px] shrink-0 rounded-full bg-[#2E7D9A]" />Name the tables it should read and the Lakebase table it should save to, exactly as in your plan.</li>
+                    </ul>
+                    <div className="mt-3"><button onClick={advance} className="rounded-lg bg-navy px-4 py-2 text-[13px] font-bold text-white hover:bg-navy-2">It's looking right →</button></div>
                   </>
                 )}
                 {key === "explore" && (

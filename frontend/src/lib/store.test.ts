@@ -1,62 +1,86 @@
 import { describe, it, expect } from "vitest";
-import { reducer, initialState, LOCKED_CAPABILITIES } from "./store";
-import { interestsForComponents } from "./gallery";
+import { reducer, initialState, persistable, type StudioState } from "./store";
+import type { StudioHandoff } from "./types";
 
-// The architecture is fully prescribed (Akil, 2026-09-09): capabilities are always the
-// locked set and never change. A gallery sample seeds the idea/vertical/name/interests
-// only; it no longer sets components. Editing the idea still drops the vertical hint.
-describe("gallery sample pick (architecture locked)", () => {
-  const pick = () => reducer(initialState, {
-    t: "pickSample", idea: "flag slipping stores", name: "Store Slip Detector", industry: "retail (stores + e-commerce)",
-    components: ["Genie", "Databricks Apps"], interests: ["Analytics & BI", "Apps"],
-  });
+const studio: StudioHandoff = {
+  idea: "Help crew schedulers predict which crews will time out",
+  projectName: "Crew Timeout Radar",
+  answers: { brief_problem: "Crews time out after delays", "build_today (core first, in order)": "ranked list; decision log" },
+  capabilities: ["Declarative Pipelines", "Lakebase", "Genie", "Databricks Apps"],
+  plan: { read_back: "", questions: [], capabilities: [{ name: "Genie", selected: true, fits: "answers questions about crews" }] },
+};
 
-  it("seeds idea/starter/industry/name/interests; capabilities stay the locked set", () => {
-    const s = pick();
-    expect(s.idea).toBe("flag slipping stores");
-    expect(s.sampleStarter).toBe("flag slipping stores");
-    expect(s.industry).toBe("retail (stores + e-commerce)");
-    expect(s.capabilities).toEqual(LOCKED_CAPABILITIES);   // sample no longer sets components
-    expect(s.capsPinned).toBe(false);
-    expect(s.interests).toEqual(["Analytics & BI", "Apps"]);
-    expect(s.projectName).toBe("Store Slip Detector");   // sample seeds the project name
+describe("the journey", () => {
+  it("starts on the overview, then the Sit-Down", () => {
+    expect(initialState.phase).toBe("overview");
+    expect(reducer(initialState, { t: "phase", phase: "sitdown" }).phase).toBe("sitdown");
   });
 
-  it("keeps the vertical hint while the idea text is unchanged", () => {
-    const s = reducer(pick(), { t: "idea", v: "flag slipping stores" });
-    expect(s.industry).toBe("retail (stores + e-commerce)");
-    expect(s.capabilities).toEqual(LOCKED_CAPABILITIES);
+  it("the Sit-Down handoff adopts the idea + components and lands on Learn", () => {
+    const s = reducer({ ...initialState, phase: "sitdown" }, { t: "handoff", studio });
+    expect(s.phase).toBe("learn");
+    expect(s.idea).toBe(studio.idea);
+    expect(s.projectName).toBe("Crew Timeout Radar");
+    expect(s.capabilities).toEqual(studio.capabilities);
+    expect(s.plan?.capabilities[0].fits).toMatch(/crews/);
+    expect(s.sdProgress.done).toBe(true);
+    expect(s.learnIdx).toBe(0);
   });
 
-  it("clears the vertical hint when the idea is edited away from the starter", () => {
-    const s = reducer(pick(), { t: "idea", v: "analyze our hotel guest reviews instead" });
-    expect(s.industry).toBe("");            // no stale vertical hint
-    expect(s.sampleStarter).toBe("");
-    expect(s.capabilities).toEqual(LOCKED_CAPABILITIES); // still locked
+  it("a new handoff clears any plan or build made from an earlier version", () => {
+    const old: StudioState = { ...initialState, blueprint: { prd_markdown: "x" } as any, buildPlan: { steps: [] }, buildDone: [1], planJob: { id: "j", status: "done", stage: "done" } };
+    const s = reducer(old, { t: "handoff", studio });
+    expect(s.blueprint).toBeNull();
+    expect(s.buildPlan).toBeNull();
+    expect(s.buildDone).toEqual([]);
+    expect(s.planJob).toBeNull();
   });
 
-  it("the SA plan never changes the locked capabilities", () => {
-    const plan = { read_back: "", questions: [],
-      capabilities: [{ name: "Supervisor agent", selected: true, fits: "" },
-                     { name: "Genie", selected: false, fits: "" }] };
-    const fromPick = reducer(pick(), { t: "planOk", plan: plan as never });
-    expect(fromPick.capabilities).toEqual(LOCKED_CAPABILITIES);
-    const fromCustom = reducer(initialState, { t: "planOk", plan: plan as never });
-    expect(fromCustom.capabilities).toEqual(LOCKED_CAPABILITIES);
+  it("tracks the furthest Learn beat for rail reachability", () => {
+    let s = reducer(initialState, { t: "learnIdx", i: 3 });
+    s = reducer(s, { t: "learnIdx", i: 1 });
+    expect(s.learnIdx).toBe(1);
+    expect(s.learnMax).toBe(3);
   });
-});
 
-describe("interestsForComponents", () => {
-  it("agent shape reads as AI agents", () => {
-    expect(interestsForComponents(["Genie", "Supervisor agent", "Databricks Apps"]))
-      .toEqual(["AI agents", "Apps"]);
+  it("a finished plan replaces the blueprint and invalidates the build plan", () => {
+    const s0: StudioState = { ...initialState, planJob: { id: "j1", status: "running", stage: "checking" }, buildPlan: { steps: [] } };
+    const s = reducer(s0, { t: "planDone", bp: { prd_markdown: "## Summary" } as any });
+    expect(s.blueprint?.prd_markdown).toBe("## Summary");
+    expect(s.planJob?.status).toBe("done");
+    expect(s.buildPlan).toBeNull();
   });
-  it("pure data shape reads as Analytics & BI", () => {
-    expect(interestsForComponents(["Genie", "Databricks Apps"]))
-      .toEqual(["Analytics & BI", "Apps"]);
+
+  it("a plan error is recorded on the job", () => {
+    const s = reducer({ ...initialState, planJob: { id: "j", status: "running", stage: "drafting" } }, { t: "planErr", e: "boom" });
+    expect(s.planError).toBe("boom");
+    expect(s.planJob?.status).toBe("error");
   });
-  it("Knowledge Assistant counts as an agent shape", () => {
-    expect(interestsForComponents(["Knowledge Assistant", "Databricks Apps"]))
-      .toEqual(["AI agents", "Apps"]);
+
+  it("choosing a build step means the overview has been left", () => {
+    const s = reducer(initialState, { t: "buildStep", i: 2 });
+    expect(s.buildStepIdx).toBe(2);
+    expect(s.buildEntered).toBe(true);
+  });
+
+  it("build completion is idempotent", () => {
+    let s = reducer(initialState, { t: "buildComplete", n: 1 });
+    s = reducer(s, { t: "buildComplete", n: 1 });
+    expect(s.buildDone).toEqual([1]);
+  });
+
+  it("hydrate keeps unknown phases out and never restores a loading flag", () => {
+    const s = reducer({ ...initialState, buildLoading: true }, { t: "hydrate", s: { phase: "teach" as any, idea: "x" } });
+    expect(s.phase).toBe("overview");
+    expect(s.idea).toBe("x");
+    expect(s.buildLoading).toBe(false);
+  });
+
+  it("persists the Sit-Down session and the plan job with the rest of the journey", () => {
+    const s = reducer(initialState, { t: "sitdownSave", blob: { SESSION: { stage: "scope" } }, progress: { stage: "scope", covered: 5, started: true, done: false } });
+    const p = persistable({ ...s, planJob: { id: "j", status: "running", stage: "drafting" } });
+    expect((p.sitdown as any).SESSION.stage).toBe("scope");
+    expect(p.sdProgress.covered).toBe(5);
+    expect(p.planJob?.id).toBe("j");
   });
 });
