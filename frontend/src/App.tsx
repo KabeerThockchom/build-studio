@@ -180,7 +180,8 @@ export default function App() {
 
   const fits = Object.fromEntries((state.plan?.capabilities || []).map((c) => [c.name, c.fits]));
   const seeded = !!state.answers["data_seeded (read only)"];
-  const spec = state.blueprint?.spec || specFor(state.capabilities, seeded ? "Your seeded data" : "Sample data", seeded ? "read-only tables" : "tables we generate for you");
+  // The server's spec from the handoff; client-side compute only for old saved sessions without one.
+  const spec = state.spec || state.blueprint?.spec || specFor(state.capabilities, seeded ? "Your seeded data" : "Sample data", seeded ? "read-only tables" : "tables we generate for you");
   const sitdownSaved = (state.sitdown as SitDownBlob | null) || localSitdown();
   const full = state.phase === "sitdown";
 
