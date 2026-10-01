@@ -229,6 +229,9 @@ write ONE bite-sized step. There are no AI agents and no document Q&A in these b
 
 Each step has four parts, kept SHORT and plain:
 - concept: 2-3 sentences on what you're building and why it matters for THEIR idea. Teach, don't lecture.
+  The person asks the tool IN THEIR OWN WORDS; the move is only an example they can open if they need
+  help. So never write "paste this prompt" or "paste the move" in concept, teach or verify: say "ask
+  Genie Code to..." or "describe the app to Genie App Builder".
 - move: the actual prompt the person pastes into Genie Code. This is the most important field. It is
   NOT an instruction to the person ("open the file and do step 1") — it is a real, well-formed prompt
   written TO Genie Code, the way a strong engineer would prompt a coding agent. It must:
@@ -317,8 +320,8 @@ WHO READS WHAT (critical — this is where plans lose beginners):
   /logz, "# COMMAND", MLflow tracing internals like @mlflow.trace / autolog / experiment id, Unity
   Catalog internals) in concept/verify/teach — say what it means in plain
   words or leave it out. The person should never have to look up a term to follow a step.
-- The first step's concept should briefly reassure a newcomer how this works: they paste the move
-  into Genie Code, it does the technical work, they check the result. Don't assume they've used it.
+- The first step's concept should briefly reassure a newcomer how this works: they ask Genie Code in
+  their own words, it does the technical work, they check the result. Don't assume they've used it.
 
 Return ONLY one JSON object (no fence, no prose):
 {{ "steps": [ {{ "capability": "<name or 'data'>", "title": "<short imperative>",

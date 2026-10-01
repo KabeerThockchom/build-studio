@@ -289,14 +289,16 @@ def _chat_stream(req: ChatRequest):
                 dropped.append({"name": e["name"], "chars": len(e["args"]), "tail": e["args"][-80:]})
         finish = getattr(ev.choices[0], "finish_reason", None) if getattr(ev, "choices", None) else None
         ui, events = sa.apply_tools(st, parsed, meta)
-        # Repair: a sharpening turn must end with something to answer. If the model closed out without
-        # a question, make one fast forced call for it (only happens on a few percent of turns).
-        if st.get("stage") in sa.CONVO_DIMS and not any(u["type"] in ("options", "stakeholder", "drift", "shapes", "open") for u in ui):
+        # Repair: every turn must end with something to answer (a question while sharpening; the build
+        # options, the packages or the recap in their stages). If the model closed out without it, make one
+        # forced call for it (a few percent of turns).
+        need = sa.repair_tool(st, ui)
+        if need:
             try:
                 rep = llm.client().chat.completions.create(
-                    model=model, max_tokens=600, extra_body=extra,
+                    model=model, max_tokens=600 if need == "present_options" else 3000, extra_body=extra,
                     messages=sa.repair_messages(st, ds, text), tools=sa.tool_specs(),
-                    tool_choice={"type": "function", "function": {"name": "present_options"}})
+                    tool_choice={"type": "function", "function": {"name": need}})
                 tcs = rep.choices[0].message.tool_calls or []
                 more = [{"name": tc.function.name, "args": json.loads(tc.function.arguments or "{}")} for tc in tcs]
                 ui2, _ = sa.apply_tools(st, more, {"repair": True})

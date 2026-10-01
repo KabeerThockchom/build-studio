@@ -232,3 +232,29 @@ def test_no_workshop_host_means_generic_context():
     r = _valid({"org": "", "industry": "coffee retail", "currency": "", "locale": "", "host_business": True,
                 "cast": [{"role": "Store lead", "avatar": a} for a in ("data_engineer", "finance", "store_manager", "governance")]})
     assert r["host_business"] is bool(sd.DEFAULT_CONTEXT) and r["host_business"] is False
+
+
+def test_every_stage_leaves_something_to_answer():
+    st = sa.new_session("idea"); st["stage"] = "problem"
+    assert sa.repair_tool(st, []) == "present_options"
+    assert sa.repair_tool(st, [{"type": "options"}]) is None
+    st["stage"] = "shapes"                                   # moved to shapes but never showed them
+    assert sa.repair_tool(st, []) == "offer_shapes"
+    st["shape_options"] = [{"key": "a"}]
+    assert sa.repair_tool(st, []) is None                    # already on screen, waiting for a pick
+    st["stage"] = "scope"
+    assert sa.repair_tool(st, []) == "propose_scope"
+    st["stage"] = "readback"; st["readback"] = {"who": "x"}
+    assert sa.repair_tool(st, []) is None
+
+
+def test_a_data_level_up_never_breaks_the_day():
+    f = [{"name": "list", "block": "app_screen", "rank": 1, "essential": True},
+         {"name": "rule", "block": "rules_logic", "rank": 2, "essential": True},
+         {"name": "sales", "block": "generated_data", "rank": 3}, {"name": "gold", "block": "pipeline_step", "rank": 4},
+         {"name": "log", "block": "decision_log", "rank": 5},
+         {"name": "weather feed", "block": "pipeline_step", "rank": 6, "levelup": True},
+         {"name": "overnight run", "block": "rules_logic", "rank": 7, "levelup": True},
+         {"name": "accuracy view", "block": "app_screen", "rank": 8, "levelup": True}]
+    for p in sd.build_packages(f)["packages"]:
+        assert p["fit"] != "Won't fit today", p

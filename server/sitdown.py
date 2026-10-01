@@ -478,7 +478,8 @@ def build_packages(features: list) -> dict:
     come out identical are dropped, so the participant only ever sees real choices."""
     surface = next((f["name"] for f in sorted(features, key=lambda f: f.get("rank", 99))
                     if f.get("block") == "app_screen" and not f.get("levelup")), None)
-    found = lambda f: f.get("block") in FOUNDATION or f.get("name") == surface
+    # A level-up is never foundation, even when it's a data table: it's the optional extra by definition.
+    found = lambda f: not f.get("levelup") and (f.get("block") in FOUNDATION or f.get("name") == surface)
     key = lambda f: (not found(f), not f.get("essential"), f.get("rank", 99))
     doable = [f for f in features if BLOCKS.get(f.get("block"), (1,))[0]]
     ups = sorted([f for f in doable if f.get("levelup")], key=lambda f: f.get("rank", 99))

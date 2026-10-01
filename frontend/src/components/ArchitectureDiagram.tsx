@@ -7,9 +7,16 @@ import { BAND_LABELS, BAND_ORDER, NODE_COLORS } from "../lib/constants";
 export function ArchitectureDiagram({ spec, reveal = false }: { spec: DiagramSpec; reveal?: boolean }) {
   const L = layoutDiagram(spec);
   const byId = Object.fromEntries(L.placed.map((p) => [p.id, p]));
+  // A forward edge that skips a column (the pipeline feeding the app past Lakebase or Genie) would run
+  // straight behind the boxes in between and read as a connection to them, so it detours below them.
+  const between = (a: { x: number }, b: { x: number }) => L.placed.filter((p) => p.x > a.x && p.x < b.x);
+  const lowest = Math.max(0, ...L.placed.map((p) => p.y + p.h));
+  const detourY = lowest + 22;
+  const hasDetour = L.connectors.some((c) => { const a = byId[c.from], b = byId[c.to]; return a && b && b.x > a.x && between(a, b).length > 0; });
+  const H = hasDetour ? Math.max(L.height, detourY + 10) : L.height;
 
   return (
-    <svg viewBox={`0 0 ${L.width} ${L.height}`} width="100%" style={{ display: "block" }} fontFamily="DM Sans, sans-serif"
+    <svg viewBox={`0 0 ${L.width} ${H}`} width="100%" style={{ display: "block" }} fontFamily="DM Sans, sans-serif"
       role="img" aria-label={`Architecture: ${L.placed.map((p) => p.label).join(", ")}`}>
       <defs>
         <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
@@ -34,6 +41,10 @@ export function ArchitectureDiagram({ spec, reveal = false }: { spec: DiagramSpe
         let d: string;
         if (same) { const x1 = a.x + a.w, x2 = b.x + b.w; d = `M${x1},${y1} C${x1 + 26},${y1} ${x2 + 26},${y2} ${x2},${y2}`; }
         else if (back) { const x1 = a.x, x2 = b.x + b.w; d = `M${x1},${y1} C${x1 - 22},${y1} ${x2 + 22},${y2} ${x2},${y2}`; }
+        else if (between(a, b).length) {
+          const xa = a.x + a.w / 2, xb = b.x + b.w / 2;   // out the bottom, under the middle column, up into the target
+          d = `M${xa},${a.y + a.h} C${xa},${detourY} ${xa},${detourY} ${xa + 24},${detourY} L${xb - 24},${detourY} C${xb},${detourY} ${xb},${detourY} ${xb},${b.y + b.h + 2}`;
+        }
         else { const x1 = a.x + a.w, x2 = b.x; d = `M${x1},${y1} C${x1 + 22},${y1} ${x2 - 22},${y2} ${x2},${y2}`; }
         return <path key={i} d={d} fill="none" stroke="#d3dbd7" strokeWidth="1.6" markerEnd="url(#arrowhead)"
           style={reveal ? { animation: `fadein .5s ${BAND_ORDER.length * 220 + 120}ms both` } : undefined} />;

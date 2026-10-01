@@ -437,8 +437,30 @@ def untag_said(text: str, st: dict) -> str:
     return out
 
 
+# What a turn in each stage must leave on screen, so the participant always has something to answer.
+STAGE_NEEDS = {"shapes": ("shapes", "offer_shapes"), "scope": ("scope", "propose_scope"), "readback": ("readback", "read_back")}
+
+
+def repair_tool(st: dict, ui: list) -> str | None:
+    """The tool to force when a turn ended with nothing to act on, or None. Sharpening needs a question;
+    the shapes, scope and readback stages need their item once (not again after it's been shown)."""
+    stg = st.get("stage")
+    if stg in CONVO_DIMS:
+        return None if any(u["type"] in ("options", "stakeholder", "drift", "shapes", "open") for u in ui) else "present_options"
+    need = STAGE_NEEDS.get(stg)
+    if not need or any(u["type"] == need[0] for u in ui):
+        return None
+    shown = {"shapes": st.get("shape_options") and not st.get("shape"), "scope": st.get("features"),
+             "readback": st.get("readback")}[stg]
+    return None if shown else need[1]
+
+
 def repair_messages(st: dict, ds, reply_text: str) -> list:
     f = st["stage"]
+    if f in STAGE_NEEDS:
+        return [{"role": "system", "content": system_prompt(ds, st)},
+                {"role": "user", "content": f"CURRENT SESSION STATE: {_state_view(st)}\nYou just said: \"{reply_text}\"\n"
+                 + turn_contract(st) + " Call that tool now."}]
     return [{"role": "system", "content": system_prompt(ds, st)},
             {"role": "user", "content": f"CURRENT SESSION STATE: {_state_view(st)}\nYou just said: \"{reply_text}\"\n"
              f"Now call present_options with your next question on {sd.DIM_LABEL.get(f, f)} "
