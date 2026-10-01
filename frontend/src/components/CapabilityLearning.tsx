@@ -121,8 +121,9 @@ function ModuleBeat({ cap, idx, count, fit, onHome }: { cap: string; idx: number
       <Title className="mt-1">{card.title}</Title>
       <Lead className="mt-2 max-w-[56ch]">{card.tagline}</Lead>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr]">
-        <div className="flex flex-col gap-4">
+      {/* With a video, it gets the whole right column (sticky, full height); everything else stacks on the left. */}
+      <div className={`mt-6 grid grid-cols-1 gap-5 ${card.video ? "lg:grid-cols-[minmax(0,1fr)_auto]" : "lg:grid-cols-[1.15fr_1fr]"}`}>
+        <div className="flex min-w-0 flex-col gap-4">
           {clean(fit) && (
             <div className="rounded-xl border border-green/40 bg-green-soft px-4 py-3.5">
               <div className="text-[12px] font-medium text-green-ink">Its job in your build</div>
@@ -140,25 +141,37 @@ function ModuleBeat({ cap, idx, count, fit, onHome }: { cap: string; idx: number
               ))}
             </ol>
           </Card>
+          {card.video && <><ModuleDemo demo={card.demo} /><ModuleLinks links={card.links} /></>}
         </div>
-        <div className="flex flex-col gap-4">
-          {card.demo === "genie-chat" && <GenieChatMock />}
-          {card.demo === "medallion" && <MedallionMock />}
-          {card.demo === "app-builder" && <AppBuilderMock />}
-          {!card.demo && <DashboardMock />}
-          {card.video && <VideoEmbed id={card.video.id} title={card.video.title} sub={card.video.sub} short={card.video.short} eyebrow="A short walkthrough" />}
-          {card.links.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {card.links.map((l) => (
-                <a key={l.url} href={l.url} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium text-navy-2 hover:border-navy-3 hover:text-navy">
-                  {l.kind === "watch" ? <ExternalLink className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}{l.label}
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
+        {card.video ? (
+          <div className="lg:sticky lg:top-6 lg:self-start">
+            <VideoEmbed id={card.video.id} title={card.video.title} sub={card.video.sub} short={card.video.short} tall eyebrow="A short walkthrough" />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4"><ModuleDemo demo={card.demo} /><ModuleLinks links={card.links} /></div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function ModuleDemo({ demo }: { demo?: string }) {
+  if (demo === "genie-chat") return <GenieChatMock />;
+  if (demo === "medallion") return <MedallionMock />;
+  if (demo === "app-builder") return <AppBuilderMock />;
+  if (demo === "decision-log") return <DecisionLogMock />;
+  return null;
+}
+function ModuleLinks({ links }: { links: { label: string; url: string; kind?: string }[] }) {
+  if (!links.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {links.map((l) => (
+        <a key={l.url} href={l.url} target="_blank" rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium text-navy-2 hover:border-navy-3 hover:text-navy">
+          {l.kind === "watch" ? <ExternalLink className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}{l.label}
+        </a>
+      ))}
     </div>
   );
 }
@@ -283,16 +296,18 @@ function MedallionMock() {
     </Frame>
   );
 }
-function DashboardMock() {
-  const bars = [38, 52, 44, 66, 58, 74, 62];
+function DecisionLogMock() {
+  const rows = [["Item 1042", "Approved", "9:14"], ["Item 0977", "Changed", "9:21"], ["Item 1108", "Note added", "9:30"]];
   return (
-    <Frame title="AI/BI dashboard">
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg bg-oat px-3 py-2"><div className="text-[11.5px] text-navy-3">This week</div><div className="text-[18px] font-semibold text-navy">−12%</div></div>
-        <div className="rounded-lg bg-oat px-3 py-2"><div className="text-[11.5px] text-navy-3">Flagged</div><div className="text-[18px] font-semibold text-navy">7</div></div>
-      </div>
-      <div className="mt-3 flex h-16 items-end gap-1.5">
-        {bars.map((h, i) => <div key={i} className="flex-1 rounded-t bg-[#2E7D9A]/70" style={{ height: `${h}%`, animation: `rise .4s ${i * 60}ms both` }} />)}
+    <Frame title="Lakebase: decisions, as they happen">
+      <div className="flex flex-col gap-1.5">
+        {rows.map((r, i) => (
+          <div key={i} className="flex items-center gap-3 rounded-lg bg-oat px-3 py-1.5 text-[13px]" style={{ animation: `rise .4s ${i * 140}ms both` }}>
+            <span className="text-navy">{r[0]}</span>
+            <span className="rounded-full bg-green-soft px-2 text-[11.5px] font-medium text-green-ink">{r[1]}</span>
+            <span className="ml-auto text-[12px] tabular-nums text-navy-3">{r[2]}</span>
+          </div>
+        ))}
       </div>
     </Frame>
   );

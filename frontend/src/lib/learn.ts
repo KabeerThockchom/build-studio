@@ -5,7 +5,7 @@
    Each card: what the piece is (tagline), a plain go-deeper, a quiz with plausible
    distractors (answer positions vary on purpose) and one or two docs links. How the piece is
    used in THIS build comes from the Sit-Down handoff (plan.capabilities[].fits). */
-import { PIPELINES, GENIE, DASHBOARDS, LAKEBASE, APPS, COMPONENT_ORDER } from "./constants";
+import { PIPELINES, GENIE, LAKEBASE, APPS, COMPONENT_ORDER } from "./constants";
 
 export interface LearnQuiz {
   q: string;
@@ -19,7 +19,7 @@ export interface ConceptCard {
   short: string;    // short label for the rail
   tagline: string;  // one plain line: what this piece IS
   deeper: string;   // 2-3 sentences, plain language
-  demo?: "genie-chat" | "medallion" | "app-builder";
+  demo?: "genie-chat" | "medallion" | "app-builder" | "decision-log";
   // A short verified YouTube walkthrough (rendered with VideoEmbed). Leave unset rather
   // than guess an id: a missing video renders nothing.
   video?: { id: string; title: string; sub?: string; short?: boolean };
@@ -47,7 +47,7 @@ export const CONCEPTS: Record<string, ConceptCard> = {
         "In the bronze layer, next to the raw data as it arrived",
       ],
       answer: 0,
-      why: "Gold is the shared, ready-to-use layer. Put the rule there and Genie, dashboards and the app all see the same ranking.",
+      why: "Gold is the shared, ready-to-use layer. Put the rule there and Genie and the app see the same ranking.",
     },
     more: [
       { q: "Your source data has duplicate rows and missing values. Which layer cleans that up?",
@@ -91,38 +91,11 @@ export const CONCEPTS: Record<string, ConceptCard> = {
     ],
     links: [{ label: "Genie docs", url: "https://docs.databricks.com/aws/en/genie/", kind: "docs" }],
   },
-  [DASHBOARDS]: {
-    title: "AI/BI Dashboards",
-    short: "AI/BI Dashboards",
-    tagline: "The key numbers and trends on one page, at a glance.",
-    deeper:
-      "An AI/BI dashboard reads the same gold tables and turns them into counters, charts and filters people can scan in seconds. " +
-      "You can describe the visual you want in plain words and refine it from there. A Genie space can sit alongside it for the questions nobody planned for.",
-    // TODO(facilitator): no verified walkthrough video for AI/BI Dashboards yet. Add one here when chosen.
-    quiz: {
-      q: "A manager wants to see this week's trend first thing every morning, without typing anything. Which piece fits best?",
-      options: [
-        "A Genie space they type a question into",
-        "A Lakebase table they query by hand",
-        "An AI/BI dashboard over the gold tables",
-      ],
-      answer: 2,
-      why: "Dashboards are for the numbers you look at every time. Genie is for the questions you did not plan for.",
-    },
-    more: [
-      { q: "Where should the dashboard get its numbers?",
-        options: ["A spreadsheet someone exports each week", "The same gold tables Genie and the app read", "Its own copy of the raw data"],
-        answer: 1, why: "Reading the gold tables means the dashboard, Genie and the app always agree. A separate copy drifts out of date." },
-      { q: "A dashboard tile shows a number that looks wrong. Where do you fix it?",
-        options: ["In the pipeline rule that builds the gold table it reads", "By typing the right number into the tile", "By hiding the tile until someone asks"],
-        answer: 0, why: "The tile only shows what gold holds. Fix the rule upstream and the dashboard, Genie and the app all get the right number." },
-    ],
-    links: [{ label: "AI/BI dashboards docs", url: "https://docs.databricks.com/aws/en/dashboards/", kind: "docs" }],
-  },
   [LAKEBASE]: {
     title: "Lakebase",
     short: "Lakebase",
     tagline: "A Postgres database that records what people decide.",
+    demo: "decision-log",
     deeper:
       "Analytics tables are great for reading lots of history, but an app also needs to save small things the moment they happen: an approval, a change, a note. " +
       "Lakebase is a managed Postgres database inside your Databricks workspace for exactly that, governed alongside the rest of your data.",
@@ -161,7 +134,7 @@ export const CONCEPTS: Record<string, ConceptCard> = {
       q: "How will you create the app screen in this build?",
       options: [
         "Write the React and Python code by hand in Genie Code",
-        "Export a dashboard and rename it as an app",
+        "Ask Genie to turn its answers into an app",
         "Describe the screens to Genie App Builder from the Apps Build tab",
       ],
       answer: 2,
@@ -173,7 +146,7 @@ export const CONCEPTS: Record<string, ConceptCard> = {
         answer: 1, why: "Short cycles work best. One clear change at a time keeps what works and fixes what doesn't." },
       { q: "Where does the app get the list on its first screen?",
         options: ["Numbers typed into the prompt", "A file uploaded to the app", "The gold table your pipeline builds"],
-        answer: 2, why: "The app reads the same governed gold table everything else reads, so its list stays current and matches Genie and the dashboard." },
+        answer: 2, why: "The app reads the same governed gold table everything else reads, so its list stays current and matches what Genie says." },
     ],
     links: [
       { label: "Databricks Apps docs", url: "https://docs.databricks.com/aws/en/dev-tools/databricks-apps/", kind: "docs" },
@@ -184,9 +157,9 @@ export const CONCEPTS: Record<string, ConceptCard> = {
 
 // General questions about how the pieces fit together, used after every component is covered.
 export const GENERAL_QUIZ: LearnQuiz[] = [
-  { q: "Why do Genie, the dashboard and the app all read the gold tables?",
+  { q: "Why do Genie and the app both read the gold tables?",
     options: ["Gold tables are the only ones they're allowed to open", "So everyone sees the same cleaned answer, from one place", "Gold tables are the cheapest to store"],
-    answer: 1, why: "One shared, cleaned source means a number in the app, a chart on the dashboard and an answer from Genie always agree." },
+    answer: 1, why: "One shared, cleaned source means a number on an app screen and an answer from Genie always agree." },
   { q: "Your build runs on generated data today. What changes when you move to real data?",
     options: ["You point the pipeline at the real tables; everything else keeps reading gold", "You rebuild every piece from scratch", "Nothing can change once it's built"],
     answer: 0, why: "The pipeline is the only piece that touches the source. Swap its input and everything downstream keeps working." },

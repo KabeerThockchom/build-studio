@@ -2,7 +2,7 @@
 (concept -> the move -> verify) for the capabilities in the blueprint.
 
 Design notes:
-- Ordered by dependency: data -> Declarative Pipelines -> Lakebase -> Genie -> AI/BI Dashboards ->
+- Ordered by dependency: data -> Declarative Pipelines -> Lakebase -> Genie ->
   Databricks App (the app step is done in Genie App Builder, not Genie Code).
 - The guardrails are the load-bearing, hard-won lessons distilled from V2V (see
   the research): they go in the SYSTEM prompt so every generated move carries the
@@ -29,7 +29,7 @@ def _schema_name(text: str) -> str:
 
 # Canonical dependency order for the steps we know how to guide. No Lakeflow —
 # a workshop day never stands up a live ingestion source.
-STEP_ORDER = ["data", "Declarative Pipelines", "Lakebase", "Genie", "AI/BI Dashboards", "Databricks Apps"]
+STEP_ORDER = ["data", "Declarative Pipelines", "Lakebase", "Genie", "Databricks Apps"]
 
 # The data step is one of three workshop-realistic paths, keyed by data_mode.
 DATA_GUARDRAIL = {
@@ -179,18 +179,12 @@ GUARDRAILS = {
     "Declarative Pipelines": (
         "Build the data flow as a Lakeflow Declarative Pipeline with the medallion pattern: BRONZE tables land the raw "
         "data as it is, SILVER tables clean, type and join it, GOLD tables are ready to use and are the ONLY tables "
-        "Genie, dashboards and the app read. Any scoring, flagging, ranking or drafted suggestion the plan describes is "
+        "Genie and the app read. Any scoring, flagging, ranking or drafted suggestion the plan describes is "
         "a rule computed in a gold table (a clear, explainable column such as a score, a flag and a reason), never an "
         "AI agent. Keep it small: two to four gold tables, named for what they mean. Add a short comment on each table "
         "saying what it holds, and data quality expectations on the key columns (e.g. ids not null). Run the pipeline "
         "and check each gold table has sensible rows before moving on; a pipeline that 'succeeded' with empty gold "
         "tables is not done."),
-    "AI/BI Dashboards": (
-        "Create an AI/BI dashboard over the GOLD tables that answers the plan's success measure at a glance: a few "
-        "counters for the headline numbers (with the target alongside the actual), one trend over time, and one "
-        "breakdown by the dimension that matters (site, region, product, team). Title every widget in the "
-        "participant's own terms. Keep it to one page. Publish it and open it to confirm every widget shows real "
-        "numbers, not empty tiles. If a Genie space exists, it can be linked from the dashboard for follow-up questions."),
     "Lakebase": (
         "Lakebase is managed Postgres for what people decide at runtime (an approval, a change, a note). Create your "
         "OWN Lakebase database/project for this build (named for your project) and provision it fresh; do NOT write to "
@@ -210,8 +204,8 @@ GUARDRAILS = {
         "an App Space.) So the MOVE for this step is the prompt to paste into Genie App Builder, not into Genie Code. "
         "Write it as a clear description of the app, never code: who it is for and the moment they open it; the first "
         "screen and its ONE dominant element (matching the interaction model); each screen, what it shows and what "
-        "each button does; exactly which data it reads (name the fully qualified gold tables, the Genie space and the "
-        "dashboard if they exist) and what it writes (name the Lakebase database and table and the columns each "
+        "each button does; exactly which data it reads (name the fully qualified gold tables, the Genie space if "
+        "there is one) and what it writes (name the Lakebase database and table and the columns each "
         "action records). Start simple: one or two screens. The concept should tell them to iterate in short cycles, "
         "being specific about what to change. The verify is: the preview shows real rows from the gold tables, an "
         "action writes a row they can see in Lakebase, and the deployed app opens from its URL. Remember state must "
@@ -291,12 +285,12 @@ into Genie App Builder, and that prompt is what makes the app good, so write it 
   list reads the gold table AND the Lakebase decisions (latest decision per item and date), so an approved item
   shows as approved or moves out of the to-do list. If Lakebase is NOT in the build, the app records nothing:
   never invent a Lakebase table or any write the plan doesn't include.
-- Use only the pieces in this build. Never add a piece (Lakebase, Genie, a dashboard) in a step that the build
-  doesn't list.
+- Use only the pieces in this build. Never add a piece (Lakebase, Genie) in a step that the build doesn't list.
+  There is no separate dashboard: key numbers and trends are charts on an app screen.
 - Findings in plain language: each item gets a one-sentence observation a non-technical person could say out loud,
   with the supporting numbers beside it, not a raw table dump.
 - Name the data precisely: the fully qualified gold tables to read, the Genie space to embed if the plan has one
-  (as a free-text ask panel), the dashboard to link if there is one.
+  (as a chat panel for the open questions the plan names).
 - Design: light theme, generous whitespace, one display font and one body font, tabular numerals for numbers,
   at most three meaning-coded colours always paired with a label, a loading skeleton and a helpful empty state.
   If the participant's organisation is the workshop host, ask for its brand colours; otherwise a clean neutral palette.
@@ -388,7 +382,7 @@ def _user_prompt(req: BuildRequest, catalog: str = "") -> str:
         + f"Data mode: {data_mode}\n"
         f"Interaction model: {interaction or 'not specified — infer it from the plan'} "
         f"(this sets the app's first screen and primary action: browse_act=ranked shortlist to act; "
-        f"monitor=dashboard/overview; ask=question box; explore=flexible drilling; "
+        f"monitor=an overview screen of key numbers with charts; ask=question box; explore=flexible drilling; "
         f"agent_actions=a review queue: opens on the suggestions the pipeline's rules drafted for each item, "
         f"the person approves or overrides each, every decision recorded to Lakebase as an audit trail).\n"
         f"The plan names who it's for, the first screen, and the primary action — the app step must build "

@@ -1,6 +1,6 @@
 // Pure layout: DiagramSpec -> positioned geometry for SVG. Tested by vitest.
 import type { DiagramSpec, Node, Band } from "./types";
-import { BAND_ORDER, PIPELINES, GENIE, DASHBOARDS, LAKEBASE, APPS } from "./constants";
+import { BAND_ORDER, PIPELINES, GENIE, LAKEBASE, APPS } from "./constants";
 
 export interface PlacedNode extends Node { x: number; y: number; w: number; h: number; cx: number; cy: number; }
 export interface Connector { from: string; to: string; }
@@ -47,12 +47,11 @@ export function layoutDiagram(spec: DiagramSpec, width = 940): Layout {
 
 // The same deterministic wiring the server uses (components.spec_for), so Learn can show
 // the architecture before the plan job has finished:
-// data -> pipeline; pipeline -> Genie / Dashboards; the app writes to Lakebase;
-// Genie (and the pipeline's gold tables) feed the app.
+// data -> pipeline; pipeline -> Genie and the app; Genie sits in the app as a chat panel;
+// the app writes decisions to Lakebase. The app is the one "use it" surface.
 const META: Record<string, { band: Band; label: string; sub: string }> = {
   [PIPELINES]: { band: "pipeline", label: "Declarative Pipelines", sub: "bronze to silver to gold" },
-  [GENIE]: { band: "serve", label: "Genie", sub: "plain-English questions" },
-  [DASHBOARDS]: { band: "serve", label: "AI/BI Dashboard", sub: "the numbers at a glance" },
+  [GENIE]: { band: "serve", label: "Genie", sub: "open questions, in the app" },
   [LAKEBASE]: { band: "serve", label: "Lakebase", sub: "records decisions" },
   [APPS]: { band: "delivery", label: "Databricks App", sub: "built with Genie App Builder" },
 };
@@ -69,17 +68,14 @@ export function specFor(components: string[], dataLabel = "Your data", dataSub =
     nodes.push({ id: ids[c], ...m });
   }
   const edges: [string, string][] = [];
-  const pipe = ids[PIPELINES], app = ids[APPS];
-  const serve = [GENIE, DASHBOARDS, LAKEBASE].filter((c) => ids[c]).map((c) => ids[c]);
+  const pipe = ids[PIPELINES], genie = ids[GENIE], lake = ids[LAKEBASE], app = ids[APPS];
+  const src = pipe || "data";
   if (pipe) edges.push(["data", pipe]);
-  for (const s of serve) {
-    if (s === ids[LAKEBASE]) edges.push(app ? [app, s] : [pipe || "data", s]);
-    else edges.push([pipe || "data", s]);
-  }
+  if (genie) edges.push([src, genie]);
   if (app) {
-    const reads = serve.filter((s) => s !== ids[LAKEBASE]);
-    if (pipe) reads.push(pipe);
-    for (const s of reads.length ? reads : ["data"]) edges.push([s, app]);
-  }
+    edges.push([src, app]);
+    if (genie) edges.push([genie, app]);
+    if (lake) edges.push([app, lake]);
+  } else if (lake) edges.push([src, lake]);
   return { nodes, edges };
 }

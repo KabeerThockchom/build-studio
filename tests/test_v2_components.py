@@ -13,16 +13,14 @@ def test_legacy_blocks_map_into_v2_catalog():
 
 
 def test_components_are_dynamic_and_ordered():
-    # an app always reads gold tables, so it brings a pipeline; Lakebase always brings an app to write to it
-    assert C.components_for([{"block": "decision_log"}, {"block": "app_screen"}]) == [C.PIPELINES, C.LAKEBASE, C.APPS]
+    # one surface: every build has the pipeline and the app; Lakebase and Genie only when scope needs them
+    assert C.components_for([{"block": "app_screen"}]) == [C.PIPELINES, C.APPS]
     assert C.components_for([{"block": "decision_log"}, {"block": "rules_logic"}]) == [C.PIPELINES, C.LAKEBASE, C.APPS]
-    # every build ships a surface, chosen from the shape when the scope has none
-    assert C.components_for([{"block": "rules_logic"}], interaction_model="monitor") == [C.PIPELINES, C.DASHBOARDS]
-    # Genie or dashboards read gold tables, so they imply a pipeline
-    assert C.components_for([{"block": "genie_space"}]) == [C.PIPELINES, C.GENIE]
-    assert C.components_for([{"block": "dashboard", "lane": "later"}]) == [C.PIPELINES, C.GENIE]  # surface fallback
-    full = C.components_for([{"block": b} for b in ("app_screen", "dashboard", "genie_space", "decision_log", "pipeline_step")])
-    assert full == C.ORDER
+    assert C.components_for([{"block": "genie_space"}]) == [C.PIPELINES, C.GENIE, C.APPS]
+    assert C.components_for([{"block": "dashboard"}]) == [C.PIPELINES, C.APPS]          # a dashboard is an app screen
+    assert C.components_for([{"block": "genie_space", "lane": "later"}]) == [C.PIPELINES, C.APPS]
+    full = C.components_for([{"block": b} for b in ("app_screen", "genie_space", "decision_log", "pipeline_step")])
+    assert full == C.ORDER and "AI/BI Dashboards" not in C.COMPONENTS
     assert "Supervisor agent" not in full and "Knowledge Assistant" not in full
 
 
@@ -33,6 +31,8 @@ def test_spec_wiring():
     e = set(spec["edges"])
     assert ("data", "declarative_pipelines") in e and ("databricks_apps", "lakebase") in e
     assert ("declarative_pipelines", "databricks_apps") in e and ("genie", "databricks_apps") in e
+    assert {n["band"] for n in spec["nodes"] if n["id"] in ("genie", "lakebase")} == {"serve"}
+    assert [n["id"] for n in spec["nodes"] if n["band"] == "delivery"] == ["databricks_apps"]
 
 
 def test_packages_keep_essentials_in_today():
@@ -134,16 +134,14 @@ def test_learn_and_plan_render_the_same_architecture():
 
 
 def test_refine_can_add_and_remove_pieces_coherently():
-    base = [C.PIPELINES, C.DASHBOARDS]
-    assert C.reconcile([C.PIPELINES, C.DASHBOARDS, C.GENIE], base) == ([C.PIPELINES, C.GENIE, C.DASHBOARDS], [])
-    new, notes = C.reconcile([C.PIPELINES, C.DASHBOARDS, C.LAKEBASE], base)
-    assert new == [C.PIPELINES, C.LAKEBASE, C.DASHBOARDS, C.APPS] and notes
-    # dropping the app takes its decision log with it
-    new, notes = C.reconcile([C.PIPELINES, C.LAKEBASE, C.GENIE], [C.PIPELINES, C.LAKEBASE, C.GENIE, C.APPS])
-    assert new == [C.PIPELINES, C.GENIE] and notes
-    # can't drop the only surface or the pipeline
-    new, _ = C.reconcile([], [C.PIPELINES, C.DASHBOARDS])
-    assert new == [C.PIPELINES, C.DASHBOARDS]
+    base = [C.PIPELINES, C.APPS]
+    assert C.reconcile([C.PIPELINES, C.APPS, C.GENIE], base) == ([C.PIPELINES, C.GENIE, C.APPS], [])
+    new, notes = C.reconcile([C.PIPELINES, C.APPS, "AI/BI Dashboards"], base)          # asking for a dashboard
+    assert new == [C.PIPELINES, C.APPS] and notes
+    new, notes = C.reconcile([C.PIPELINES, C.LAKEBASE], [C.PIPELINES, C.LAKEBASE, C.APPS])  # can't drop the app
+    assert new == [C.PIPELINES, C.LAKEBASE, C.APPS] and notes
+    new, _ = C.reconcile([C.PIPELINES, C.APPS], [C.PIPELINES, C.GENIE, C.APPS])        # Genie can go
+    assert new == [C.PIPELINES, C.APPS]
 
 
 def test_refine_job_swaps_pieces_and_diagram(monkeypatch):
@@ -152,14 +150,14 @@ def test_refine_job_swaps_pieces_and_diagram(monkeypatch):
 
     def fake(messages, max_tokens=8000):
         calls.append(messages)
-        return {"prd_markdown": "x", "pieces": [C.PIPELINES, C.DASHBOARDS, C.GENIE], "change_note": "Added Genie for chat."}
+        return {"prd_markdown": "x", "pieces": [C.PIPELINES, C.APPS, C.GENIE], "change_note": "Added Genie for chat."}
     monkeypatch.setattr(P, "_call", fake)
     monkeypatch.setattr(P, "check", lambda sd, p: [])
     job = {}
-    P.run_plan({"idea": "i", "answers": {}, "capabilities": [C.PIPELINES, C.DASHBOARDS]}, job,
+    P.run_plan({"idea": "i", "answers": {}, "capabilities": [C.PIPELINES, C.APPS]}, job,
                previous={"prd_markdown": "old"}, adjust="I want an agent they can chat with")
     bp = job["blueprint"]
-    assert bp["capabilities"] == [C.PIPELINES, C.GENIE, C.DASHBOARDS]
+    assert bp["capabilities"] == [C.PIPELINES, C.GENIE, C.APPS]
     assert bp["components_changed"]["added"] == [C.GENIE]
     assert any(n["id"] == "genie" for n in bp["spec"]["nodes"])
     assert "pieces" in calls[0][-1]["content"]
@@ -191,3 +189,38 @@ def test_offer_label_matches_the_line():
         ui, _ = sa.apply_tools(st, [{"name": "stakeholder", "args": {"persona": "data_lead", "tone": "offers", "line": line,
                                                                      "option_1": "a", "option_2": "b", "option_3": "c"}}], {})
         assert next(u for u in ui if u["type"] == "stakeholder")["tone"] == want
+
+
+def test_genie_only_when_people_ask_open_questions():
+    feats = ["Ranked list | app_screen | the heart", "Log | decision_log | records", "+Ask about accounts | genie_space | q"]
+    st = sa.new_session("idea"); st["stage"] = "scope"
+    ui, _ = sa.apply_tools(st, [{"name": "propose_scope", "args": {"features": list(feats)}}], {})
+    assert all(f["block"] != "genie_space" for f in st["features"])
+    st = sa.new_session("idea"); st["stage"] = "scope"; st["how_used"] = ["act_on_list", "ask_questions"]
+    sa.apply_tools(st, [{"name": "propose_scope", "args": {"features": list(feats)}}], {})
+    assert any(f["block"] == "genie_space" for f in st["features"])
+
+
+def test_how_used_asked_once_after_user_moment():
+    st = sa.new_session("idea"); st["stage"] = "user_moment"
+    st["messages"] = [{"role": "user", "content": "x"}, {"role": "assistant", "content": "y"}]
+    st["brief"]["user_moment"] = "SAs at their desk before an exec meeting"
+    assert "ask HOW they'll use it" in sa.turn_contract(st)
+    assert "ask HOW they'll use it" not in sa.turn_contract(st)     # once only
+    calls = sa.normalize([{"name": "present_options", "args": {"question": "Once it's open, what do they mostly do?",
+        "option_1": "Scan the list and pick the next RFP", "option_1_kind": "act_on_list",
+        "option_2": "Open a drafted proposal and edit it", "option_2_kind": "edit_draft",
+        "option_3": "Ask why an RFP ranks high", "option_3_kind": "ask_questions"}}])
+    ui, _ = sa.apply_tools(st, calls, {})
+    assert "kind" not in ui[0]["options"][0]                       # internal, never sent to the UI
+    sa.take_how(st, "Scan the list and pick the next RFP")         # a click maps exactly, no keyword guessing
+    assert st["how_used"] == ["act_on_list"] and not sa.genie_earned(st)
+
+
+def test_how_answer_recorded_in_code():
+    st = sa.new_session("idea"); st["how_pending"] = True
+    sa.take_how(st, "Open a suggested order and edit it")
+    assert st["how_used"] == ["edit_draft"] and not sa.genie_earned(st)
+    st = sa.new_session("idea"); st["how_pending"] = True
+    sa.take_how(st, "Ask why a crew is flagged, then approve the swap")
+    assert set(st["how_used"]) == {"ask_questions", "act_on_list"} and sa.genie_earned(st)

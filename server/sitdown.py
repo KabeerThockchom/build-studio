@@ -26,7 +26,7 @@ GRADES = ["F", "D-", "D", "D+", "C-", "C", "C+", "B-", "B", "B+", "A-", "A", "A+
 STAGES = ["problem", "user_moment", "objective", "shapes", "scope", "readback"]
 RUBRIC_HINT = {
     "problem": "what goes wrong, for whom, how often, and roughly how big (ask for THEIR number; if unsure, offer sizing cards)",
-    "user_moment": "the exact role (confirm it if they mention several sites or a team), when, where and on what device (ask, never assume)",
+    "user_moment": "the exact role (confirm it if they mention several sites or a team), when, where and on what device (ask, never assume); how they use it is asked separately by the harness",
     "objective": "a baseline today, a target and a timeframe, anchored on THEIR numbers; propose one only if they have none",
     "decision": "the one action they take right after looking, and what happens next (log it, assign it, call someone)",
     "data": "first ask what they look at today (Excel, CRM notes, logs, reports); only then map to seeded tables, and only if they fit",
@@ -37,7 +37,7 @@ RUBRIC_HINT = {
 # the frontend owns the actual lo-fi wireframe drawing, so the model never draws pixels.
 SKETCHES = {
     "triage_list": "a ranked shortlist of what needs attention, click one to act",
-    "dashboard": "tiles and a chart giving the whole picture at a glance",
+    "dashboard": "an app screen of key-number tiles and a chart giving the whole picture at a glance",
     "ask_answer": "a plain-English question box with the answer below it",
     "explore_table": "filters over a table you drill through in your own direction",
     "approve_queue": "cards the system drafted, each with approve or override and the reason behind it",
@@ -241,7 +241,7 @@ def shapes_messages(state: dict, ds: dict | None) -> list:
 Offer three genuinely different ways to build THIS idea in one day (e.g. a narrow tool, a
 review queue where the system drafts a suggestion for each item and the person approves it, a
 monitoring view), each true to the north_star. No AI agents or document Q&A: the pieces are
-Declarative Pipelines, Genie, AI/BI Dashboards, Lakebase and a Databricks App.
+Declarative Pipelines, Lakebase, Genie (only for open questions) and one Databricks App.
 For each, pick the rough UI sketch that best fits its first screen, from these keys ONLY:
 {{sketch_list}}
 Pick "none" if no sketch genuinely fits; do not force one.
@@ -292,7 +292,7 @@ pick the ONE building block it mainly needs from this list (do not estimate effo
 Anything needing a trained model, image recognition, or a live connection to another system is
 "not_today"; give it a one-day stand-in in "why" if one exists.
 Rank them: rank 1 is the heart of the build (without it there is no build), higher ranks are nicer
-to have. At least one feature must be an app_screen or dashboard people actually open. {extra}
+to have. At least one feature must be an app_screen people actually open. {extra}
 Reply with ONLY this JSON object:
 {{"reaction": "<1 sentence>",
   "features": [{{"name": "<=6 words", "block": "<block key>", "rank": <int>, "custom": true|false,
@@ -315,7 +315,6 @@ Reply with ONLY this JSON object (reaction FIRST so it can show while the rest l
   "data_plan": {{"seeded": ["<table>", ...], "generate": ["<table: purpose>", ...]}},
   "fits": {{"Genie": "<=14 words: what Genie does in THIS build",
            "Declarative Pipelines": "<=14 words: what it cleans, joins or scores here",
-           "AI/BI Dashboards": "<=14 words: what the dashboard shows here",
            "Lakebase": "<=14 words: what it records here",
            "Databricks Apps": "<=14 words: the screen people open"}}}}"""
     return [{"role": "system", "content": system_prompt(ds)}, {"role": "user", "content": user}]
@@ -471,7 +470,7 @@ def build_packages(features: list) -> dict:
     Level-ups are the '+' features: ambitious additions that change what the build can do. Packages that would
     come out identical are dropped, so the participant only ever sees real choices."""
     surface = next((f["name"] for f in sorted(features, key=lambda f: f.get("rank", 99))
-                    if f.get("block") in ("app_screen", "dashboard", "genie_space") and not f.get("levelup")), None)
+                    if f.get("block") == "app_screen" and not f.get("levelup")), None)
     found = lambda f: f.get("block") in FOUNDATION or f.get("name") == surface
     key = lambda f: (not found(f), not f.get("essential"), f.get("rank", 99))
     doable = [f for f in features if BLOCKS.get(f.get("block"), (1,))[0]]

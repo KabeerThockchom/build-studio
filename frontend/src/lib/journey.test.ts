@@ -22,7 +22,7 @@ describe("learn content", () => {
     expect(CONCEPTS["Lakebase"].video?.id).toBe("ed2WJ5YayQ4");
     expect(CONCEPTS[APPS].video?.id).toBe("_nMgCvsCcns");
     expect(CONCEPTS[PIPELINES].video).toBeUndefined();
-    expect(CONCEPTS["AI/BI Dashboards"].video).toBeUndefined();
+    expect(CONCEPTS["AI/BI Dashboards"]).toBeUndefined();          // retired: charts are app screens
   });
   it("teaches Genie App Builder in the Apps module", () => {
     expect(CONCEPTS[APPS].deeper).toMatch(/Genie App Builder/);

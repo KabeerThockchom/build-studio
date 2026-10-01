@@ -169,7 +169,7 @@ export function ShapesItem({ it, live, fresh, onSend, base }: { it: any; live: b
 // One colour per piece, so a package reads as "which pieces" at a glance.
 const PIECE: Record<string, { t: string; k: string }> = {
   "Declarative Pipelines": { t: "Pipelines", k: "pipe" }, Lakebase: { t: "Lakebase", k: "lake" },
-  Genie: { t: "Genie", k: "genie" }, "AI/BI Dashboards": { t: "Dashboard", k: "dash" }, "Databricks Apps": { t: "App", k: "app" },
+  Genie: { t: "Genie", k: "genie" }, "Databricks Apps": { t: "App", k: "app" },
 };
 function PkgMeter({ units, cap, fit }: { units: number; cap: number; fit?: string }) {
   return (

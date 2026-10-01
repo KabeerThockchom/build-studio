@@ -33,10 +33,11 @@ THE PIECES (use only the ones listed for this build; never add others):
 - Declarative Pipelines: Lakeflow Declarative Pipelines that take the data through bronze (raw), silver (cleaned,
   joined) and gold (ready to use) tables. Any scoring, flagging, ranking or "drafted suggestion" logic lives here,
   as rules in the gold layer. There are NO AI agents in these builds.
-- Genie: a Genie space over the gold tables so people ask questions in plain English.
-- AI/BI Dashboards: a dashboard over the gold tables showing the key numbers and trends.
+- Genie: a Genie space over the gold tables, shown as a chat panel in the app, for the open questions people ask
+  in their own words. Only in builds where people genuinely need that.
 - Lakebase: a Postgres database that records what people decide, approve, change or note.
-- Databricks Apps: the screen people open. It is built separately with Genie App Builder (Apps > Build), from
+- Databricks Apps: the ONE place people use it (lists to act on, drafts to edit, charts of the key numbers; there
+  is no separate dashboard). It is built separately with Genie App Builder (Apps > Build), from
   a natural-language description of the screens. Describe the screens and behaviour clearly; never describe code.
 
 PRD DISCIPLINE: no code, SQL, schemas, column lists or API endpoints. Use THEIR words and THEIR numbers exactly
@@ -67,9 +68,9 @@ SHAPE = """Return ONLY one JSON object:
 
 PIECES_ASK = """
 PIECES CAN CHANGE ON A REFINE. Also return "pieces": the full list of pieces after this change, chosen only from
-Declarative Pipelines, Genie, AI/BI Dashboards, Lakebase, Databricks Apps. Map what they ask for onto a piece:
+Declarative Pipelines, Lakebase, Genie, Databricks Apps (the pipeline and the app are always in). Map what they ask for onto a piece:
 asking questions or chatting with the data (even if they say "an agent" or "a chatbot") -> Genie; numbers or trends
-on one page -> AI/BI Dashboards; recording approvals, notes or changes -> Lakebase; a screen to act from ->
+or "a dashboard" -> charts on an app screen (no new piece; say so in change_note); recording approvals, notes or changes -> Lakebase; a screen to act from ->
 Databricks Apps. Remove a piece when they ask to drop it or what it did. There are no AI agents in these builds:
 if they asked for one, say in change_note that Genie is how people chat with the data here. If nothing about the
 pieces changed, return the current list unchanged. Write the PRD for the NEW list of pieces."""
@@ -111,8 +112,8 @@ def draft(sd: dict, previous: dict | None = None, adjust: str = "") -> dict:
 
 CHECK = """You are reviewing a build plan against the participant's own Sit-Down. Context you must not flag: the
 Databricks Apps piece is ALWAYS built with Genie App Builder (Apps > Build tab, from a plain description of the
-screens); naming it is correct and required. Declarative Pipelines, Genie, AI/BI Dashboards and Lakebase are
-Databricks products. List concrete problems only:
+screens); naming it is correct and required. Declarative Pipelines, Genie and Lakebase are
+Databricks products. There is deliberately no separate dashboard: charts live on app screens. List concrete problems only:
 - a fact they stated (number, target, deadline, role, device, essential component, worry) missing or changed
 - something in Today's scope missing from the plan, or something from Later/parked presented as built today
 - invented data, tables or columns not in the data plan; generated data presented as real
@@ -123,8 +124,8 @@ Databricks products. List concrete problems only:
   log keyed without the date so one decision blocks every later day; no way to scope to the user's own sites)
 - time-sensitive logic (age, SLA, "right now", "this week") that breaks on static sample data: generated data
   must be relative to today's date, or the metric computed at read time
-- a dashboard or Genie space reading Lakebase directly (they read Unity Catalog gold tables; leave Lakebase-only
-  metrics to the app or say how they reach a gold table)
+- Genie reading Lakebase directly (it reads Unity Catalog gold tables; leave Lakebase-only metrics to the app)
+- a separate AI/BI dashboard anywhere (key numbers are charts on an app screen)
 - a step writing to Lakebase, or using any piece, when that piece is not in the build
 Reply ONLY JSON: {"issues": ["<specific problem and the fix, <=30 words>", ...], "ok": true|false}"""
 
@@ -172,7 +173,7 @@ def to_blueprint(sd: dict, p: dict, components: list[str], changed: dict | None 
 
 
 def run_plan(sd: dict, job: dict, previous: dict | None = None, adjust: str = ""):
-    comps = [c for c in (sd.get("capabilities") or []) if c in C.COMPONENTS] or [C.PIPELINES, C.GENIE]
+    comps, _ = C.reconcile([str(c) for c in sd.get("capabilities") or []], [])
     sd = {**sd, "idea": clamp_idea(sd.get("idea", ""))}
     job["stage"] = "drafting"
     p = draft(sd, previous, adjust)

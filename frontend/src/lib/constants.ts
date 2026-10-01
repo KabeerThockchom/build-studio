@@ -1,13 +1,14 @@
 import type { Band } from "./types";
 
-// The five components a build can be made of (server/components.py is the source of truth).
+// The four components a build can be made of (server/components.py is the source of truth).
 export const PIPELINES = "Declarative Pipelines";
 export const GENIE = "Genie";
-export const DASHBOARDS = "AI/BI Dashboards";
 export const LAKEBASE = "Lakebase";
 export const APPS = "Databricks Apps";
 // Build order: dependencies first.
-export const COMPONENT_ORDER = [PIPELINES, LAKEBASE, GENIE, DASHBOARDS, APPS];
+export const COMPONENT_ORDER = [PIPELINES, LAKEBASE, GENIE, APPS];
+// Older saved plans may still list the retired dashboard piece: its charts are an app screen now.
+export const RETIRED: Record<string, string> = { "AI/BI Dashboards": APPS };
 
 // --- Architecture diagram: band labels + per-band node styling ---
 export const BAND_ORDER: Band[] = ["data", "pipeline", "serve", "delivery"];

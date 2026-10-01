@@ -68,7 +68,9 @@ objective, decision, data, risk. The harness tells you the current FOCUS each tu
 and each time you learn something, call update_brief to write or sharpen that section (even partly).
 Then: shapes (offer_shapes), scope (propose_scope, you never estimate effort), readback (read_back).
 WHAT A BUILD CAN USE: Declarative Pipelines (bronze/silver/gold tables, including rules that score, flag or
-draft a suggestion per item), Genie, AI/BI Dashboards, Lakebase (records decisions) and a Databricks App.
+draft a suggestion per item), Lakebase (records decisions), Genie (a chat panel in the app, ONLY when people
+truly need to ask open questions the screens can't answer in advance) and the Databricks App (the one place
+people use it: lists to act on, drafts to edit, charts of the key numbers). There is no separate dashboard.
 No AI agents, no document Q&A, no trained ML models: if the idea needs one, find the one-day version with
 these pieces (rules in the pipeline instead of an agent) and park the rest.
 Every reply: 1-3 short sentences of plain chat FIRST (no lists, no headings, no markdown), then tools.
@@ -100,7 +102,10 @@ TOOLS = [
                **{f"option_{i}": {"type": "string", "description": "card label, <=8 words"} for i in (1, 2, 3)},
                **{f"option_{i}_sub": {"type": "string", "description": "<=14 words"} for i in (1, 2, 3)},
                **{f"option_{i}_consider": {"type": "string", "description": "<=12 words: the key tradeoff of this "
-                  "choice. Only when the choice shapes the build; else empty"} for i in (1, 2, 3)}},
+                  "choice. Only when the choice shapes the build; else empty"} for i in (1, 2, 3)},
+               **{f"option_{i}_kind": {"type": "string", "enum": ["", "act_on_list", "edit_draft", "ask_questions", "watch_numbers"],
+                  "description": "ONLY on the how-they-use-it question: which kind of use this option is; else empty"}
+                  for i in (1, 2, 3)}},
      "req": ["question", "option_1", "option_2", "option_3"]},
     {"name": "ask_open", "desc": "Ask a question only THEY can answer (their number, target, worry) with no cards, so they type it in their words.",
      "props": {"question": {"type": "string", "description": "<=18 words, plain and specific"},
@@ -113,7 +118,9 @@ TOOLS = [
                          "description": "new specific facts THEY stated this turn, each <=12 words in their terms "
                                         "(numbers, targets, deadlines, roles, devices, components they called essential, worries)"},
                "resolves": {"type": "array", "items": {"type": "integer"},
-                            "description": "numbers of the key unknowns this turn answered (see key_unknowns)"}},
+                            "description": "numbers of the key unknowns this turn answered (see key_unknowns)"},
+               "open_questions": {"type": "string", "description": "if they'll ask open questions: one example in "
+                                  "their words, <=16 words"}},
      "req": ["dim", "text"]},
     {"name": "set_grades", "desc": "Update letter grades for dimensions that changed.",
      "props": {"grades": {"type": "object", "description": "dim -> letter (F..A+)",
@@ -158,8 +165,8 @@ TOOLS = [
                                            + ", ".join(sd.BLOCKS) + "; why <=14 words. Start the name with '!' for a "
                                            "component they called essential or their top worry, '*' for a feature they asked for, '+' for a "
                                            "level-up: an ambitious addition that changes what the build can do (a new angle, "
-                                           "a second piece such as Genie or a dashboard, running ahead of time instead of on "
-                                           "demand), never a small polish item. Level-ups go last."}},
+                                           "recording decisions in Lakebase, charts of the key numbers, Genie only if they said "
+                                           "people ask open questions, running ahead of time instead of on demand), never a small polish item. Level-ups go last."}},
      "req": ["features"]},
     {"name": "read_back", "desc": "Hand the plan back before they build.",
      "props": {"who": {"type": "string"}, "what": {"type": "string"}, "worked_if": {"type": "string"},
@@ -174,7 +181,7 @@ TOOLS = [
                         "description": "honest watch-outs: anything the plan depends on that is NOT in today's scope or the "
                                        "data (e.g. 'no budget source yet: generate a planned-hours table'). Never mention "
                                        "pieces the build doesn't use. Empty if none."},
-               "fits": {"type": "object", "description": "for each component this build uses (Declarative Pipelines, Genie, AI/BI Dashboards, Lakebase, Databricks Apps): <=14 words on its job here",
+               "fits": {"type": "object", "description": "for each component this build uses (Declarative Pipelines, Lakebase, Genie, Databricks Apps): <=14 words on its job here",
                         "additionalProperties": {"type": "string"}},
                **{f"brief_{d}": {"type": "string", "description": f"FINAL consolidated {d} section, <=40 words, consistent "
                                  "with every later decision, their facts verbatim, (suggested) only on unconfirmed proposals"}
@@ -212,11 +219,32 @@ def _state_view(st: dict) -> str:
                                 for i, u in enumerate(st["unknowns"])]
     if st.get("facts"):
         view["facts_they_stated"] = st["facts"]      # never lose these; honour them in brief, scope and readback
+    if st.get("how_used"):
+        view["how_they_use_it"] = st["how_used"] + ([f"asks things like: {st['open_questions']}"] if st.get("open_questions") else [])
     if st.get("shape"):
         view["chosen_shape"] = {k: st["shape"].get(k) for k in ("name", "one_liner", "interaction_model")}
     if st.get("features"):
         view["scope"] = [{"name": f["name"], "lane": f.get("lane")} for f in st["features"]]
     return json.dumps(view, ensure_ascii=False)
+
+
+HOW_USED = {"act_on_list": "scan a ranked list and act on the top few",
+            "edit_draft": "open something drafted for them and edit it",
+            "ask_questions": "ask open questions in their own words",
+            "watch_numbers": "glance at a few key numbers and trends"}
+
+
+def genie_earned(st: dict) -> bool:
+    """Genie is only in a build when people genuinely need to ask open questions: they said so, or they
+    chose an ask / explore shape."""
+    return "ask_questions" in (st.get("how_used") or []) or \
+        (st.get("shape") or {}).get("interaction_model") in ("ask", "explore")
+
+
+def needs_how(st: dict) -> bool:
+    """Ask how they'll use it exactly once, right after we know who and when (it decides the app's first
+    screen and whether Genie belongs)."""
+    return bool(st["brief"].get("user_moment")) and not st.get("how_used") and not st.get("how_asked")
 
 
 def focus(st: dict) -> str | None:
@@ -304,7 +332,17 @@ def turn_contract(st: dict, meta: dict | None = None) -> str:
         if open_u:
             need.append(f"aim your question at this open key unknown: {open_u[0]} (mark it in update_brief.resolves once answered)")
         cast = pick_cast(st, f)
-        if needs_open(st, f):
+        if needs_how(st) and not first:
+            st["how_asked"] = True
+            need.append("present_options: ask HOW they'll use it once it's open, in their words (e.g. 'Once the SA "
+                        "opens it, what do they mostly do?'). Three concrete, idea-specific options, each one of: "
+                        + "; ".join(HOW_USED.values()) + ". Pick the three that are plausible here; offer asking open "
+                        "questions only if it's genuinely plausible. Set option_N_kind on each card (act_on_list, edit_draft, "
+                        "ask_questions or watch_numbers). If they then say they'd ask questions, put an example in "
+                        "update_brief.open_questions. No stakeholder this turn")
+            cast = None
+            st.pop("_cast_planned", None)
+        elif needs_open(st, f):
             need.append(f"ask_open: {OPEN_PROMPT[f]} No present_options this turn")
             cast = None
         elif cast:
@@ -314,7 +352,7 @@ def turn_contract(st: dict, meta: dict | None = None) -> str:
                         f"{TONES[tone]}; their voice: {c['voice']}), one line about {sd.DIM_LABEL[f]} "
                         f"({sd.RUBRIC_HINT.get(f, '')}), with 3 reply options. No present_options this turn")
             st["_cast_planned"] = [who, f]
-        if not cast and not needs_open(st, f):
+        if not cast and not needs_open(st, f) and not any(n.startswith("present_options: ask HOW") for n in need):
             need.append(f"present_options: your next question with exactly 3 CONCRETE answer options, realistic ranges for numbers (FOCUS: {sd.DIM_LABEL[f]}: "
                         f"{sd.RUBRIC_HINT.get(f, '')})")
         covered = [sd.DIM_LABEL[d] for d in CONVO_DIMS if st["brief"].get(d)]
@@ -337,7 +375,11 @@ def turn_contract(st: dict, meta: dict | None = None) -> str:
                 f"is the feature that delivers their Decision ({dec}); anything needed to measure their Objective ({obj}) "
                 "is marked '!' too; include every component they called essential (see facts_they_stated); keep the core "
                 "logic (detection, ranking, matching) in, never park the thing that makes it work; any feature they never "
-                "discussed must have a why starting 'Suggested:'; never claim a column exists unless it is listed"]
+                "discussed must have a why starting 'Suggested:'; never claim a column exists unless it is listed; "
+                "the app screens follow how they use it (" + (", ".join(HOW_USED[h] for h in st.get("how_used") or []) or "not said: "
+                "follow the chosen shape") + "); " + ("include ONE genie_space feature for the open questions they ask"
+                + (f" (like: {st['open_questions']})" if st.get("open_questions") else "") if genie_earned(st) else
+                "NO genie_space: nobody here needs to ask open questions, the screens answer what they need")]
     else:
         need = ["one or two warm sentences marking the moment",
                 "read_back with a CONSOLIDATED brief_* for all seven sections (rewrite each so it matches every later "
@@ -348,7 +390,26 @@ def turn_contract(st: dict, meta: dict | None = None) -> str:
     return "THIS TURN YOU MUST: " + "; ".join(need) + ". Call the tools in the same reply as your chat."
 
 
+HOW_WORDS = {"ask_questions": r"\b(ask|asks|asking|question|questions|chat|why|explore|dig)\b",
+             "edit_draft": r"\b(draft|drafts|edit|edits|rewrite|write|doc|document|proposal|tweak)\b",
+             "act_on_list": r"\b(list|ranked|rank|queue|top|approve|swap|pick|worklist|triage|act|confirm)\b",
+             "watch_numbers": r"\b(number|numbers|trend|trends|chart|charts|glance|scan|kpi|total|totals)\b"}
+
+
+def take_how(st: dict, user_text: str):
+    """The turn after we asked how they'll use it: record their answer in code, so the Genie decision never
+    depends on the model remembering to call update_brief.how_used."""
+    if st.pop("how_pending", False) and not st.get("how_used"):
+        cards = st.pop("how_cards", {}) or {}
+        got = [k for lbl, k in cards.items() if lbl and lbl.lower() in (user_text or "").lower()]   # they clicked
+        if not got:                                                                                # they typed
+            got = [k for k, rx in HOW_WORDS.items() if re.search(rx, user_text or "", re.I)]
+        if got:
+            st["how_used"] = list(dict.fromkeys(got))
+
+
 def messages(st: dict, ds, user_text: str, meta: dict | None = None) -> list:
+    take_how(st, user_text)
     ctx = f"CURRENT SESSION STATE (source of truth, harness-owned): {_state_view(st)}\n{turn_contract(st, meta)}"
     if st["stage"] == "readback":
         ctx += ("\nEVERYTHING THE PARTICIPANT SAID, in order (the ground truth for the consolidated brief):\n"
@@ -420,7 +481,7 @@ def _options(v) -> list:
             o = {"label": o}
         if isinstance(o, dict) and str(o.get("label") or "").strip():
             out.append({"label": sd._strip_dashes(str(o["label"])), "sub": sd._strip_dashes(str(o.get("sub") or "")),
-                        "consider": sd._strip_dashes(str(o.get("consider") or ""))})
+                        "consider": sd._strip_dashes(str(o.get("consider") or "")), "kind": str(o.get("kind") or "")})
     return out[:3]
 
 
@@ -448,7 +509,7 @@ def normalize(calls: list) -> list:
                               for i in range(1, 6) if str(a.get(f"unknown_{i}") or "").strip()]}
         if n in ("present_options", "stakeholder"):
             flat = [{"label": a.get(f"option_{i}"), "sub": a.get(f"option_{i}_sub", ""),
-                     "consider": a.get(f"option_{i}_consider", "")}
+                     "consider": a.get(f"option_{i}_consider", ""), "kind": a.get(f"option_{i}_kind", "")}
                     for i in (1, 2, 3) if str(a.get(f"option_{i}") or "").strip()]
             a = {k: v for k, v in a.items() if not k.startswith("option_")}
             a["options"] = _options(flat or a.get("options"))
@@ -529,6 +590,8 @@ def apply_tools(st: dict, calls: list, user_meta: dict) -> tuple[list, list]:
                                    for x in st.setdefault("facts", [])):
                     st["facts"].append(fct)
             st["facts"] = st.get("facts", [])[-30:]
+            if a.get("open_questions"):
+                st["open_questions"] = sd._strip_dashes(str(a["open_questions"]))[:160]
             old = st["brief"].get(a["dim"])
             st["brief"][a["dim"]] = untag_said(sd._strip_dashes(a["text"]), st)
             events.append({"kind": "brief_updated" if old else "brief_added", "dim": a["dim"],
@@ -583,7 +646,11 @@ def apply_tools(st: dict, calls: list, user_meta: dict) -> tuple[list, list]:
             st.setdefault("open_asked", []).append(st["stage"])
             ui.append({"type": "open", "question": sd._strip_dashes(a["question"]), "hint": sd._strip_dashes(a.get("hint", ""))})
         elif n == "present_options" and a.get("options"):
-            ui.append({"type": "options", "question": a.get("question", ""), "options": a["options"][:3]})
+            kinds = {o["label"]: o.get("kind") for o in a["options"][:3] if o.get("kind") in HOW_USED}
+            if kinds and not st.get("how_used"):          # the how-they-use-it question: remember what each card means
+                st["how_cards"], st["how_pending"], st["how_asked"] = kinds, True, True
+            ui.append({"type": "options", "question": a.get("question", ""),
+                       "options": [{k: v for k, v in o.items() if k != "kind"} for o in a["options"][:3]]})
         elif n == "offer_shapes" and a.get("shapes"):
             st["shape_options"] = a["shapes"]
             ui.append({"type": "shapes", **a})
@@ -591,8 +658,12 @@ def apply_tools(st: dict, calls: list, user_meta: dict) -> tuple[list, list]:
             feats = [f for f in a["features"] if isinstance(f, dict) and f.get("name")]
             for f in feats:
                 f["block"] = sd.block_of(f.get("block"))
+            # Genie only when people genuinely ask open questions; otherwise the app's screens do the job.
+            if not genie_earned(st) and any(f["block"] == "genie_space" for f in feats):
+                feats = [f for f in feats if f["block"] != "genie_space"]
+                st["genie_dropped"] = True                 # silently: "not needed" is not a later item
             st["features"] = feats
-            sd.apply_package(st, "recommended")
+            sd.apply_package(st, sd.build_packages(feats)["recommended"])
             st["stage"] = "scope"                          # scope stays open until they continue
             ui.append({"type": "scope", "features": st["features"],
                        "packages": sd.build_packages(st["features"])["packages"]})

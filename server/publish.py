@@ -66,7 +66,7 @@ def _build_practices(steps: list[BuildStep], data_mode: str) -> list[str]:
     if any(c == "data" for c in caps) or not caps:
         d = f"{GUARDRAILS['data']} {DATA_GUARDRAIL.get(data_mode, DATA_GUARDRAIL['synthetic'])}"
         out.append(f"**Data** — {d}")
-    for cap in ["Declarative Pipelines", "Lakebase", "Genie", "AI/BI Dashboards", "Databricks Apps"]:
+    for cap in ["Declarative Pipelines", "Lakebase", "Genie", "Databricks Apps"]:
         if cap in caps and cap in GUARDRAILS:
             out.append(f"**{cap}** — {GUARDRAILS[cap].strip()}")
     return out
@@ -109,11 +109,11 @@ def _project_md(*, idea: str, prd_markdown: str, decisions: list[Decision], step
         out += ["## Build practices — follow these throughout", ""]
         out += [f"- {p}" for p in practices]
         out += ["- **Medallion, gold-first**: Declarative Pipelines take data bronze (raw) -> silver (cleaned, joined) "
-                "-> gold (ready to use). Genie, dashboards and the app read ONLY gold tables. Scores, flags, rankings and "
+                "-> gold (ready to use). Genie and the app read ONLY gold tables. Scores, flags, rankings and "
                 "drafted suggestions are explainable rule columns in gold (a score, a flag, a reason). There are no AI agents "
                 "in this build.",
-                "- **Genie Code builds everything except the app**: the data, the pipeline, the Genie space, the dashboard "
-                "and the Lakebase tables. The app is built in **Genie App Builder** (Apps > Build tab), from the prompt in "
+                "- **Genie Code builds everything except the app**: the data, the pipeline, the Genie space and "
+                "the Lakebase tables. The app is built in **Genie App Builder** (Apps > Build tab), from the prompt in "
                 "its step. When you reach that step, stop and hand the prompt to the person; do not hand-build an app.",
                 "- **Notebooks**: the first line must be `# Databricks notebook source`, and separate every cell with a "
                 "line reading `# COMMAND ----------`, or the cells silently merge into one.",
