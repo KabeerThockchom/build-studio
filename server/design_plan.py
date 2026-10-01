@@ -8,16 +8,17 @@ from .scope import WORKSHOP_SCOPE, VOICE
 from .models import DesignPlan, DesignQuestion, DesignOption, CapabilityPick, PlanRequest
 
 # The fixed capability vocabulary the SA may choose from (no inventing).
-# No Lakeflow: a one-day workshop never stands up a new live ingestion source —
-# data is sample data, a spreadsheet turned into a table, or an existing table.
+# This is the Publix data-engineering-to-app stack: stream events in with Zerobus,
+# shape them through an SDP medallion (bronze/silver/gold), then serve with Genie,
+# Lakebase, and a Databricks App.
 CAPABILITIES = [
-    "Genie", "Knowledge Assistant", "Supervisor agent",
+    "Zerobus", "SDP medallion", "Genie",
     "Lakebase", "Databricks Apps",
 ]
 CAP_BLURB = {
-    "Genie": "plain-English questions over governed data",
-    "Knowledge Assistant": "managed RAG over documents/notes",
-    "Supervisor agent": "an agent that routes across the other tools",
+    "Zerobus": "real-time event ingest straight into the lakehouse (no message bus)",
+    "SDP medallion": "a declarative bronze/silver/gold pipeline that produces clean gold tables",
+    "Genie": "plain-English questions over governed gold data",
     "Lakebase": "Postgres for app state / recording decisions",
     "Databricks Apps": "hosts the interface people open",
 }
@@ -55,22 +56,23 @@ assume their build is an app, or an agent, or anything — you read THEIR idea a
 The ONLY capabilities you may pre-select from (never invent others):
 {chr(10).join(f'- {c}: {CAP_BLURB[c]}' for c in CAPABILITIES)}
 
-The architecture is PRESCRIBED: every build uses Genie, a Supervisor agent, Lakebase, and Databricks
-Apps — always. So mark those four selected:true, and for each write a "fits" that is ONE positive line
-saying what THAT piece does for THIS idea, grounded in the real subject matter (e.g. for an invoice
-build: Lakebase records each approve/override decision as the audit trail; the Supervisor agent reads
-each invoice, matches it, and drafts a recommendation; Genie answers questions over the invoice data).
-NEVER write a "not needed", "optional", or "you'd add it later" rationale for these four — they are
+The architecture is PRESCRIBED: every build uses Zerobus, SDP medallion, Genie, Lakebase, and Databricks
+Apps — always. So mark those five selected:true, and for each write a "fits" that is ONE positive line
+saying what THAT piece does for THIS idea, grounded in the real subject matter (e.g. for a store-events
+build: Zerobus streams events from every register into a table in seconds; the SDP medallion shapes
+the raw events into clean, analysis-ready gold tables; Genie lets store managers ask those gold tables
+questions about trends and outliers; Lakebase records any approval decisions the manager makes; the app
+shows the ranked items and the manager's decision log).
+NEVER write a "not needed", "optional", or "you'd add it later" rationale for these five — they are
 always in the build, and this text is shown to the participant as the piece's role in the architecture,
 so a "not needed" line directly contradicts what they then build.
-- If the idea reads like a dashboard/report rather than a chat, reflect that in the "fits" — don't
-  assume a chat agent. When it's a dashboard/report build, write Genie's "fits" as powering the numbers
-  and charts behind the scenes, NOT "ask follow-up questions" or "chat." For the Supervisor agent on a
-  single-purpose build, frame its "fits" as doing the one repeatable job (reading, matching, drafting,
-  ranking), not "routing across many tools." Match the "fits" language to how they said they'll interact.
-- Knowledge Assistant is the ONLY optional piece: mark it selected:true (with a positive "fits") only if
-  the idea has documents/notes/text to answer from; otherwise mark it selected:false with a short "fits"
-  saying when they'd add it.
+- Zerobus fits: where the events come from; what Zerobus does for THIS idea (streams events from
+  registers / sensors / systems into the lakehouse).
+- SDP medallion fits: how raw events become clean gold tables for THIS idea (what bronze/silver/gold do,
+  any specific cleaning or enrichment).
+- Genie fits: what questions the gold tables answer for THIS idea.
+- Lakebase fits: what app decisions Lakebase records for THIS idea.
+- Databricks Apps fits: what screen the participant opens and what they do in it.
 
 Generate ALL of the design questions, every one tailored to THIS specific idea. Do not use
 generic templated questions — a question a smart SA wouldn't bother asking for this idea should
@@ -273,10 +275,10 @@ def fallback_plan(idea: str = "") -> DesignPlan:
                                "The rest of the design flexes to match.", "Most tailored."]),
         ],
         capabilities=[
-            CapabilityPick(name="Genie", selected=True, fits="ask your data in plain English"),
-            CapabilityPick(name="Knowledge Assistant", selected=True, fits="understand notes & docs"),
-            CapabilityPick(name="Supervisor agent", selected=True, fits="tie the pieces together"),
-            CapabilityPick(name="Lakebase", selected=True, fits="record decisions"),
-            CapabilityPick(name="Databricks Apps", selected=True, fits="the front door"),
+            CapabilityPick(name="Zerobus", selected=True, fits="stream events straight into the lakehouse"),
+            CapabilityPick(name="SDP medallion", selected=True, fits="shape raw events into clean gold tables"),
+            CapabilityPick(name="Genie", selected=True, fits="ask your gold data in plain English"),
+            CapabilityPick(name="Lakebase", selected=True, fits="record what people decide in the app"),
+            CapabilityPick(name="Databricks Apps", selected=True, fits="the front door people open"),
         ],
     )
