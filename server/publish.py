@@ -144,11 +144,11 @@ def _project_md(*, idea: str, prd_markdown: str, decisions: list[Decision], step
 
 
 # ── Brand / design spec ─────────────────────────────────────────────────────
-# Costa brand foundation + three reference "flavors" (from design/mockups). Goal: every
+# Publix brand foundation + three reference "flavors" (from design/mockups). Goal: every
 # participant's app looks on-brand but NOT identical. We hand Genie Code the palette + logo,
 # three worked directions, recommend the one that fits their app, and tell it to ADAPT (not
 # clone). Lives in its own design.md so PROJECT.md stays lean.
-LOGO_NAME = "costa.png"
+LOGO_NAME = "publix.svg"
 _FLAVORS = {
     "A": ("Warm Editorial",
           "Young Serif (display) + Hanken Grotesk (body), both Google Fonts. Conversational and human — reads "
@@ -185,28 +185,28 @@ _NEUTRAL_FLAVORS = {
 
 
 def _design_md(*, idea: str, interaction_model: str, brand: bool = False) -> str:
-    """The visual brief. brand=True is the Costa workshop pack (palette + logo); otherwise the same three
+    """The visual brief. brand=True is the Publix workshop pack (palette + logo); otherwise the same three
     directions in a neutral palette, so every app still looks designed, not default."""
     flavors = _FLAVORS if brand else _NEUTRAL_FLAVORS
     rec = _recommend_flavor(interaction_model)
     rec_name = flavors[rec][0]
     if brand:
         out = [
-            "# Design & brand spec — Costa", "",
-            "This app is for Costa, so it must look like a Costa product. Below is the brand foundation to keep, "
+            "# Design & brand spec — Publix", "",
+            "This app is for Publix, so it must look like a Publix product. Below is the brand foundation to keep, "
             "then three worked **flavors** as reference directions. **Pick ONE flavor as your starting point, then "
             "adapt it to this app's real screens** — don't clone a mockup, and don't make every app identical; vary "
             "tastefully within the brand. Deviate only if the app truly calls for it, and stay on-brand.", "",
             "## Brand foundation (always)",
-            f"- **Logo**: `{LOGO_NAME}` is in this project folder (512×512 PNG). Package it INTO the app — copy it "
+            f"- **Logo**: `{LOGO_NAME}` is in this project folder (512×512 SVG). Package it INTO the app — copy it "
             "into the frontend's static assets (e.g. Vite `public/`) so it ships inside `dist/`, and use it in the "
             "header and as the favicon. Do NOT hotlink an external URL (the app's CSP will block it).",
-            "- **Primary brand color**: Costa maroon `#730723` (deep burgundy) — the anchor. Header, primary "
-            "actions, key emphasis. Use `#59071c` for hover/depth.",
+            "- **Primary brand color**: Publix green `#4c8c2b` (the Publix mark green) — the anchor. Header, primary "
+            "actions, key emphasis. Use `#3a6a20` for hover/depth.",
             "- **Page ground**: warm cream (`#faf4ea` / `#f6f3ee`), never pure `#ffffff` as the canvas. Cards sit "
             "on the cream as white/lighter-cream surfaces.",
-            "- **Positive / approved**: green `#3f7d55`. **Secondary / heritage accent**: gold `#b57f36` (sparingly). "
-            "**Text/ink**: warm near-black `#211318`.",
+            "- **Positive / approved**: green `#4c8c2b` (Publix green, primary). **Secondary accent**: a cool blue "
+            "`#0066cc` or warm gold `#d4a574` (sparingly). **Text/ink**: warm near-black `#211318`.",
         ]
     else:
         out = [
@@ -248,7 +248,7 @@ def _design_md(*, idea: str, interaction_model: str, brand: bool = False) -> str
 
 
 def _logo_path() -> str:
-    """Absolute path to the bundled Costa logo (design/mockups/costa.png), repo-relative."""
+    """Absolute path to the bundled Publix logo (design/mockups/publix.svg), repo-relative."""
     return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                         "design", "mockups", LOGO_NAME)
 
@@ -290,15 +290,15 @@ def publish_assets(*, idea: str, prd_markdown: str, capabilities: list[str],
     # a failure here never blocks the build (the plan still stands).
     files_written = [DOC_NAME]
     try:
-        # design.md ships with every build; the Costa brand pack (palette + logo) only for a Costa workshop.
+        # design.md ships with every build; the Publix brand pack (palette + logo) only for a Publix workshop.
         from .sitdown import DEFAULT_CONTEXT
-        costa = "costa" in DEFAULT_CONTEXT.get("org", "").lower()
-        design = _design_md(idea=idea, interaction_model=(design_answers or {}).get("interaction_model", ""), brand=costa)
+        publix = "publix" in DEFAULT_CONTEXT.get("org", "").lower()
+        design = _design_md(idea=idea, interaction_model=(design_answers or {}).get("interaction_model", ""), brand=publix)
         w.workspace.upload(f"{target}/design.md", io.BytesIO(design.encode("utf-8")),
                            format=ImportFormat.RAW, overwrite=True)
         files_written.append("design.md")
         logo_src = _logo_path()
-        if costa and os.path.exists(logo_src):
+        if publix and os.path.exists(logo_src):
             with open(logo_src, "rb") as fh:
                 w.workspace.upload(f"{target}/{LOGO_NAME}", io.BytesIO(fh.read()),
                                    format=ImportFormat.RAW, overwrite=True)
